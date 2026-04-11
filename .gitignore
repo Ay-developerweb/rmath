@@ -1,7 +1,6 @@
 # Rust
 /target/
 **/*.rs.bk
-Cargo.lock
 
 # Python
 __pycache__/
@@ -38,7 +37,6 @@ telemetry.csv
 /rust_math_test/
 
 /comparison_test/
-/docs/html/
 /docs/portal/rmath_logo.png
 /docs/portal/rmath_logo_svg_*.png
 /benchmarks/

@@ -1,5 +1,5 @@
 # RMath: High-Performance Mathematical Toolkit
-from .rmath import (
+from ._rmath import (
     Array, Vector, Scalar, 
     scalar, stats, vector, array, 
     constants, geometry, linalg, nn,
