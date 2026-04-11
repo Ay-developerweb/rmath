@@ -48,7 +48,7 @@ Real-time descriptive and inferential statistics.
 Install the pre-compiled binaries via pip:
 
 ```bash
-pip install rmath
+pip install rmath-py
 ```
 
 ---

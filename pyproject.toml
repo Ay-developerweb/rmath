@@ -3,7 +3,7 @@ requires = ["maturin>=1.12,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "rmath-engine"
+name = "rmath-py"
 description = "High-performance numerical toolkit backed by Rust"
 readme = "README.md"
 requires-python = ">=3.8"
