@@ -1,0 +1,181 @@
+name: CI & Publish
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+
+  # ─────────────────────────────────────────────
+  # 1. STANDARD WHEELS: Windows, macOS, x86_64 Linux
+  # ─────────────────────────────────────────────
+  build_wheels:
+    name: Build wheels (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Build wheels
+        uses: PyO3/maturin-action@v1
+        env:
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
+        with:
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
+          manylinux: auto
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: dist
+
+  # ─────────────────────────────────────────────
+  # 2. AARCH64 LINUX WHEELS (covers Termux ARM64)
+  # ─────────────────────────────────────────────
+  build_wheels_aarch64:
+    name: Build wheels (Linux aarch64)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build aarch64 wheels
+        uses: PyO3/maturin-action@v1
+        env:
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
+        with:
+          target: aarch64
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
+          manylinux: auto
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-aarch64
+          path: dist
+
+  # ─────────────────────────────────────────────
+  # 3. ARMV7 WHEELS (32-bit ARM, older Android/Pi)
+  # ─────────────────────────────────────────────
+  build_wheels_armv7:
+    name: Build wheels (Linux armv7)
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build armv7 wheels
+        uses: PyO3/maturin-action@v1
+        env:
+          PYO3_USE_ABI3_FORWARD_COMPATIBILITY: 1
+        with:
+          target: armv7
+          args: --release --out dist --find-interpreter
+          sccache: 'true'
+          manylinux: auto
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-armv7
+          path: dist
+
+  # ─────────────────────────────────────────────
+  # 4. SDIST (source dist — compile-from-source fallback)
+  #    Termux users who face libc issues can use this:
+  #    pkg install rust && pip install rmath --no-binary rmath
+  # ─────────────────────────────────────────────
+  build_sdist:
+    name: Build sdist
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build sdist
+        uses: PyO3/maturin-action@v1
+        with:
+          command: sdist
+          args: --out dist
+
+      - name: Upload sdist
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheels-sdist
+          path: dist
+
+  # ─────────────────────────────────────────────
+  # 5. BASIC SMOKE TEST (import check after build)
+  # ─────────────────────────────────────────────
+  test:
+    name: Smoke test (${{ matrix.os }})
+    needs: [build_wheels]
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Download wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: wheels-${{ matrix.os }}
+          path: dist
+
+      - name: Install wheel and test
+        shell: bash
+        run: |
+          pip install --find-links dist rmath --no-index
+          python -c "import rmath; print('rmath imported OK:', dir(rmath))"
+
+  # ─────────────────────────────────────────────
+  # 6. PUBLISH TO PyPI (only on version tags)
+  # ─────────────────────────────────────────────
+  publish:
+    name: Publish to PyPI
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build_wheels, build_wheels_aarch64, build_wheels_armv7, build_sdist, test]
+    runs-on: ubuntu-latest
+
+    permissions:
+      id-token: write  # needed for trusted publishing (optional but recommended)
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: wheels-*
+          path: dist
+          merge-multiple: true
+
+      - name: List dist contents
+        run: ls -lh dist/
+
+      - name: Publish to PyPI
+        uses: PyO3/maturin-action@v1
+        env:
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_TOKEN }}
+        with:
+          command: upload
+          args: --non-interactive --skip-existing dist/*
