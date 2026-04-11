@@ -57,7 +57,7 @@ pip install rmath-py
 
 For the full API reference, architectural deep-dives, and performance benchmarks, visit our premium documentation portal:
 
-👉 **[https://Ay-developerweb.github.io/rmath/](https://Ay-developerweb.github.io/rmath/)**
+👉 **[https://Ay-developerweb.github.io/rmath/portal/](https://Ay-developerweb.github.io/rmath/portal/)**
 
 ---
 
