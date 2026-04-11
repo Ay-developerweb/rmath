@@ -1,89 +1,147 @@
-/* RMath Documentation Portal - Core Design System */
+/* ============================================================
+   RMath Documentation Portal — Fully Responsive Design System
+   Mobile-first, production-grade, all screen sizes
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=Syne:wght@400;600;700;800&display=swap');
+
+/* ============================================================
+   1. CSS Custom Properties (Design Tokens)
+   ============================================================ */
 :root {
-    --bg-main: #0a0c10;
-    --bg-card: rgba(23, 27, 34, 0.7);
-    --bg-sidebar: rgba(13, 17, 23, 0.85);
-    
-    --accent-primary: #00d2ff;
-    --accent-secondary: #9d50bb;
-    --accent-gradient: linear-gradient(135deg, #00d2ff 0%, #3a7bd5 100%);
-    --accent-glow: 0 0 20px rgba(0, 210, 255, 0.3);
-    
-    --text-main: #e6edf3;
-    --text-muted: #8b949e;
-    --text-heading: #ffffff;
-    
-    --border-color: rgba(48, 54, 61, 0.8);
-    --glass-blur: blur(12px);
-    
-    --font-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-    --font-mono: 'Fira Code', 'SFMono-Regular', Consolas, "Liberation Mono", Menlo, monospace;
-    
-    --sidebar-width: 280px;
-    --header-height: 70px;
+    /* Colors */
+    --bg-main:          #05070d;
+    --bg-card:          rgba(14, 18, 28, 0.75);
+    --bg-sidebar:       rgba(8, 11, 19, 0.96);
+    --bg-overlay:       rgba(0, 0, 0, 0.65);
+
+    --accent-primary:   #00d2ff;
+    --accent-secondary: #7c5cbf;
+    --accent-gradient:  linear-gradient(135deg, #00d2ff 0%, #3a7bd5 60%, #7c5cbf 100%);
+    --accent-glow:      0 0 24px rgba(0, 210, 255, 0.35);
+    --accent-glow-sm:   0 0 12px rgba(0, 210, 255, 0.2);
+
+    --text-main:        #dce6f0;
+    --text-muted:       #7a8899;
+    --text-heading:     #f0f6fc;
+    --text-code:        #cad1d8;
+
+    --border-color:     rgba(48, 58, 74, 0.9);
+    --border-active:    rgba(0, 210, 255, 0.4);
+
+    /* Glass effect */
+    --glass-blur:       blur(14px);
+
+    /* Typography */
+    --font-main:        'Syne', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --font-mono:        'Space Mono', 'SFMono-Regular', Consolas, "Liberation Mono", monospace;
+
+    /* Layout — FLUID sidebar using clamp */
+    --sidebar-width:    clamp(240px, 22vw, 300px);
+    --content-pad-x:    clamp(1.25rem, 5vw, 6rem);
+    --content-pad-y:    clamp(2rem, 4vw, 4.5rem);
+
+    /* Motion */
+    --ease-out-expo:    cubic-bezier(0.16, 1, 0.3, 1);
+    --ease-in-out:      cubic-bezier(0.4, 0, 0.2, 1);
     --transition-speed: 0.3s;
 }
 
-* {
+/* ============================================================
+   2. Reset & Base
+   ============================================================ */
+*, *::before, *::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+}
+
+html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
 }
 
 body {
     background-color: var(--bg-main);
     color: var(--text-main);
     font-family: var(--font-main);
-    line-height: 1.6;
+    line-height: 1.65;
     overflow-x: hidden;
+    min-height: 100dvh;
+    /* Subtle noise texture overlay */
+    background-image:
+        radial-gradient(ellipse 80% 50% at 50% -20%, rgba(0, 130, 200, 0.08) 0%, transparent 70%),
+        url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.03'/%3E%3C/svg%3E");
 }
 
-/* --- Layout Structure --- */
+img, video, svg {
+    max-width: 100%;
+    display: block;
+}
 
+a { color: inherit; text-decoration: none; }
+
+/* ============================================================
+   3. Layout — Sidebar + Content (Desktop-first with mobile override)
+   ============================================================ */
 .portal-container {
     display: flex;
-    min-height: 100vh;
+    min-height: 100dvh;
+    position: relative;
 }
 
-/* Sidebar Styling */
+/* ============================================================
+   4. Sidebar
+   ============================================================ */
 aside.sidebar {
     width: var(--sidebar-width);
     background: var(--bg-sidebar);
     backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
     border-right: 1px solid var(--border-color);
-    height: 100vh;
+    height: 100dvh;
     position: fixed;
     left: 0;
     top: 0;
-    z-index: 100;
+    z-index: 200;
     padding: 2rem 1.5rem;
     display: flex;
     flex-direction: column;
-    overflow-y: auto; /* Independent Side Nav Scroll */
+    overflow-y: auto;
+    overscroll-behavior: contain;
+
+    /* Custom thin scrollbar */
     scrollbar-width: thin;
-    scrollbar-color: var(--accent-primary) transparent;
+    scrollbar-color: rgba(0, 210, 255, 0.3) transparent;
+
+    /* Desktop: always visible */
+    transform: translateX(0);
+    transition: transform 0.4s var(--ease-out-expo), box-shadow 0.3s ease;
 }
 
-aside.sidebar::-webkit-scrollbar {
-    width: 4px;
-}
-
+aside.sidebar::-webkit-scrollbar { width: 3px; }
+aside.sidebar::-webkit-scrollbar-track { background: transparent; }
 aside.sidebar::-webkit-scrollbar-thumb {
-    background: var(--accent-primary);
+    background: rgba(0, 210, 255, 0.3);
     border-radius: 10px;
 }
 
+/* ============================================================
+   5. Logo
+   ============================================================ */
 .logo-container {
     display: flex;
     align-items: center;
     gap: 12px;
-    margin-bottom: 3rem;
+    margin-bottom: 2.5rem;
     text-decoration: none;
+    flex-shrink: 0;
 }
 
 .logo-icon {
     width: 38px;
     height: 38px;
+    min-width: 38px;
     background: var(--accent-gradient);
     border-radius: 10px;
     display: flex;
@@ -91,136 +149,107 @@ aside.sidebar::-webkit-scrollbar-thumb {
     justify-content: center;
     font-weight: 800;
     color: white;
-    font-size: 1.2rem;
+    font-size: 1.1rem;
     box-shadow: var(--accent-glow);
+    font-family: var(--font-mono);
 }
 
-/* Search Bar Styling */
+.logo-text {
+    font-size: 1.15rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    letter-spacing: -0.5px;
+    line-height: 1.2;
+    white-space: nowrap;
+}
+
+.logo-sub {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+    font-weight: 400;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+
+/* ============================================================
+   6. Sidebar Search
+   ============================================================ */
 .search-container {
     position: relative;
     margin-bottom: 2rem;
+    flex-shrink: 0;
 }
 
 .search-container input {
     width: 100%;
-    background: rgba(255, 255, 255, 0.05);
+    background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--border-color);
-    border-radius: 8px;
-    padding: 0.7rem 1rem 0.7rem 2.4rem;
+    border-radius: 10px;
+    padding: 0.65rem 1rem 0.65rem 2.4rem;
     color: var(--text-heading);
-    font-family: inherit;
-    font-size: 0.9rem;
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
     outline: none;
-    transition: all 0.2s;
+    transition: all 0.2s var(--ease-in-out);
+    -webkit-appearance: none;
 }
+
+.search-container input::placeholder { color: var(--text-muted); }
 
 .search-container input:focus {
     border-color: var(--accent-primary);
-    background: rgba(255, 255, 255, 0.08);
-    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.1);
+    background: rgba(0, 210, 255, 0.04);
+    box-shadow: 0 0 0 3px rgba(0, 210, 255, 0.08);
 }
 
 .search-icon {
     position: absolute;
-    left: 12px;
+    left: 10px;
     top: 50%;
     transform: translateY(-50%);
-    opacity: 0.5;
-    font-size: 0.9rem;
+    opacity: 0.4;
+    font-size: 0.85rem;
+    pointer-events: none;
+    color: var(--accent-primary);
 }
 
-/* --- Mobile Menu Toggle --- */
-.menu-toggle {
-    display: none;
-    position: fixed;
-    top: 20px;
-    right: 20px;
-    z-index: 1000;
-    background: var(--accent-gradient);
-    border: none;
-    border-radius: 8px;
-    padding: 10px;
-    cursor: pointer;
-    box-shadow: var(--accent-glow);
-}
-
-.menu-toggle span {
-    display: block;
-    width: 24px;
-    height: 2px;
-    background: white;
-    margin: 5px 0;
-    transition: 0.3s;
-}
-
-/* Sidebar Responsive Behavior */
-@media (max-width: 1024px) {
-    .menu-toggle { display: block; }
-    
-    aside.sidebar {
-        transform: translateX(-100%);
-        transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
-        width: 300px;
-        box-shadow: 20px 0 50px rgba(0,0,0,0.5);
-    }
-    
-    aside.sidebar.open {
-        transform: translateX(0);
-    }
-    
-    main.content {
-        margin-left: 0;
-        padding: 4rem 2rem;
-    }
-    
-    .hero h1 { font-size: 2.5rem; }
-}
-
-.sidebar-overlay {
-    display: none;
-    position: fixed;
-    inset: 0;
-    background: rgba(0,0,0,0.6);
-    backdrop-filter: blur(4px);
-    z-index: 95;
-}
-
-.sidebar-overlay.active {
-    display: block;
-}
-
-.nav-group {
-    margin-bottom: 2rem;
-}
+/* ============================================================
+   7. Sidebar Navigation
+   ============================================================ */
+.nav-group { margin-bottom: 2rem; }
 
 .nav-label {
     text-transform: uppercase;
-    font-size: 0.75rem;
-    font-weight: 600;
+    font-size: 0.68rem;
+    font-weight: 700;
     color: var(--text-muted);
-    letter-spacing: 1px;
-    margin-bottom: 0.8rem;
+    letter-spacing: 1.5px;
+    margin-bottom: 0.6rem;
     display: block;
+    padding: 0 0.5rem;
 }
 
 .nav-link {
     display: flex;
     align-items: center;
-    padding: 0.7rem 1rem;
+    gap: 0.6rem;
+    padding: 0.6rem 0.85rem;
     color: var(--text-muted);
     text-decoration: none;
-    border-radius: 10px;
-    font-size: 0.95rem;
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    margin-bottom: 0.2rem;
+    border-radius: 8px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s var(--ease-in-out);
+    margin-bottom: 0.1rem;
     position: relative;
     overflow: hidden;
+    white-space: nowrap;
 }
 
 .nav-link:hover {
     color: var(--text-main);
     background: rgba(255, 255, 255, 0.05);
-    padding-left: 1.25rem;
+    padding-left: 1.1rem;
 }
 
 .nav-link.active {
@@ -240,24 +269,445 @@ aside.sidebar::-webkit-scrollbar-thumb {
     border-radius: 0 4px 4px 0;
 }
 
-/* Main Content Area */
+/* Sidebar spacer */
+.sidebar-spacer { flex: 1; }
+
+/* Sidebar footer */
+.sidebar-footer {
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--border-color);
+    flex-shrink: 0;
+}
+
+.sidebar-version {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.version-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: var(--accent-primary);
+    box-shadow: var(--accent-glow-sm);
+    animation: pulse-dot 2s infinite;
+}
+
+@keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+}
+
+/* ============================================================
+   8. Mobile Menu Toggle Button
+   ============================================================ */
+.menu-toggle {
+    display: none; /* Hidden on desktop */
+    position: fixed;
+    top: 1rem;
+    left: 1rem;  /* Left side — near sidebar */
+    z-index: 300;
+    background: var(--bg-sidebar);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    padding: 10px 12px;
+    cursor: pointer;
+    box-shadow: var(--accent-glow-sm), 0 4px 20px rgba(0,0,0,0.4);
+    transition: all 0.2s ease;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.menu-toggle:hover {
+    border-color: var(--accent-primary);
+    box-shadow: var(--accent-glow);
+}
+
+.menu-toggle span {
+    display: block;
+    width: 20px;
+    height: 2px;
+    background: var(--text-main);
+    border-radius: 2px;
+    transition: all 0.3s var(--ease-out-expo);
+}
+
+.menu-toggle span + span { margin-top: 5px; }
+
+/* Animated hamburger → X */
+.menu-toggle.open span:nth-child(1) {
+    transform: translateY(7px) rotate(45deg);
+}
+.menu-toggle.open span:nth-child(2) {
+    opacity: 0;
+    transform: scaleX(0);
+}
+.menu-toggle.open span:nth-child(3) {
+    transform: translateY(-7px) rotate(-45deg);
+}
+
+/* ============================================================
+   9. Sidebar Overlay (Mobile)
+   ============================================================ */
+.sidebar-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg-overlay);
+    backdrop-filter: blur(6px);
+    -webkit-backdrop-filter: blur(6px);
+    z-index: 150;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+    display: block;
+    opacity: 1;
+}
+
+/* ============================================================
+   10. Main Content Area
+   ============================================================ */
 main.content {
     flex: 1;
     margin-left: var(--sidebar-width);
-    padding: 4rem 6rem;
-    max-width: 1400px;
+    padding: var(--content-pad-y) var(--content-pad-x);
+    max-width: calc(var(--sidebar-width) + 900px);
+    width: 100%;
+    transition: margin-left 0.4s var(--ease-out-expo);
 }
 
-/* On This Page Navigation Refinement */
-#onThisPage .nav-link {
+/* ============================================================
+   11. Hero Section
+   ============================================================ */
+.hero {
+    margin-bottom: clamp(3rem, 6vw, 5rem);
+    animation: fadeInUp 0.7s var(--ease-out-expo) both;
+}
+
+@keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    background: rgba(0, 210, 255, 0.08);
+    border: 1px solid rgba(0, 210, 255, 0.2);
+    border-radius: 100px;
+    color: var(--accent-primary);
+    font-size: 0.78rem;
+    font-weight: 700;
+    margin-bottom: 1.5rem;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    font-family: var(--font-mono);
+}
+
+h1 {
+    font-size: clamp(2rem, 5.5vw, 4rem);
+    font-weight: 800;
+    letter-spacing: -1.5px;
+    margin-bottom: 1.25rem;
+    line-height: 1.1;
+    color: var(--text-heading);
+}
+
+.gradient-text {
+    background: var(--accent-gradient);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+
+.intro-text {
+    font-size: clamp(1rem, 2.2vw, 1.2rem);
+    color: var(--text-muted);
+    max-width: 640px;
+    margin-bottom: 2.5rem;
+    line-height: 1.75;
+}
+
+/* CTA Buttons */
+.hero-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+}
+
+.btn-primary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.8rem 1.75rem;
+    background: var(--accent-gradient);
+    color: white;
+    border-radius: 10px;
+    font-weight: 700;
+    font-size: 0.95rem;
+    transition: all 0.25s ease;
+    box-shadow: var(--accent-glow-sm);
+    white-space: nowrap;
+}
+
+.btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--accent-glow);
+}
+
+.btn-secondary {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0.8rem 1.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border-color);
+    color: var(--text-main);
+    border-radius: 10px;
+    font-weight: 600;
+    font-size: 0.95rem;
+    transition: all 0.25s ease;
+    white-space: nowrap;
+}
+
+.btn-secondary:hover {
+    border-color: var(--accent-primary);
+    color: var(--accent-primary);
+    background: rgba(0, 210, 255, 0.05);
+}
+
+/* ============================================================
+   12. Section Headings
+   ============================================================ */
+h2 {
+    font-size: clamp(1.4rem, 3vw, 2rem);
+    font-weight: 800;
+    color: var(--text-heading);
+    letter-spacing: -0.5px;
+    margin-bottom: 1rem;
+}
+
+h3 {
+    font-size: clamp(1.1rem, 2vw, 1.45rem);
+    font-weight: 700;
+    color: var(--text-heading);
+    letter-spacing: -0.3px;
+    margin-bottom: 0.75rem;
+}
+
+p { margin-bottom: 1rem; }
+
+/* ============================================================
+   13. Module / Doc Cards Grid
+   ============================================================ */
+.module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 280px), 1fr));
+    gap: clamp(1rem, 2.5vw, 1.5rem);
+    margin-top: clamp(1.5rem, 4vw, 3rem);
+}
+
+.doc-card {
+    background: var(--bg-card);
+    backdrop-filter: var(--glass-blur);
+    -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border-color);
+    border-radius: 16px;
+    padding: clamp(1.25rem, 3vw, 2rem);
+    transition:
+        transform var(--transition-speed) var(--ease-out-expo),
+        border-color var(--transition-speed) ease,
+        box-shadow var(--transition-speed) ease;
+    text-decoration: none;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.doc-card:hover {
+    transform: translateY(-6px);
+    border-color: var(--border-active);
+    box-shadow:
+        0 12px 32px rgba(0, 0, 0, 0.5),
+        0 0 16px rgba(0, 210, 255, 0.08);
+}
+
+/* Touch devices: no hover lift, use active state */
+@media (hover: none) {
+    .doc-card:hover { transform: none; }
+    .doc-card:active {
+        border-color: var(--border-active);
+        background: rgba(0, 210, 255, 0.04);
+    }
+}
+
+.card-icon {
+    width: 44px;
+    height: 44px;
+    background: var(--accent-gradient);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.2rem;
+    box-shadow: var(--accent-glow-sm);
+    flex-shrink: 0;
+}
+
+.card-meta {
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    color: var(--accent-primary);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    opacity: 0.7;
+}
+
+.card-desc {
+    font-size: 0.9rem;
+    color: var(--text-muted);
+    line-height: 1.6;
+}
+
+.card-arrow {
+    margin-top: auto;
+    color: var(--text-muted);
     font-size: 0.85rem;
-    padding: 0.5rem 1rem;
-    border-left: none; /* Removed old border style */
-    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    transition: all 0.2s ease;
 }
 
-#onThisPage .nav-link:hover {
-    padding-left: 1.2rem;
+.doc-card:hover .card-arrow {
+    color: var(--accent-primary);
+    gap: 8px;
+}
+
+/* ============================================================
+   14. Code Window / Block
+   ============================================================ */
+.code-window {
+    background: #080b12;
+    border: 1px solid var(--border-color);
+    border-radius: 14px;
+    margin: clamp(1rem, 3vw, 2rem) 0;
+    overflow: hidden;
+    position: relative;
+}
+
+.code-header {
+    background: rgba(255, 255, 255, 0.025);
+    padding: 0.7rem 1.1rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid var(--border-color);
+    gap: 0.75rem;
+}
+
+.window-dots {
+    display: flex;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.dot { width: 11px; height: 11px; border-radius: 50%; }
+.dot.red    { background: #ff5f56; }
+.dot.yellow { background: #ffbd2e; }
+.dot.green  { background: #27c93f; }
+
+.code-filename {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    flex: 1;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.copy-btn {
+    background: rgba(255, 255, 255, 0.06);
+    border: 1px solid var(--border-color);
+    color: var(--text-muted);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 0.72rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-weight: 700;
+    font-family: var(--font-mono);
+    flex-shrink: 0;
+    white-space: nowrap;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.copy-btn:hover {
+    background: rgba(0, 210, 255, 0.12);
+    color: var(--accent-primary);
+    border-color: rgba(0, 210, 255, 0.3);
+}
+
+.copy-btn.copied {
+    background: rgba(39, 201, 63, 0.12);
+    color: #27c93f;
+    border-color: rgba(39, 201, 63, 0.3);
+}
+
+pre {
+    padding: clamp(1rem, 3vw, 1.5rem);
+    font-family: var(--font-mono);
+    font-size: clamp(0.78rem, 1.5vw, 0.9rem);
+    overflow-x: auto;
+    color: var(--text-code);
+    line-height: 1.7;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Syntax colors */
+.keyword  { color: #ff7b72; }
+.function { color: #d2a8ff; }
+.string   { color: #a5d6ff; }
+.comment  { color: #5c6672; font-style: italic; }
+.number   { color: #79c0ff; }
+.operator { color: #ff9f43; }
+.type     { color: #ffd580; }
+
+/* ============================================================
+   15. "On This Page" Sidebar (Right-hand TOC)
+   ============================================================ */
+.toc-container {
+    position: fixed;
+    top: 2rem;
+    right: max(1rem, calc((100vw - (var(--sidebar-width) + 900px)) / 2));
+    width: 200px;
+    padding: 1.25rem;
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    backdrop-filter: var(--glass-blur);
+    display: none; /* Show via JS on wide screens */
+}
+
+/* ============================================================
+   16. Inline TOC Nav (#onThisPage in sidebar)
+   ============================================================ */
+#onThisPage .nav-link {
+    font-size: 0.82rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 7px;
 }
 
 #onThisPage .nav-link.active {
@@ -265,145 +715,280 @@ main.content {
     color: var(--accent-primary);
 }
 
-/* --- Components --- */
+/* ============================================================
+   17. Misc Content Components
+   ============================================================ */
 
-/* Hero Section */
-.hero {
-    margin-bottom: 5rem;
-    animation: fadeIn 0.8s ease-out;
+/* Callout / Alert boxes */
+.callout {
+    border-radius: 10px;
+    padding: 1rem 1.25rem;
+    margin: 1.5rem 0;
+    border-left: 3px solid var(--accent-primary);
+    background: rgba(0, 210, 255, 0.05);
+    font-size: 0.92rem;
 }
 
-@keyframes fadeIn {
-    from { opacity: 0; transform: translateY(20px); }
-    to { opacity: 1; transform: translateY(0); }
+.callout.warning {
+    border-left-color: #ffbd2e;
+    background: rgba(255, 189, 46, 0.05);
 }
 
-.badge {
-    display: inline-block;
-    padding: 4px 12px;
-    background: rgba(0, 210, 255, 0.1);
-    border: 1px solid rgba(0, 210, 255, 0.2);
-    border-radius: 20px;
+.callout.danger {
+    border-left-color: #ff5f56;
+    background: rgba(255, 95, 86, 0.05);
+}
+
+/* Inline code */
+code:not(pre code) {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: rgba(255, 255, 255, 0.07);
+    border: 1px solid var(--border-color);
+    border-radius: 5px;
+    padding: 2px 6px;
     color: var(--accent-primary);
-    font-size: 0.85rem;
-    font-weight: 600;
-    margin-bottom: 1.5rem;
 }
 
-h1 {
-    font-size: 4rem;
+/* Section divider */
+.section-divider {
+    height: 1px;
+    background: linear-gradient(90deg, var(--border-color), transparent);
+    margin: clamp(2rem, 5vw, 4rem) 0;
+}
+
+/* Stats / metrics row */
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin: 2rem 0;
+}
+
+.stat-item {
+    background: var(--bg-card);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.25rem;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: clamp(1.5rem, 4vw, 2.2rem);
     font-weight: 800;
-    letter-spacing: -2px;
-    margin-bottom: 1.5rem;
-    line-height: 1.1;
-}
-
-.gradient-text {
     background: var(--accent-gradient);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
+    background-clip: text;
+    line-height: 1.2;
 }
 
-.intro-text {
-    font-size: 1.25rem;
+.stat-label {
+    font-size: 0.78rem;
     color: var(--text-muted);
-    max-width: 700px;
-    margin-bottom: 3rem;
+    margin-top: 0.25rem;
+    font-family: var(--font-mono);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
 }
 
-/* Documentation Cards */
-.module-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 24px;
-    margin-top: 3rem;
-}
-
-.doc-card {
-    background: var(--bg-card);
+/* ============================================================
+   18. Mobile Top Header Bar (visible only on mobile)
+   ============================================================ */
+.mobile-header {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 190;
+    height: 58px;
+    background: var(--bg-sidebar);
+    border-bottom: 1px solid var(--border-color);
     backdrop-filter: var(--glass-blur);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 2rem;
-    transition: all var(--transition-speed);
-    text-decoration: none;
+    -webkit-backdrop-filter: var(--glass-blur);
+    align-items: center;
+    padding: 0 1rem 0 3.5rem;
+    gap: 0.75rem;
 }
 
-.doc-card:hover {
-    transform: translateY(-8px);
-    border-color: var(--accent-primary);
-    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 10px rgba(0, 210, 255, 0.1);
-}
-
-.doc-card h3 {
-    font-size: 1.5rem;
-    margin-bottom: 1rem;
-    color: var(--text-heading);
-}
-
-/* Code Block Enhancements */
-.code-window {
-    background: #0d1117;
-    border: 1px solid var(--border-color);
-    border-radius: 12px;
-    margin: 2rem 0;
-    overflow: hidden;
-    position: relative;
-}
-
-.copy-btn {
-    background: rgba(255, 255, 255, 0.1);
-    border: 1px solid var(--border-color);
-    color: var(--text-muted);
-    padding: 4px 10px;
-    border-radius: 6px;
-    font-size: 0.75rem;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-weight: 600;
-}
-
-.copy-btn:hover {
-    background: var(--accent-primary);
-    color: white;
-    border-color: var(--accent-primary);
-}
-
-.code-header {
-    background: rgba(255, 255, 255, 0.03);
-    padding: 0.8rem 1.2rem;
+.mobile-logo {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    border-bottom: 1px solid var(--border-color);
-}
-
-.window-dots {
-    display: flex;
     gap: 8px;
+    text-decoration: none;
+    flex: 1;
 }
 
-.dot { width: 12px; height: 12px; border-radius: 50%; }
-.dot.red { background: #ff5f56; }
-.dot.yellow { background: #ffbd2e; }
-.dot.green { background: #27c93f; }
-
-pre {
-    padding: 1.5rem;
+.mobile-logo-icon {
+    width: 30px;
+    height: 30px;
+    min-width: 30px;
+    background: var(--accent-gradient);
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 800;
+    color: white;
+    font-size: 0.85rem;
     font-family: var(--font-mono);
-    font-size: 0.9rem;
-    overflow-x: auto;
-    color: #cad1d8;
+    box-shadow: var(--accent-glow-sm);
 }
 
-.keyword { color: #ff7b72; }
-.function { color: #d2a8ff; }
-.string { color: #a5d6ff; }
-.comment { color: #8b949e; }
-.number { color: #79c0ff; }
+.mobile-logo-text {
+    font-size: 1rem;
+    font-weight: 800;
+    color: var(--text-heading);
+    letter-spacing: -0.3px;
+}
 
-/* Responsive adjustments */
+/* ============================================================
+   19. Responsive Breakpoints — MOBILE FIRST overrides
+   ============================================================ */
+
+/* Large tablets and below (≤1280px) */
+@media (max-width: 1280px) {
+    main.content {
+        padding: var(--content-pad-y) clamp(1.5rem, 4vw, 4rem);
+    }
+}
+
+/* Tablet and mobile (≤1024px) — Sidebar goes off-canvas */
 @media (max-width: 1024px) {
-    h1 { font-size: 2.8rem; }
-    .intro-text { font-size: 1.1rem; }
+    /* Show mobile elements */
+    .menu-toggle    { display: block; }
+    .mobile-header  { display: flex; }
+
+    /* Push content down below mobile header */
+    main.content {
+        margin-left: 0;
+        padding-top: calc(58px + 1.5rem);
+        padding-left: clamp(1rem, 4vw, 2.5rem);
+        padding-right: clamp(1rem, 4vw, 2.5rem);
+        max-width: 100%;
+    }
+
+    /* Sidebar slides in from left */
+    aside.sidebar {
+        transform: translateX(-100%);
+        width: min(300px, 85vw);
+        box-shadow: 24px 0 60px rgba(0, 0, 0, 0.6);
+    }
+
+    aside.sidebar.open {
+        transform: translateX(0);
+    }
+
+    /* Lock body scroll when sidebar is open */
+    body.sidebar-open {
+        overflow: hidden;
+    }
+
+    /* Hero adjustments */
+    h1 { letter-spacing: -1px; }
+}
+
+/* Large phones in landscape & small tablets (≤768px) */
+@media (max-width: 768px) {
+    .module-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .hero-actions {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .btn-primary,
+    .btn-secondary {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .stats-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    pre {
+        font-size: 0.76rem;
+    }
+}
+
+/* Small phones (≤480px) */
+@media (max-width: 480px) {
+    .module-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .stats-row {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .code-filename {
+        display: none; /* Too small, save space */
+    }
+
+    h1 { letter-spacing: -0.5px; }
+}
+
+/* Very small phones (≤360px) */
+@media (max-width: 360px) {
+    :root {
+        --content-pad-x: 0.875rem;
+    }
+
+    .window-dots { display: none; }
+}
+
+/* ============================================================
+   20. Safe Area Insets (iPhone notch / Dynamic Island)
+   ============================================================ */
+@supports (padding: env(safe-area-inset-bottom)) {
+    aside.sidebar {
+        padding-bottom: calc(2rem + env(safe-area-inset-bottom));
+    }
+
+    main.content {
+        padding-bottom: calc(var(--content-pad-y) + env(safe-area-inset-bottom));
+    }
+
+    .menu-toggle {
+        top: calc(1rem + env(safe-area-inset-top));
+    }
+
+    .mobile-header {
+        padding-top: env(safe-area-inset-top);
+        height: calc(58px + env(safe-area-inset-top));
+    }
+}
+
+/* ============================================================
+   21. Reduced Motion Accessibility
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+
+    .doc-card:hover { transform: none; }
+}
+
+/* ============================================================
+   22. Print Styles
+   ============================================================ */
+@media print {
+    aside.sidebar,
+    .menu-toggle,
+    .mobile-header { display: none !important; }
+
+    main.content {
+        margin-left: 0;
+        padding: 1rem;
+        max-width: 100%;
+    }
+
+    .code-window { border: 1px solid #ccc; }
 }
