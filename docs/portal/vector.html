@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.vector | RMath Documentation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="portal-container">
+    <aside class="sidebar">
+        <a href="index.html" class="logo-container">
+            <div class="logo-icon">R</div>
+            <div class="logo-text">RMath Docs</div>
+        </a>
+
+        <div class="search-container">
+            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <nav id="sidebarNav">
+            <a href="index.html" class="nav-link">← Back to Portal</a>
+            <div style="margin-top: 1.5rem;"></div>
+            <div id="onThisPage">
+                <div class="nav-group">
+                    <span class="nav-label">On This Page</span>
+                    <a href="#overview" class="nav-link">Overview</a>
+                    <a href="#features" class="nav-link">Features</a>
+                    <a href="#constructors" class="nav-link">Constructors</a>
+                    <a href="#arithmetic" class="nav-link">API Reference</a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="overview" class="hero">
+            <div class="badge">Core Module</div>
+            <h1>rmath.<span class="gradient-text">vector</span></h1>
+            <p class="intro-text">
+                RMath's flagship 1D engine. Features over 150 parallelized operations categorized 
+                into arithmetic, trigonometry, hyperbolic, and logical filters.
+            </p>
+        </section>
+
+        <section id="features" style="margin-bottom: 4rem;">
+            <div class="module-grid">
+                <div class="doc-card">
+                    <h3>Rayon Parallel</h3>
+                    <p>Heavy loops are automatically offloaded to the Rayon thread pool with zero GIL overhead.</p>
+                </div>
+                <div class="doc-card">
+                    <h3>Operator Overloading</h3>
+                    <p>Native Python support for +, -, *, /, @, and unary negation for both Scalar and Vector operands.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="constructors">
+            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">Constructors</h2>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="window-dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+                </div>
+                <pre><code><span class="keyword">import</span> rmath <span class="keyword">as</span> <span class="number">rm</span>
+
+v = <span class="number">rm</span>.<span class="function">Vector</span>.range(<span class="number">0</span>, <span class="number">10</span>, <span class="number">0.1</span>)
+lin = <span class="number">rm</span>.<span class="function">Vector</span>.linspace(<span class="number">0</span>, <span class="number">1</span>, <span class="number">100</span>)
+rand = <span class="number">rm</span>.<span class="function">vector</span>.randn(<span class="number">1000</span>)</code></pre>
+            </div>
+        </section>
+
+        <section id="arithmetic">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">API Reference</h2>
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; background: var(--bg-card);">
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Method</th>
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Complexity</th>
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Description</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">v.sum()</td>
+                        <td style="padding: 1rem; font-size: 0.85rem;">O(N)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Parallel Kahan-sum reduction.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">v.sin()</td>
+                        <td style="padding: 1rem; font-size: 0.85rem;">O(N)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Element-wise parallel sine.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">v.unique()</td>
+                        <td style="padding: 1rem; font-size: 0.85rem;">O(N log N)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Return sorted unique elements.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">v.argsort()</td>
+                        <td style="padding: 1rem; font-size: 0.85rem;">O(N log N)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Parallel unstable sort indexer.</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
+            <p>&copy; 2026 RMath Development Team. Tier-1 Documentation Portal.</p>
+        </footer>
+    </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

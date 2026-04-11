@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.calculus | RMath Documentation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="portal-container">
+    <aside class="sidebar">
+        <a href="index.html" class="logo-container">
+            <div class="logo-icon">R</div>
+            <div class="logo-text">RMath Docs</div>
+        </a>
+
+        <div class="search-container">
+            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <nav id="sidebarNav">
+            <a href="index.html" class="nav-link">← Back to Portal</a>
+            <div style="margin-top: 1.5rem;"></div>
+            <div id="onThisPage">
+                <div class="nav-group">
+                    <span class="nav-label">On This Page</span>
+                    <a href="#overview" class="nav-link">Overview</a>
+                    <a href="#dual" class="nav-link">Automatic Diff</a>
+                    <a href="#api" class="nav-link">Functions</a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="overview" class="hero">
+            <div class="badge">Advanced Module</div>
+            <h1>rmath.<span class="gradient-text">calculus</span></h1>
+            <p class="intro-text">
+                Forward-mode Automatic Differentiation (AD), high-order numerical integration, 
+                and high-performance root-finding solvers.
+            </p>
+        </section>
+
+        <section id="dual" style="margin-bottom: 4rem;">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">Automatic Differentiation</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+                The <code>Dual</code> number system allows for computing exact derivatives of complex functions 
+                without symbolic math or finite differences.
+            </p>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="window-dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+                </div>
+                <pre><code><span class="keyword">from</span> rmath.calculus <span class="keyword">import</span> Dual
+
+<span class="comment"># Define a dual number Dual(value, derivative)</span>
+x = Dual(<span class="number">2.0</span>, <span class="number">1.0</span>)
+
+<span class="comment"># f(x) = x^2 + sin(x)</span>
+y = x.powi(<span class="number">2</span>) + x.sin()
+
+<span class="keyword">print</span>(<span class="string">f"f(2): {y.val}"</span>)
+<span class="keyword">print</span>(<span class="string">f"f'(2): {y.der}"</span>)</code></pre>
+            </div>
+        </section>
+
+        <section id="api">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">Functions</h2>
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; background: var(--bg-card);">
+                    <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0, 210, 255, 0.03);">
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Function</th>
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Description</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">integrate_trapz(...)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Trapezoidal rule for 1D integration.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">integrate_simpson(...)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Simpson's 1/3 rule for high-order precision.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">find_root_newton(...)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Newton-Raphson solver using Dual numbers for derivatives.</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
+            <p>&copy; 2026 RMath Development Team. Built with Rust and ❤️.</p>
+        </footer>
+    </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

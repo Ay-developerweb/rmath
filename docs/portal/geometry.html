@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.geometry | RMath Documentation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="portal-container">
+    <aside class="sidebar">
+        <a href="index.html" class="logo-container">
+            <div class="logo-icon">R</div>
+            <div class="logo-text">RMath Docs</div>
+        </a>
+
+        <div class="search-container">
+            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <nav id="sidebarNav">
+            <a href="index.html" class="nav-link">← Back to Portal</a>
+            <div style="margin-top: 1.5rem;"></div>
+            <div id="onThisPage">
+                <div class="nav-group">
+                    <span class="nav-label">On This Page</span>
+                    <a href="#overview" class="nav-link">Overview</a>
+                    <a href="#metrics" class="nav-link">Distance Metrics</a>
+                    <a href="#transforms" class="nav-link">3D Transforms</a>
+                    <a href="#topology" class="nav-link">Topology</a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="overview" class="hero">
+            <div class="badge">Spatial Module</div>
+            <h1>rmath.<span class="gradient-text">geometry</span></h1>
+            <p class="intro-text">
+                Distance metrics, quaternion-based rotations, and topological algorithms for 
+                computational geometry and robotic kinematics.
+            </p>
+        </section>
+
+        <section id="metrics" style="margin-bottom: 4rem;">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">Vector Relationships</h2>
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; background: var(--bg-card);">
+                    <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0, 210, 255, 0.03);">
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Function</th>
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Algorithm</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">euclidean(v1, v2)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Standard L2 norm distance.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">cosine_similarity(v1, v2)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Angular similarity between vectors.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">cross_product(v1, v2)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Computing the normal vector in 3D space.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">angle_between(v1, v2)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Compute radians between two vectors.</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <section id="transforms">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">3D Rotations (Quaternions)</h2>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="window-dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+                </div>
+                <pre><code><span class="keyword">from</span> rmath.geometry <span class="keyword">import</span> Quaternion
+
+<span class="comment"># Create a rotation of 90 degrees around Z axis</span>
+q = Quaternion.from_axis_angle([<span class="number">0</span>, <span class="number">0</span>, <span class="number">1</span>], <span class="number">1.5708</span>)
+
+<span class="comment"># Apply rotation to a vector</span>
+v = [<span class="number">1</span>, <span class="number">0</span>, <span class="number">0</span>]
+v_rotated = q.rotate_vector(v) <span class="comment"># -> [0, 1, 0] approx</span></code></pre>
+            </div>
+        </section>
+
+        <section id="topology">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">Topological Operations</h2>
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; background: var(--bg-card);">
+                    <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0, 210, 255, 0.03);">
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Function</th>
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Algorithm</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">is_point_in_polygon(p, poly)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Efficient Ray Casting implementation.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">convex_hull(points)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Monotone Chain O(N log N) implementation.</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
+            <p>&copy; 2026 RMath Development Team. Tier-1 Documentation Portal.</p>
+        </footer>
+    </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

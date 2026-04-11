@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.special | RMath Documentation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="portal-container">
+    <aside class="sidebar">
+        <a href="index.html" class="logo-container">
+            <div class="logo-icon">R</div>
+            <div class="logo-text">RMath Docs</div>
+        </a>
+
+        <div class="search-container">
+            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <nav id="sidebarNav">
+            <a href="index.html" class="nav-link">← Back to Portal</a>
+            <div style="margin-top: 1.5rem;"></div>
+            <div id="onThisPage">
+                <div class="nav-group">
+                    <span class="nav-label">On This Page</span>
+                    <a href="#overview" class="nav-link">Overview</a>
+                    <a href="#api" class="nav-link">Special Functions</a>
+                    <a href="#broadcasting" class="nav-link">Broadcasting Logic</a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="overview" class="hero">
+            <div class="badge">Mathematical Module</div>
+            <h1>rmath.<span class="gradient-text">special</span></h1>
+            <p class="intro-text">
+                Special mathematical functions (Gamma, Error, etc.) with support for 
+                broadcasting across Scalars, Vectors, and Arrays.
+            </p>
+        </section>
+
+        <section id="api">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">Special Functions</h2>
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; background: var(--bg-card);">
+                    <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0, 210, 255, 0.03);">
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Function</th>
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Complexity</th>
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Description</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">gamma(x)</td>
+                        <td style="padding: 1rem; font-size: 0.85rem;">O(1/N)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Euler Gamma function Γ(x).</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">ln_gamma(x)</td>
+                        <td style="padding: 1rem; font-size: 0.85rem;">O(1/N)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Natural logarithm of Gamma, ln|Γ(x)|.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">erf(x)</td>
+                        <td style="padding: 1rem; font-size: 0.85rem;">O(1/N)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Error function for probability distributions.</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <section id="broadcasting" style="margin-top: 4rem;">
+            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">Flexible Dispatching</h2>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="window-dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+                </div>
+                <pre><code><span class="keyword">from</span> rmath <span class="keyword">import</span> special, Vector, Array
+
+<span class="comment"># Scalar call</span>
+special.gamma(<span class="number">5.0</span>) <span class="comment"># 24.0</span>
+
+<span class="comment"># Vector call (Parallel)</span>
+v = Vector.range(<span class="number">1</span>, <span class="number">10</span>)
+special.gamma(v)
+
+<span class="comment"># Array call (Parallel)</span>
+a = Array.ones(<span class="number">20</span>, <span class="number">20</span>)
+special.gamma(a)</code></pre>
+            </div>
+        </section>
+
+        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
+            <p>&copy; 2026 RMath Development Team. Tier-1 Documentation Portal.</p>
+        </footer>
+    </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

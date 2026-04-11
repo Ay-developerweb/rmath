@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.signal | RMath Documentation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="portal-container">
+    <aside class="sidebar">
+        <a href="index.html" class="logo-container">
+            <div class="logo-icon">R</div>
+            <div class="logo-text">RMath Docs</div>
+        </a>
+
+        <div class="search-container">
+            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <nav id="sidebarNav">
+            <a href="index.html" class="nav-link">← Back to Portal</a>
+            <div style="margin-top: 1.5rem;"></div>
+            <div id="onThisPage">
+                <div class="nav-group">
+                    <span class="nav-label">On This Page</span>
+                    <a href="#overview" class="nav-link">Overview</a>
+                    <a href="#fft" class="nav-link">Fourier Analysis</a>
+                    <a href="#convolution" class="nav-link">Convolution</a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="overview" class="hero">
+            <div class="badge">Signal Module</div>
+            <h1>rmath.<span class="gradient-text">signal</span></h1>
+            <p class="intro-text">
+                High-speed Fourier analysis and O(N log N) convolutions. Optimized for 
+                real-time audio and sensor data processing.
+            </p>
+        </section>
+
+        <section id="fft" style="margin-bottom: 4rem;">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">Fourier Analysis</h2>
+            <p style="color: var(--text-muted); margin-bottom: 1.5rem;">
+                Powered by a high-performance FFT engine with cache management for repeated transformations.
+            </p>
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; background: var(--bg-card);">
+                    <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0, 210, 255, 0.03);">
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Function</th>
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Description</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">fft(vector)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Fast Fourier Transform (Complex output).</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">ifft(complex_vector)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Inverse FFT to return to time domain.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">rfft(vector)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Optimized FFT for real-valued inputs.</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <section id="convolution">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">Convolution</h2>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="window-dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+                </div>
+                <pre><code><span class="keyword">from</span> rmath.signal <span class="keyword">import</span> convolve
+
+signal = [<span class="number">1</span>, <span class="number">2</span>, <span class="number">3</span>, <span class="number">4</span>, <span class="number">5</span>]
+kernel = [<span class="number">0.2</span>, <span class="number">0.2</span>, <span class="number">0.2</span>, <span class="number">0.2</span>, <span class="number">0.2</span>] <span class="comment"># Moving average</span>
+
+<span class="comment"># Fast O(N log N) FFT-based convolution</span>
+smooth = convolve(signal, kernel, mode=<span class="string">"same"</span>)</code></pre>
+            </div>
+            <p style="color: var(--text-muted); margin-top: 1rem;">
+                Modes: <code>full</code>, <code>same</code>, <code>valid</code>. 
+                RMath automatically handles padding and frequency-domain multiplication.
+            </p>
+        </section>
+
+        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
+            <p>&copy; 2026 RMath Development Team. Tier-1 Documentation Portal.</p>
+        </footer>
+    </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

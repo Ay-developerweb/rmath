@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.nn | RMath Documentation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="portal-container">
+    <aside class="sidebar">
+        <a href="index.html" class="logo-container">
+            <div class="logo-icon">R</div>
+            <div class="logo-text">RMath Docs</div>
+        </a>
+
+        <div class="search-container">
+            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <nav id="sidebarNav">
+            <a href="index.html" class="nav-link">← Back to Portal</a>
+            <div style="margin-top: 1.5rem;"></div>
+            <div id="onThisPage">
+                <div class="nav-group">
+                    <span class="nav-label">On This Page</span>
+                    <a href="#overview" class="nav-link">Overview</a>
+                    <a href="#activations" class="nav-link">Activations</a>
+                    <a href="#losses" class="nav-link">Loss Functions</a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="overview" class="hero">
+            <div class="badge">Machine Learning</div>
+            <h1>rmath.<span class="gradient-text">nn</span></h1>
+            <p class="intro-text">
+                High-performance Neural Network primitives. Features SIMD-parallel activations, 
+                losses, and normalization layers for deep learning backends.
+            </p>
+        </section>
+
+        <section id="activations" style="margin-bottom: 4rem;">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">Activations</h2>
+            <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
+                <table style="width: 100%; border-collapse: collapse; background: var(--bg-card);">
+                    <tr style="border-bottom: 1px solid var(--border-color); background: rgba(0, 210, 255, 0.03);">
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Function</th>
+                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Description</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">relu(A)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Rectified Linear Unit element-wise.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">sigmoid(A)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Standard logistic sigmoid function.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid var(--border-color);">
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">gelu(A)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Gaussian Error Linear Unit (GPT-style approximation).</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">softmax(A)</td>
+                        <td style="padding: 1rem; color: var(--text-muted);">Numerically stable row-wise softmax.</td>
+                    </tr>
+                </table>
+            </div>
+        </section>
+
+        <section id="losses">
+            <h2 style="font-size: 2rem; margin-bottom: 1rem;">Loss Functions</h2>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="window-dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
+                </div>
+                <pre><code><span class="keyword">from</span> rmath <span class="keyword">import</span> nn
+
+preds = <span class="number">rm</span>.<span class="function">Array</span>.randn(<span class="number">10</span>, <span class="number">5</span>)
+targets = <span class="number">rm</span>.<span class="function">Array</span>.zeros(<span class="number">10</span>, <span class="number">5</span>)
+
+<span class="comment"># Mean Squared Error</span>
+loss = nn.<span class="function">mse_loss</span>(preds, targets)</code></pre>
+            </div>
+        </section>
+
+        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
+            <p>&copy; 2026 RMath Development Team. Tier-1 Documentation Portal.</p>
+        </footer>
+    </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>

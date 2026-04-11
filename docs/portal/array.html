@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.array | RMath Documentation</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+
+<div class="portal-container">
+    <aside class="sidebar">
+        <a href="index.html" class="logo-container">
+            <div class="logo-icon">R</div>
+            <div class="logo-text">RMath Docs</div>
+        </a>
+
+        <div class="search-container">
+            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
+            <span class="search-icon">🔍</span>
+        </div>
+
+        <nav id="sidebarNav">
+            <a href="index.html" class="nav-link">← Back to Portal</a>
+            <div style="margin-top: 1.5rem;"></div>
+            <div id="onThisPage">
+                <div class="nav-group">
+                    <span class="nav-label">On This Page</span>
+                    <a href="#overview" class="nav-link">Overview</a>
+                    <a href="#storage" class="nav-link">Storage Tiers</a>
+                    <a href="#constructors" class="nav-link">Constructors</a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="overview" class="hero">
+            <div class="badge">Core Module</div>
+            <h1>rmath.<span class="gradient-text">array</span></h1>
+            <p class="intro-text">
+                The foundation of RMath's N-Dimensional computing. Supports SIMD-accelerated math kernels, 
+                automatic broadcasting, and zero-copy interop with Python's scientific ecosystem.
+            </p>
+        </section>
+
+        <section id="storage" style="margin-bottom: 4rem;">
+            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">Triple-Tier Storage</h2>
+            <div class="module-grid">
+                <div class="doc-card">
+                    <h3 style="color: #27c93f;">Inline</h3>
+                    <p>Stack-allocated for < 32 elements. Zero heap allocation. Performance matches raw CPU registers.</p>
+                </div>
+                <div class="doc-card">
+                    <h3 style="color: #3a7bd5;">Heap</h3>
+                    <p>Shared Arc memory for massive datasets. Reference-counted and thread-safe for parallel processing.</p>
+                </div>
+                <div class="doc-card">
+                    <h3 style="color: #ffbd2e;">Mmap</h3>
+                    <p>Disk-backed memory mapping. Process GB-scale datasets without exceeding RAM limits.</p>
+                </div>
+            </div>
+        </section>
+
+        <section id="constructors">
+            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">Constructors</h2>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="window-dots">
+                        <div class="dot red"></div>
+                        <div class="dot yellow"></div>
+                        <div class="dot green"></div>
+                    </div>
+                </div>
+                <pre><code><span class="comment"># Zero-initialized</span>
+arr = <span class="number">rm</span>.<span class="function">Array</span>.zeros(<span class="number">100</span>, <span class="number">100</span>)
+
+<span class="comment"># Identity matrix</span>
+eye = <span class="number">rm</span>.<span class="function">Array</span>.eye(<span class="number">10</span>)
+
+<span class="comment"># From Python data</span>
+data = <span class="number">rm</span>.<span class="function">Array</span>([[<span class="number">1</span>, <span class="number">2</span>], [<span class="number">3</span>, <span class="number">4</span>]])</code></pre>
+            </div>
+        </section>
+
+        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
+            <p>&copy; 2026 RMath Development Team. Tier-1 Documentation Portal.</p>
+        </footer>
+    </main>
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
