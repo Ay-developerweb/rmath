@@ -13,7 +13,7 @@ mod calculus;
 
 /// RMath: A high-performance, multi-threaded mathematical toolkit in Rust.
 #[pymodule]
-fn rmath(m: &Bound<'_, PyModule>) -> PyResult<()> {
+fn _rmath(m: &Bound<'_, PyModule>) -> PyResult<()> {
     let py = m.py();
 
     // 1. Constants (rmath.constants)
