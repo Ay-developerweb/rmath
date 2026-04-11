@@ -1,91 +1,116 @@
-/* RMath Documentation Portal - Premium Interactivity */
+/**
+ * RMath Docs — Mobile Responsive JS
+ * Handles: sidebar toggle, overlay, copy buttons, active nav links
+ */
+(function () {
+    'use strict';
 
-document.addEventListener('DOMContentLoaded', () => {
-    const sidebar = document.querySelector('.sidebar');
-    const navLinks = document.querySelectorAll('.nav-link');
-    const sections = document.querySelectorAll('section');
-    const searchInput = document.getElementById('moduleSearch');
-    const codeHeaders = document.querySelectorAll('.code-header');
+    /* ── Sidebar Toggle ───────────────────────────────────────── */
+    const sidebar    = document.querySelector('aside.sidebar');
+    const overlay    = document.querySelector('.sidebar-overlay');
+    const menuToggle = document.querySelector('.menu-toggle');
+    const body       = document.body;
 
-    // 1. Mobile Menu Logic
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'menu-toggle';
-    toggleBtn.innerHTML = '<span></span><span></span><span></span>';
-    document.body.appendChild(toggleBtn);
-
-    const overlay = document.createElement('div');
-    overlay.className = 'sidebar-overlay';
-    document.body.appendChild(overlay);
-
-    toggleBtn.addEventListener('click', () => {
-        sidebar.classList.toggle('open');
-        overlay.classList.toggle('active');
-    });
-
-    overlay.addEventListener('click', () => {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
-    });
-
-    // 2. Module Search
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            const term = e.target.value.toLowerCase();
-            document.querySelectorAll('#sidebarNav .nav-link').forEach(link => {
-                const text = link.textContent.toLowerCase();
-                link.style.display = text.includes(term) ? 'flex' : 'none';
-            });
-        });
+    function openSidebar() {
+        sidebar?.classList.add('open');
+        overlay?.classList.add('active');
+        menuToggle?.classList.add('open');
+        menuToggle?.setAttribute('aria-expanded', 'true');
+        body.classList.add('sidebar-open');
     }
 
-    // 3. Copy Code
-    codeHeaders.forEach(header => {
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn';
-        copyBtn.textContent = 'Copy';
-        copyBtn.addEventListener('click', () => {
-            const code = header.nextElementSibling.innerText;
-            navigator.clipboard.writeText(code).then(() => {
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => copyBtn.textContent = 'Copy', 2000);
-            });
-        });
-        header.appendChild(copyBtn);
+    function closeSidebar() {
+        sidebar?.classList.remove('open');
+        overlay?.classList.remove('active');
+        menuToggle?.classList.remove('open');
+        menuToggle?.setAttribute('aria-expanded', 'false');
+        body.classList.remove('sidebar-open');
+    }
+
+    menuToggle?.addEventListener('click', () => {
+        sidebar?.classList.contains('open') ? closeSidebar() : openSidebar();
     });
 
-    // 4. Manual Click Active State (Instant Feedback)
-    navLinks.forEach(link => {
+    overlay?.addEventListener('click', closeSidebar);
+
+    /* Close sidebar on nav link click (mobile UX) */
+    sidebar?.querySelectorAll('.nav-link').forEach(link => {
         link.addEventListener('click', () => {
-            if (link.getAttribute('href').startsWith('#')) {
-                document.querySelectorAll('#onThisPage .nav-link').forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
+            if (window.innerWidth <= 1024) closeSidebar();
+        });
+    });
+
+    /* Close on Escape key */
+    document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeSidebar();
+    });
+
+    /* Restore on resize to desktop */
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 1024) closeSidebar();
+    });
+
+    /* ── Copy Buttons ─────────────────────────────────────────── */
+    document.querySelectorAll('.copy-btn').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const pre = btn.closest('.code-window')?.querySelector('pre');
+            if (!pre) return;
+
+            const text = pre.innerText || pre.textContent;
+
+            try {
+                await navigator.clipboard.writeText(text);
+                btn.textContent = '✓ Copied';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            } catch {
+                /* Fallback for older browsers */
+                const ta = document.createElement('textarea');
+                ta.value = text;
+                ta.style.cssText = 'position:fixed;opacity:0;';
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                ta.remove();
+                btn.textContent = '✓ Copied';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
             }
         });
     });
 
-    // 5. Scroll Spy (On This Page)
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-                const id = entry.target.getAttribute('id');
-                const matchingLink = document.querySelector(`#onThisPage a[href="#${id}"]`);
-                if (matchingLink) {
-                    document.querySelectorAll('#onThisPage .nav-link').forEach(l => l.classList.remove('active'));
-                    matchingLink.classList.add('active');
+    /* ── Active Nav Link on Scroll ───────────────────────────── */
+    const sections  = document.querySelectorAll('section[id], div[id]');
+    const navLinks  = document.querySelectorAll('aside.sidebar .nav-link[href^="#"]');
+
+    if (sections.length && navLinks.length) {
+        const observer = new IntersectionObserver(entries => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    navLinks.forEach(link => {
+                        link.classList.toggle(
+                            'active',
+                            link.getAttribute('href') === `#${entry.target.id}`
+                        );
+                    });
                 }
-            }
-        });
-    }, { threshold: [0.5] });
+            });
+        }, { rootMargin: '-20% 0px -70% 0px' });
 
-    sections.forEach(s => observer.observe(s));
-
-    // Handle initial state
-    const currentHash = window.location.hash;
-    if (currentHash) {
-        const matchingLink = document.querySelector(`#onThisPage a[href="${currentHash}"]`);
-        if (matchingLink) matchingLink.classList.add('active');
-    } else {
-        const overviewLink = document.querySelector('#onThisPage a[href="#overview"]');
-        if (overviewLink) overviewLink.classList.add('active');
+        sections.forEach(s => observer.observe(s));
     }
-});
+
+    /* ── Accessibility: ARIA on sidebar ──────────────────────── */
+    sidebar?.setAttribute('role', 'navigation');
+    sidebar?.setAttribute('aria-label', 'Documentation navigation');
+    menuToggle?.setAttribute('aria-expanded', 'false');
+    menuToggle?.setAttribute('aria-controls', 'sidebar');
+    menuToggle?.setAttribute('aria-label', 'Toggle navigation menu');
+    if (sidebar) sidebar.id = 'sidebar';
+})();
