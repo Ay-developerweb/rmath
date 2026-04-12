@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/portal/rmath_logo.svg" width="120" alt="RMath">
+  <img src="https://raw.githubusercontent.com/Ay-developerweb/rmath/main/docs/portal/rmath_logo.svg" width="120" alt="RMath">
 </p>
 
 <h3 align="center">Numerical computing for Python, powered by Rust.</h3>
