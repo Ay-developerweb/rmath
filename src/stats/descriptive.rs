@@ -127,6 +127,20 @@ pub fn mean(data: Bound<'_, PyAny>) -> PyResult<f64> {
     })
 }
 
+/// Calculate the sample variance (degree of freedom = 1).
+#[pyfunction]
+pub fn variance(data: Bound<'_, PyAny>) -> PyResult<f64> {
+    let d = describe(data)?;
+    Ok(*d.get("variance").unwrap_or(&0.0))
+}
+
+/// Calculate the sample standard deviation.
+#[pyfunction]
+pub fn std_dev(data: Bound<'_, PyAny>) -> PyResult<f64> {
+    let d = describe(data)?;
+    Ok(*d.get("std").unwrap_or(&0.0))
+}
+
 /// Calculate the median of a dataset.
 ///
 /// Uses an unstable selection algorithm for O(N) performance.

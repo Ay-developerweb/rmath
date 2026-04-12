@@ -1,3 +1,11 @@
+"""
+rmath.calculus — Automatic Differentiation and Numerical Integration.
+
+Features:
+    - Dual: Forward-mode AD using dual numbers (a + bε).
+    - Integration: Simpson's and Trapezoidal parallelized rules.
+    - Solvers: Newton-Raphson root-finding for exact derivatives.
+"""
 from typing import Callable, Union, Tuple, Any
 from rmath.vector import Vector
 

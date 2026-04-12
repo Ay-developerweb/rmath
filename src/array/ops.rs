@@ -389,6 +389,28 @@ impl Array {
     }
 }
 
+// ── Module-level Functional API ───────────────────────────────────────────
+
+#[pyfunction]
+pub fn arange(start: f64, stop: f64, step: f64) -> PyResult<Array> {
+    Array::arange(start, stop, step)
+}
+
+#[pyfunction(name = "range")]
+pub fn array_range(start: f64, stop: f64, step: f64) -> PyResult<Array> {
+    Array::arange(start, stop, step)
+}
+
+#[pyfunction]
+pub fn zeros(rows: usize, cols: usize) -> Array {
+    Array::zeros_internal(&[rows, cols])
+}
+
+#[pyfunction]
+pub fn ones(rows: usize, cols: usize) -> Array {
+    Array::ones_internal(&[rows, cols])
+}
+
 // ── Internal non-pymethods ────────────────────────────────────────────────────
 
 impl Array {

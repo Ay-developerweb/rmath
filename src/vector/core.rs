@@ -371,6 +371,12 @@ impl Vector {
         Vector::new(data)
     }
 
+    #[staticmethod]
+    #[pyo3(name = "range", signature = (start, stop = None, step = 1.0))]
+    pub fn range_py(start: f64, stop: Option<f64>, step: f64) -> Self {
+        Self::arange(start, stop, step)
+    }
+
     /// Create a Vector with `num` evenly spaced values from `start` to `stop`.
     ///
     /// Examples:

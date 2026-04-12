@@ -1,3 +1,12 @@
+"""
+rmath.linalg — BLAS-Accelerated Linear Algebra.
+
+Provides highly optimized matrix operations including:
+    - Inversion and Determinants.
+    - Solving Linear Systems (Ax = B).
+    - Decompositions (QR, SVD, Cholesky, Eigh).
+    - Norms and Rank calculations.
+"""
 from typing import Union, Tuple, List
 from .array import Array
 from .vector import Vector

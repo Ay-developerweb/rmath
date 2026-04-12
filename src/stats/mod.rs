@@ -8,6 +8,8 @@ use pyo3::prelude::*;
 pub fn register_stats(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Descriptive Statistics
     m.add_function(wrap_pyfunction!(descriptive::mean, m)?)?;
+    m.add_function(wrap_pyfunction!(descriptive::variance, m)?)?;
+    m.add_function(wrap_pyfunction!(descriptive::std_dev, m)?)?;
     m.add_function(wrap_pyfunction!(descriptive::median, m)?)?;
     m.add_function(wrap_pyfunction!(descriptive::mode, m)?)?;
     m.add_function(wrap_pyfunction!(descriptive::describe, m)?)?;

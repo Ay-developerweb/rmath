@@ -41,5 +41,11 @@ pub fn register_array(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_class::<ChunkIterator>()?;
     m.add_class::<MmapChunkIterator>()?;
 
+    // Functional API
+    m.add_function(wrap_pyfunction!(ops::arange, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::array_range, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::zeros, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::ones, m)?)?;
+
     Ok(())
 }

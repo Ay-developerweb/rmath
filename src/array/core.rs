@@ -373,6 +373,12 @@ impl Array {
     }
 
     #[staticmethod]
+    #[pyo3(name = "range")]
+    pub fn range_py(start: f64, stop: f64, step: f64) -> PyResult<Self> {
+        Self::arange(start, stop, step)
+    }
+
+    #[staticmethod]
     pub fn linspace(start: f64, stop: f64, n: usize) -> Self {
         if n == 0 { return Self::from_flat(vec![], vec![1, 0]); }
         if n == 1 { return Self::from_flat(vec![start], vec![1, 1]); }
