@@ -76,9 +76,11 @@ report = rm.stats.describe(data)  # mean, var, skew, kurtosis
 import rmath.calculus as rc
 
 # f(x) = x² + 3x at x = 2
-result = rc.Dual(2.0, 1.0)
-out = result * result + result * 3.0
-# out.re = 10.0, out.eps = 7.0 (derivative)
+val = rc.Dual(2.0, 1.0)
+out = val * val + val * 3.0
+
+print(out.value)        # 10.0 (f(x))
+print(out.derivative)   # 7.0  (f'(x))
 ```
 
 ## How it works

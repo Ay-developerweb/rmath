@@ -228,6 +228,21 @@ impl Array {
         if n == 0 { return f64::NAN; }
         self.sum_all() / n as f64
     }
+    pub fn variance(&self) -> f64 {
+        let n = self.len();
+        if n < 2 { return f64::NAN; }
+        let mu = self.mean();
+        let sd = self.data();
+        let m2: f64 = if n >= 131072 {
+            sd.par_iter().map(|&x| (x - mu).powi(2)).sum()
+        } else {
+            sd.iter().map(|&x| (x - mu).powi(2)).sum()
+        };
+        m2 / (n - 1) as f64
+    }
+    pub fn std_dev(&self) -> f64 {
+        self.variance().sqrt()
+    }
     pub fn min(&self) -> f64 {
         let d = self.data();
         if d.is_empty() { return f64::INFINITY; }
