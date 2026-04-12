@@ -23,20 +23,32 @@ __pycache__/
 *.lib
 *.exe
 *.csv
-telemetry.csv
 
 # IDEs
 .vscode/
 .idea/
 .env
+.env.example
 
 # Documentation Builds (We only want the custom portal)
 /docs/html/
+
+# Internal / scratch
 /trashee/
 /test/
+/rust_rmath_test/
 /rust_math_test/
-
 /comparison_test/
+/py_test/
+/projects/
+/benchmarks/
+/new
+/new.rpy
+/DOCS.md
+/benchmark_scalar_analysis.md
+/benchmark_vector_analysis.md
+
+# Portal build artifacts
 /docs/portal/rmath_logo.png
 /docs/portal/rmath_logo_svg_*.png
-/benchmarks/
+

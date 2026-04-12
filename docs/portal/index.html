@@ -3,143 +3,248 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RMath | High-Performance Numerical Toolkit for Python</title>
+    <title>RMath — Numerical Computing for Python</title>
+    <meta name="description" content="RMath is a numerical toolkit that runs heavy math in Rust and exposes it to Python. Arrays, linear algebra, stats, calculus, and signal processing — all outside the GIL.">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
 
-<div class="portal-container">
-    <aside class="sidebar">
-        <a href="index.html" class="logo-container">
-            <img src="rmath_logo.svg" alt="RMath Logo" style="width: 40px; height: 40px;">
-            <div class="logo-text">RMath Docs</div>
+<div class="portal">
+    <aside class="sidebar" id="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <img src="rmath_logo.svg" alt="RMath">
+            <span>RMath<small>v0.1</small></span>
         </a>
 
-        <div class="search-container">
-            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
-            <span class="search-icon">🔍</span>
+        <div class="sidebar-search">
+            <span class="icon">🔍</span>
+            <input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off">
         </div>
 
         <nav id="sidebarNav">
             <div class="nav-group">
-                <span class="nav-label">Getting Started</span>
-                <a href="index.html#welcome" class="nav-link">Welcome</a>
-                <a href="index.html#installation" class="nav-link">Installation</a>
-                <a href="index.html#quickstart" class="nav-link">Quickstart</a>
-            </div>
-
-            <div id="onThisPage">
-                <div class="nav-group">
-                    <span class="nav-label">On This Page</span>
-                    <a href="#welcome" class="nav-link">Welcome</a>
-                    <a href="#modules" class="nav-link">Module Explorer</a>
-                </div>
+                <div class="nav-group-title">Guide</div>
+                <a href="index.html" class="nav-link active">Overview</a>
+                <a href="#install" class="nav-link">Installation</a>
+                <a href="#quickstart" class="nav-link">Quick Start</a>
+                <a href="#modules" class="nav-link">Modules</a>
             </div>
 
             <div class="nav-group">
-                <span class="nav-label">Core Modules</span>
-                <a href="vector.html" class="nav-link">rmath.vector</a>
-                <a href="array.html" class="nav-link">rmath.array</a>
-                <a href="stats.html" class="nav-link">rmath.stats</a>
-                <a href="calculus.html" class="nav-link">rmath.calculus</a>
+                <div class="nav-group-title">Core</div>
+                <a href="array.html" class="nav-link"><code>rmath.array</code></a>
+                <a href="vector.html" class="nav-link"><code>rmath.vector</code></a>
+                <a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a>
             </div>
 
             <div class="nav-group">
-                <span class="nav-label">Extensions</span>
-                <a href="geometry.html" class="nav-link">rmath.geometry</a>
-                <a href="signal.html" class="nav-link">rmath.signal</a>
-                <a href="linalg.html" class="nav-link">rmath.linalg</a>
-                <a href="nn.html" class="nav-link">rmath.nn</a>
-                <a href="special.html" class="nav-link">rmath.special</a>
-                <a href="scalar.html" class="nav-link">rmath.scalar</a>
+                <div class="nav-group-title">Math</div>
+                <a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a>
+                <a href="stats.html" class="nav-link"><code>rmath.stats</code></a>
+                <a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a>
+            </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Extensions</div>
+                <a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a>
+                <a href="signal.html" class="nav-link"><code>rmath.signal</code></a>
+                <a href="nn.html" class="nav-link"><code>rmath.nn</code></a>
+                <a href="special.html" class="nav-link"><code>rmath.special</code></a>
+                <a href="constants.html" class="nav-link"><code>rmath.constants</code></a>
             </div>
         </nav>
     </aside>
 
     <main class="content">
-        <section id="welcome" class="hero">
-            <div class="badge">v0.1.0 · Tier-1 Documentation</div>
-            <h1>The <span class="gradient-text">Fastest</span> Numerical Engine for Modern Python.</h1>
-            <p class="intro-text">
-                RMath is a high-performance numerical toolkit backed by Rust. Leveraging Rayon for 
-                zero-GIL parallelization, it achieves 100% benchmark parity with NumPy while 
-                providing a modern, memory-safe analytical engine.
+        <section class="hero">
+            <div class="badge">v0.1.0 — Beta</div>
+            <h1>Numerical computing<br>for <span class="gradient-text">modern Python.</span></h1>
+            <p class="hero-sub">
+                RMath runs heavy math in Rust and exposes it to Python via PyO3.
+                All array operations, linear algebra, and statistics execute outside the GIL
+                on a Rayon thread pool.
             </p>
+
+            <div class="hero-actions">
+                <a href="#modules" class="btn btn-primary">Explore Modules →</a>
+                <a href="#install" class="btn btn-outline">Install</a>
+                <a href="https://github.com/Ay-developerweb/rmath" class="btn btn-outline" target="_blank">GitHub</a>
+            </div>
 
             <div class="code-window">
                 <div class="code-header">
-                    <div class="window-dots">
-                        <div class="dot red"></div>
-                        <div class="dot yellow"></div>
-                        <div class="dot green"></div>
-                    </div>
-                    <span class="text-muted" style="font-size: 0.8rem;">demo.py</span>
+                    <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                    <span class="filename">demo.py</span>
                 </div>
-                <pre><code><span class="keyword">import</span> rmath <span class="keyword">as</span> <span class="number">rm</span>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
 
-<span class="comment"># Initialize high-performance parallel array</span>
-data = <span class="number">rm</span>.<span class="function">Array</span>.linspace(<span class="number">0</span>, <span class="number">100</span>, <span class="number">1_000_000</span>)
+<span class="cm"># Create a 1000×1000 random matrix</span>
+data = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">1000</span>, <span class="num">1000</span>)
 
-<span class="comment"># Zero-GIL parallel processing across all cores</span>
-result = data.<span class="function">sin</span>().<span class="function">exp</span>().<span class="function">sum</span>()
+<span class="cm"># Parallel stats — runs outside the GIL</span>
+avg = data.<span class="fn">mean</span>()
+std = data.<span class="fn">std_dev</span>()
 
-<span class="keyword">print</span>(<span class="string">f"Result: {result}"</span>)</code></pre>
+<span class="cm"># Solve a linear system</span>
+b = <span class="num">rm</span>.<span class="fn">Array</span>.ones(<span class="num">1000</span>, <span class="num">1</span>)
+x = <span class="num">rm</span>.linalg.<span class="fn">solve</span>(data, b)</code></pre>
+            </div>
+        </section>
+
+        <section id="install">
+            <h2>Installation</h2>
+            <p>Pre-built wheels are available for Windows, Linux, and macOS. No Rust toolchain required.</p>
+            <div class="install-cmd">
+                <span class="dollar">$</span> pip install rmath-py
+            </div>
+            <div class="callout">
+                <strong>Note:</strong> The package is published as <code>rmath-py</code> on PyPI
+                but you import it as <code>import rmath</code>.
+            </div>
+        </section>
+
+        <section id="quickstart">
+            <h2>Quick Start</h2>
+
+            <h3>Vector math</h3>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                    <span class="filename">vectors.py</span>
+                </div>
+                <pre><code><span class="kw">import</span> rmath.vector <span class="kw">as</span> <span class="num">rv</span>
+
+v = <span class="num">rv</span>.<span class="fn">Vector</span>.linspace(<span class="num">0</span>, <span class="num">10</span>, <span class="num">1_000_000</span>)
+result = v.<span class="fn">sin</span>().<span class="fn">exp</span>().<span class="fn">sum</span>()     <span class="cm"># chained, parallel</span>
+
+<span class="cm"># Operator overloading</span>
+v2 = v + <span class="num">5.0</span>
+dot = v @ v2</code></pre>
+            </div>
+
+            <h3>Automatic differentiation</h3>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                    <span class="filename">autodiff.py</span>
+                </div>
+                <pre><code><span class="kw">import</span> rmath.calculus <span class="kw">as</span> <span class="num">rc</span>
+
+<span class="cm"># f(x) = x² + 3x, evaluated at x = 2</span>
+x = <span class="num">rc</span>.<span class="fn">Dual</span>(<span class="num">2.0</span>, <span class="num">1.0</span>)
+y = x * x + x * <span class="num">3.0</span>
+
+<span class="kw">print</span>(y.value)       <span class="cm"># 10.0</span>
+<span class="kw">print</span>(y.derivative)  <span class="cm"># 7.0 → f'(x) = 2x + 3</span></code></pre>
+            </div>
+
+            <h3>Statistics</h3>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                    <span class="filename">stats_example.py</span>
+                </div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+data = [<span class="num">2.4</span>, <span class="num">3.1</span>, <span class="num">2.8</span>, <span class="num">3.5</span>, <span class="num">2.9</span>, <span class="num">3.2</span>]
+report = <span class="num">rm</span>.stats.<span class="fn">describe</span>(data)
+
+<span class="cm"># {'count': 6, 'mean': 2.98, 'variance': 0.14,</span>
+<span class="cm">#  'std': 0.37, 'skewness': 0.04, 'kurtosis': -1.28}</span></code></pre>
             </div>
         </section>
 
         <section id="modules">
-            <h2 style="font-size: 2.5rem; margin-bottom: 1rem;">Explore the Toolkit</h2>
-            <p style="color: var(--text-muted); margin-bottom: 2rem;">Every module is optimized for parallel execution and Tier-1 documented.</p>
-            
-            <div class="module-grid">
-                <a href="vector.html" class="doc-card">
-                    <h3>Vector Engine</h3>
-                    <p>SIMD-accelerated 1D math. Support for complex numbers, trigonometry, and statistical reductions.</p>
+            <h2>Modules</h2>
+            <p style="color: var(--text-dim); margin-bottom: 1rem;">Click any module to see the full API reference.</p>
+
+            <div class="card-grid">
+                <a href="array.html" class="card">
+                    <div class="card-icon">📊</div>
+                    <h3>rmath.array</h3>
+                    <p>N-dimensional arrays with automatic storage tiering — stack, heap, or memory-mapped.</p>
                 </a>
-                <a href="array.html" class="doc-card">
-                    <h3>Array Engine</h3>
-                    <p>N-dimensional array with triple-tier storage: Inline (Stack), Heap (Shared), and Mmap (Lazy).</p>
+                <a href="vector.html" class="card">
+                    <div class="card-icon">📐</div>
+                    <h3>rmath.vector</h3>
+                    <p>1-D parallel engine with 80+ operations: trig, sorting, filtering, complex numbers.</p>
                 </a>
-                <a href="stats.html" class="doc-card">
-                    <h3>Statistical Suite</h3>
-                    <p>High-precision descriptive and inferential statistics using Welford's stable algorithm.</p>
+                <a href="scalar.html" class="card">
+                    <div class="card-icon">🔢</div>
+                    <h3>rmath.scalar</h3>
+                    <p>Precision f64 math — 80+ functions that mirror and extend Python's math module.</p>
                 </a>
-                <a href="calculus.html" class="doc-card">
-                    <h3>Numerical Calculus</h3>
-                    <p>Automatic differentiation via Dual numbers, high-order integration, and root solvers.</p>
+                <a href="linalg.html" class="card">
+                    <div class="card-icon">🧮</div>
+                    <h3>rmath.linalg</h3>
+                    <p>Matrix solvers, decompositions (QR, SVD, Cholesky, Eigenvalue), rank, and pseudoinverse.</p>
                 </a>
-                <a href="geometry.html" class="doc-card">
-                    <h3>Spatial Geometry</h3>
-                    <p>3D Transformations, Quaternions, and topological algorithms like Convex Hull.</p>
+                <a href="stats.html" class="card">
+                    <div class="card-icon">📈</div>
+                    <h3>rmath.stats</h3>
+                    <p>Descriptive and inferential statistics — T-tests, ANOVA, regression, distributions.</p>
                 </a>
-                <a href="signal.html" class="doc-card">
-                    <h3>Signal Processing</h3>
-                    <p>O(N log N) FFT-based convolutions and multi-mode Fourier analysis.</p>
+                <a href="calculus.html" class="card">
+                    <div class="card-icon">∫</div>
+                    <h3>rmath.calculus</h3>
+                    <p>Automatic differentiation via dual numbers, numerical integration, root-finding.</p>
                 </a>
-                <a href="linalg.html" class="doc-card">
-                    <h3>Linear Algebra</h3>
-                    <p>Matrix solvers, SVD, QR, and Cholesky decompositions powered by faer.</p>
+                <a href="geometry.html" class="card">
+                    <div class="card-icon">📏</div>
+                    <h3>rmath.geometry</h3>
+                    <p>Distance metrics, quaternions, cross products, convex hull, point-in-polygon.</p>
                 </a>
-                <a href="nn.html" class="doc-card">
-                    <h3>Machine Learning</h3>
-                    <p>SIMD activation functions, loss gradients, and normalization layers.</p>
+                <a href="signal.html" class="card">
+                    <div class="card-icon">〰️</div>
+                    <h3>rmath.signal</h3>
+                    <p>FFT, inverse FFT, convolution (full / same / valid modes), spectral analysis.</p>
                 </a>
-                <a href="special.html" class="doc-card">
-                    <h3>Special Functions</h3>
-                    <p>Gamma, Error, and Beta functions with full broadcasting support.</p>
+                <a href="nn.html" class="card">
+                    <div class="card-icon">🧠</div>
+                    <h3>rmath.nn</h3>
+                    <p>Activations (GELU, Softmax), loss functions, normalization, pooling layers.</p>
                 </a>
-                <a href="scalar.html" class="doc-card">
-                    <h3>Scalar Core</h3>
-                    <p>Precision-optimized 64-bit math for single values and fundamental calculations.</p>
+                <a href="special.html" class="card">
+                    <div class="card-icon">Γ</div>
+                    <h3>rmath.special</h3>
+                    <p>Gamma, log-gamma, and error functions with scalar, vector, and array dispatch.</p>
+                </a>
+                <a href="constants.html" class="card">
+                    <div class="card-icon">π</div>
+                    <h3>rmath.constants</h3>
+                    <p>Mathematical constants (π, e, φ) and machine-precision values (epsilon, max float).</p>
                 </a>
             </div>
         </section>
 
-        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
-            <p>&copy; 2026 RMath Development Team. Built with Rust and ❤️.</p>
+        <section id="architecture">
+            <h2>Architecture</h2>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                    <span class="filename">architecture</span>
+                </div>
+                <pre><code>Python (<span class="kw">rmath</span>)  ──PyO3──▸  Rust core
+                              │
+                  ┌───────────┼───────────┐
+                  ▼           ▼           ▼
+               <span class="fn">Stack</span>       <span class="fn">Heap</span>       <span class="fn">Mmap</span>
+             (inline)    (shared)    (lazy I/O)
+                  │           │           │
+                  └─── <span class="str">Rayon thread pool</span> ──┘</code></pre>
+            </div>
+
+            <div class="callout">
+                <strong>No GIL:</strong> Heavy loops release the Python GIL and execute across all CPU cores
+                via Rayon. Small arrays stay on the stack for zero-allocation speed.
+            </div>
+        </section>
+
+        <footer class="footer">
+            <p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a> · <a href="https://pypi.org/project/rmath-py/">PyPI</a></p>
         </footer>
     </main>
 </div>

@@ -1,91 +1,99 @@
-/* RMath Documentation Portal - Premium Interactivity */
+/* RMath Documentation Portal — Interactivity */
 
 document.addEventListener('DOMContentLoaded', () => {
-    const sidebar = document.querySelector('.sidebar');
-    const navLinks = document.querySelectorAll('.nav-link');
-    const sections = document.querySelectorAll('section');
+    const sidebar = document.getElementById('sidebar');
     const searchInput = document.getElementById('moduleSearch');
-    const codeHeaders = document.querySelectorAll('.code-header');
 
-    // 1. Mobile Menu Logic
-    const toggleBtn = document.createElement('button');
-    toggleBtn.className = 'menu-toggle';
-    toggleBtn.innerHTML = '<span></span><span></span><span></span>';
-    document.body.appendChild(toggleBtn);
+    // 1. Mobile Menu
+    const toggle = document.createElement('button');
+    toggle.className = 'menu-toggle';
+    toggle.setAttribute('aria-label', 'Toggle navigation');
+    toggle.innerHTML = '<span></span><span></span><span></span>';
+    document.body.appendChild(toggle);
 
     const overlay = document.createElement('div');
-    overlay.className = 'sidebar-overlay';
+    overlay.className = 'overlay';
     document.body.appendChild(overlay);
 
-    toggleBtn.addEventListener('click', () => {
+    const closeSidebar = () => {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('active');
+    };
+
+    toggle.addEventListener('click', () => {
         sidebar.classList.toggle('open');
         overlay.classList.toggle('active');
     });
 
-    overlay.addEventListener('click', () => {
-        sidebar.classList.remove('open');
-        overlay.classList.remove('active');
+    overlay.addEventListener('click', closeSidebar);
+
+    // Close sidebar on nav link click (mobile)
+    document.querySelectorAll('.nav-link').forEach(link => {
+        link.addEventListener('click', () => {
+            if (window.innerWidth <= 860) closeSidebar();
+        });
     });
 
-    // 2. Module Search
+    // 2. Module search
     if (searchInput) {
         searchInput.addEventListener('input', (e) => {
             const term = e.target.value.toLowerCase();
             document.querySelectorAll('#sidebarNav .nav-link').forEach(link => {
                 const text = link.textContent.toLowerCase();
-                link.style.display = text.includes(term) ? 'flex' : 'none';
+                link.style.display = text.includes(term) ? '' : 'none';
+            });
+            // Show group titles if any child is visible
+            document.querySelectorAll('.nav-group').forEach(group => {
+                const visible = group.querySelectorAll('.nav-link:not([style*="display: none"])');
+                const title = group.querySelector('.nav-group-title');
+                if (title) title.style.display = visible.length ? '' : 'none';
             });
         });
     }
 
-    // 3. Copy Code
-    codeHeaders.forEach(header => {
-        const copyBtn = document.createElement('button');
-        copyBtn.className = 'copy-btn';
-        copyBtn.textContent = 'Copy';
-        copyBtn.addEventListener('click', () => {
-            const code = header.nextElementSibling.innerText;
-            navigator.clipboard.writeText(code).then(() => {
-                copyBtn.textContent = 'Copied!';
-                setTimeout(() => copyBtn.textContent = 'Copy', 2000);
+    // 3. Copy buttons on code blocks
+    document.querySelectorAll('.code-header').forEach(header => {
+        const btn = document.createElement('button');
+        btn.className = 'copy-btn';
+        btn.textContent = 'Copy';
+        btn.addEventListener('click', () => {
+            const codeEl = header.nextElementSibling;
+            if (!codeEl) return;
+            const text = codeEl.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => btn.textContent = 'Copy', 1800);
             });
         });
-        header.appendChild(copyBtn);
+        header.appendChild(btn);
     });
 
-    // 4. Manual Click Active State (Instant Feedback)
-    navLinks.forEach(link => {
-        link.addEventListener('click', () => {
-            if (link.getAttribute('href').startsWith('#')) {
-                document.querySelectorAll('#onThisPage .nav-link').forEach(l => l.classList.remove('active'));
-                link.classList.add('active');
-            }
-        });
-    });
-
-    // 5. Scroll Spy (On This Page)
-    const observer = new IntersectionObserver((entries) => {
-        entries.forEach(entry => {
-            if (entry.isIntersecting && entry.intersectionRatio >= 0.5) {
-                const id = entry.target.getAttribute('id');
-                const matchingLink = document.querySelector(`#onThisPage a[href="#${id}"]`);
-                if (matchingLink) {
-                    document.querySelectorAll('#onThisPage .nav-link').forEach(l => l.classList.remove('active'));
-                    matchingLink.classList.add('active');
+    // 4. Scroll spy for "On This Page" and anchor links
+    const sections = document.querySelectorAll('section[id]');
+    if (sections.length > 0) {
+        const observer = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const id = entry.target.getAttribute('id');
+                    document.querySelectorAll('.nav-link').forEach(l => {
+                        if (l.getAttribute('href') === `#${id}`) {
+                            document.querySelectorAll('.nav-link[href^="#"]').forEach(x => x.classList.remove('active'));
+                            l.classList.add('active');
+                        }
+                    });
                 }
-            }
-        });
-    }, { threshold: [0.5] });
+            });
+        }, { threshold: 0.3, rootMargin: '-80px 0px -40% 0px' });
 
-    sections.forEach(s => observer.observe(s));
-
-    // Handle initial state
-    const currentHash = window.location.hash;
-    if (currentHash) {
-        const matchingLink = document.querySelector(`#onThisPage a[href="${currentHash}"]`);
-        if (matchingLink) matchingLink.classList.add('active');
-    } else {
-        const overviewLink = document.querySelector('#onThisPage a[href="#overview"]');
-        if (overviewLink) overviewLink.classList.add('active');
+        sections.forEach(s => observer.observe(s));
     }
+
+    // 5. Active page highlight in sidebar
+    const currentPage = window.location.pathname.split('/').pop() || 'index.html';
+    document.querySelectorAll('.nav-link').forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && !href.startsWith('#') && href === currentPage) {
+            link.classList.add('active');
+        }
+    });
 });

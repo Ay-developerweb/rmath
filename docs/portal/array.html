@@ -3,37 +3,26 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rmath.array | RMath Documentation</title>
+    <title>rmath.array — RMath Documentation</title>
+    <meta name="description" content="API reference for rmath.array — N-dimensional array engine with automatic storage tiering.">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-
-<div class="portal-container">
-    <aside class="sidebar">
-        <a href="index.html" class="logo-container">
-            <div class="logo-icon">R</div>
-            <div class="logo-text">RMath Docs</div>
+<div class="portal">
+    <aside class="sidebar" id="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1</small></span>
         </a>
-
-        <div class="search-container">
-            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
-            <span class="search-icon">🔍</span>
-        </div>
-
+        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
         <nav id="sidebarNav">
-            <a href="index.html" class="nav-link">← Back to Portal</a>
-            <div style="margin-top: 1.5rem;"></div>
-            <div id="onThisPage">
-                <div class="nav-group">
-                    <span class="nav-label">On This Page</span>
-                    <a href="#overview" class="nav-link">Overview</a>
-                    <a href="#storage" class="nav-link">Storage Tiers</a>
-                    <a href="#constructors" class="nav-link">Constructors</a>
-                </div>
-            </div>
+            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
+            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link active"><code>rmath.array</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">On this page</div><a href="#overview" class="nav-link">Overview</a><a href="#constructors" class="nav-link">Constructors</a><a href="#shape" class="nav-link">Shape &amp; Access</a><a href="#math" class="nav-link">Element-wise Math</a><a href="#operators" class="nav-link">Operators</a><a href="#matrix" class="nav-link">Matrix Operations</a><a href="#reductions" class="nav-link">Reductions</a><a href="#ml" class="nav-link">ML / Normalization</a><a href="#predicates" class="nav-link">Predicates</a><a href="#functional" class="nav-link">Functional API</a></div>
         </nav>
     </aside>
 
@@ -41,57 +30,248 @@
         <section id="overview" class="hero">
             <div class="badge">Core Module</div>
             <h1>rmath.<span class="gradient-text">array</span></h1>
-            <p class="intro-text">
-                The foundation of RMath's N-Dimensional computing. Supports SIMD-accelerated math kernels, 
-                automatic broadcasting, and zero-copy interop with Python's scientific ecosystem.
+            <p class="hero-sub">
+                N-dimensional array engine. Row-major <code>Vec&lt;Vec&lt;f64&gt;&gt;</code> backed,
+                with all element-wise operations parallelized via Rayon. Supports automatic
+                storage tiering: inline (stack), heap, and memory-mapped files.
             </p>
-        </section>
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">example.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
 
-        <section id="storage" style="margin-bottom: 4rem;">
-            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">Triple-Tier Storage</h2>
-            <div class="module-grid">
-                <div class="doc-card">
-                    <h3 style="color: #27c93f;">Inline</h3>
-                    <p>Stack-allocated for < 32 elements. Zero heap allocation. Performance matches raw CPU registers.</p>
-                </div>
-                <div class="doc-card">
-                    <h3 style="color: #3a7bd5;">Heap</h3>
-                    <p>Shared Arc memory for massive datasets. Reference-counted and thread-safe for parallel processing.</p>
-                </div>
-                <div class="doc-card">
-                    <h3 style="color: #ffbd2e;">Mmap</h3>
-                    <p>Disk-backed memory mapping. Process GB-scale datasets without exceeding RAM limits.</p>
-                </div>
+a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>]])
+b = <span class="num">rm</span>.<span class="fn">Array</span>.eye(<span class="num">2</span>)
+
+c = a @ b          <span class="cm"># matrix multiply</span>
+d = a.<span class="fn">sin</span>().<span class="fn">exp</span>()  <span class="cm"># element-wise chain</span>
+avg = a.<span class="fn">mean</span>()     <span class="cm"># global reduction</span></code></pre>
             </div>
         </section>
 
         <section id="constructors">
-            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">Constructors</h2>
-            <div class="code-window">
-                <div class="code-header">
-                    <div class="window-dots">
-                        <div class="dot red"></div>
-                        <div class="dot yellow"></div>
-                        <div class="dot green"></div>
-                    </div>
-                </div>
-                <pre><code><span class="comment"># Zero-initialized</span>
-arr = <span class="number">rm</span>.<span class="function">Array</span>.zeros(<span class="number">100</span>, <span class="number">100</span>)
-
-<span class="comment"># Identity matrix</span>
-eye = <span class="number">rm</span>.<span class="function">Array</span>.eye(<span class="number">10</span>)
-
-<span class="comment"># From Python data</span>
-data = <span class="number">rm</span>.<span class="function">Array</span>([[<span class="number">1</span>, <span class="number">2</span>], [<span class="number">3</span>, <span class="number">4</span>]])</code></pre>
+            <h2>Constructors</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Signature</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>Array(data)</code></td><td class="desc">Create from nested lists, a Vector, or a scalar. <code>rm.Array([[1,2],[3,4]])</code></td></tr>
+                        <tr><td><code>Array.zeros(*shape)</code></td><td class="desc">Array of zeros. <code>rm.Array.zeros(3, 4)</code></td></tr>
+                        <tr><td><code>Array.ones(*shape)</code></td><td class="desc">Array of ones.</td></tr>
+                        <tr><td><code>Array.eye(n)</code></td><td class="desc">Identity matrix of size n × n.</td></tr>
+                        <tr><td><code>Array.full(*args, value)</code></td><td class="desc">Filled array. <code>rm.Array.full(3, 4, 2.5)</code></td></tr>
+                        <tr><td><code>Array.from_flat(data, shape)</code></td><td class="desc">Create from a flat list and a shape tuple.</td></tr>
+                    </tbody>
+                </table>
             </div>
         </section>
 
-        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
-            <p>&copy; 2026 RMath Development Team. Tier-1 Documentation Portal.</p>
-        </footer>
+        <section id="shape">
+            <h2>Shape &amp; Data Access</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.shape()</code></td><td class="returns">tuple[int, ...]</td><td class="desc">Dimensions of the array</td></tr>
+                        <tr><td><code>.size()</code></td><td class="returns">int</td><td class="desc">Total number of elements</td></tr>
+                        <tr><td><code>.nrows()</code></td><td class="returns">int</td><td class="desc">Number of rows</td></tr>
+                        <tr><td><code>.ncols()</code></td><td class="returns">int</td><td class="desc">Number of columns</td></tr>
+                        <tr><td><code>.to_list()</code></td><td class="returns">list[list[float]]</td><td class="desc">Convert to nested Python lists</td></tr>
+                        <tr><td><code>.flatten()</code></td><td class="returns">list[float]</td><td class="desc">Flat 1D list of all elements</td></tr>
+                        <tr><td><code>.row(i)</code></td><td class="returns">list[float]</td><td class="desc">Extract row i (raises IndexError)</td></tr>
+                        <tr><td><code>.col(j)</code></td><td class="returns">list[float]</td><td class="desc">Extract column j (raises IndexError)</td></tr>
+                        <tr><td><code>.get(i, j)</code></td><td class="returns">float</td><td class="desc">Element at (i, j)</td></tr>
+                        <tr><td><code>.diag_extract()</code></td><td class="returns">list[float]</td><td class="desc">Main diagonal (square only)</td></tr>
+                        <tr><td><code>.triu()</code></td><td class="returns">Array</td><td class="desc">Upper triangular</td></tr>
+                        <tr><td><code>.tril()</code></td><td class="returns">Array</td><td class="desc">Lower triangular</td></tr>
+                        <tr><td><code>.reshape(rows, cols)</code></td><td class="returns">Array</td><td class="desc">Reshape (raises ValueError if sizes don't match)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="math">
+            <h2>Element-wise Math</h2>
+            <p>All operations return a new Array. Parallelized via Rayon.</p>
+            <div class="api-section">
+                <div class="api-section-title">Rounding</div>
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.abs()</code></td><td class="desc">Absolute value</td></tr>
+                        <tr><td><code>.sqrt()</code></td><td class="desc">Square root</td></tr>
+                        <tr><td><code>.cbrt()</code></td><td class="desc">Cube root</td></tr>
+                        <tr><td><code>.ceil()</code></td><td class="desc">Round up</td></tr>
+                        <tr><td><code>.floor()</code></td><td class="desc">Round down</td></tr>
+                        <tr><td><code>.round()</code></td><td class="desc">Round to nearest</td></tr>
+                        <tr><td><code>.trunc()</code></td><td class="desc">Truncate toward zero</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Trigonometric</div>
+                <table class="api-table">
+                    <thead><tr><th>Method</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.sin()</code> · <code>.cos()</code> · <code>.tan()</code> · <code>.asin()</code> · <code>.acos()</code> · <code>.atan()</code></td></tr>
+                        <tr><td><code>.sinh()</code> · <code>.cosh()</code> · <code>.tanh()</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Exponential &amp; Logarithmic</div>
+                <table class="api-table">
+                    <thead><tr><th>Method</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.exp()</code> · <code>.exp2()</code> · <code>.expm1()</code></td></tr>
+                        <tr><td><code>.log()</code> · <code>.log2()</code> · <code>.log10()</code> · <code>.log1p()</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="operators">
+            <h2>Operators</h2>
+            <p>Supports scalar broadcast and Array-Array operations.</p>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Operator</th><th>Left</th><th>Right</th><th>Explicit</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>+</code></td><td>Array</td><td>float | Array</td><td><code>.add_scalar(s)</code> / <code>.add_array(b)</code></td></tr>
+                        <tr><td><code>-</code></td><td>Array</td><td>float | Array</td><td><code>.sub_scalar(s)</code> / <code>.sub_array(b)</code></td></tr>
+                        <tr><td><code>*</code></td><td>Array</td><td>float | Array</td><td><code>.mul_scalar(s)</code> / <code>.mul_array(b)</code></td></tr>
+                        <tr><td><code>/</code></td><td>Array</td><td>float | Array</td><td><code>.div_scalar(s)</code> / <code>.div_array(b)</code></td></tr>
+                        <tr><td><code>@</code></td><td>Array</td><td>Array</td><td><code>.matmul(b)</code></td></tr>
+                        <tr><td><code>-a</code></td><td colspan="3">Unary negation</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="matrix">
+            <h2>Matrix Operations</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.transpose()</code></td><td class="returns">Array</td><td class="desc">Matrix transpose</td></tr>
+                        <tr><td><code>.matmul(b)</code></td><td class="returns">Array</td><td class="desc">Matrix multiplication</td></tr>
+                        <tr><td><code>.trace()</code></td><td class="returns">float</td><td class="desc">Sum of diagonal (square only)</td></tr>
+                        <tr><td><code>.det()</code></td><td class="returns">float</td><td class="desc">Determinant (square only)</td></tr>
+                        <tr><td><code>.inv()</code></td><td class="returns">Array</td><td class="desc">Matrix inverse (non-singular)</td></tr>
+                        <tr><td><code>.solve(b)</code></td><td class="returns">list[float]</td><td class="desc">Solve Ax = b</td></tr>
+                        <tr><td><code>.pow_scalar(exp)</code></td><td class="returns">Array</td><td class="desc">Element-wise power</td></tr>
+                        <tr><td><code>.clamp(lo, hi)</code></td><td class="returns">Array</td><td class="desc">Clamp all elements to [lo, hi]</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <section id="reductions">
+            <h2>Reductions</h2>
+            <div class="api-section">
+                <div class="api-section-title">Global</div>
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Returns</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.sum()</code> · <code>.prod()</code> · <code>.mean()</code></td><td class="returns">float</td></tr>
+                        <tr><td><code>.variance()</code> · <code>.std_dev()</code></td><td class="returns">float</td></tr>
+                        <tr><td><code>.min()</code> · <code>.max()</code></td><td class="returns">float</td></tr>
+                        <tr><td><code>.norm_fro()</code> · <code>.norm_l1()</code> · <code>.norm_inf()</code></td><td class="returns">float</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Per-axis (returns list[float])</div>
+                <table class="api-table">
+                    <thead><tr><th>Row-wise</th><th>Column-wise</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.row_sums()</code></td><td><code>.col_sums()</code></td></tr>
+                        <tr><td><code>.row_means()</code></td><td><code>.col_means()</code></td></tr>
+                        <tr><td><code>.row_min()</code></td><td><code>.col_min()</code></td></tr>
+                        <tr><td><code>.row_max()</code></td><td><code>.col_max()</code></td></tr>
+                        <tr><td><code>.row_variance()</code></td><td><code>.col_variance()</code></td></tr>
+                        <tr><td><code>.row_std_dev()</code></td><td><code>.col_std_dev()</code></td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Cumulative (row-wise)</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>.cumsum()</code> · <code>.cumprod()</code></td><td class="returns">Array</td></tr>
+                </tbody></table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Matrix statistics</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>.covariance_matrix()</code></td><td class="desc">Requires ≥2 rows</td></tr>
+                    <tr><td><code>.correlation_matrix()</code></td><td class="desc">Pearson correlation</td></tr>
+                </tbody></table>
+            </div>
+        </section>
+
+        <section id="ml">
+            <h2>ML &amp; Normalization</h2>
+            <div class="api-section">
+                <div class="api-section-title">Activations</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>.sigmoid()</code></td><td class="desc">Logistic sigmoid</td></tr>
+                    <tr><td><code>.relu()</code></td><td class="desc">Rectified linear unit</td></tr>
+                    <tr><td><code>.leaky_relu(alpha)</code></td><td class="desc">Leaky ReLU with given slope</td></tr>
+                    <tr><td><code>.softmax()</code></td><td class="desc">Row-wise softmax (numerically stable)</td></tr>
+                </tbody></table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Normalization</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>.normalize()</code></td><td class="desc">Global min-max to [0, 1]</td></tr>
+                    <tr><td><code>.col_normalize()</code></td><td class="desc">Per-column min-max (MinMaxScaler)</td></tr>
+                    <tr><td><code>.z_normalize()</code></td><td class="desc">Global z-score</td></tr>
+                    <tr><td><code>.col_z_normalize()</code></td><td class="desc">Per-column z-score (StandardScaler)</td></tr>
+                </tbody></table>
+            </div>
+        </section>
+
+        <section id="predicates">
+            <h2>Predicates</h2>
+            <div class="api-section">
+                <table class="api-table"><tbody>
+                    <tr><td><code>.isnan()</code></td><td class="returns">list[list[bool]]</td><td class="desc">Element-wise NaN check</td></tr>
+                    <tr><td><code>.isfinite()</code></td><td class="returns">list[list[bool]]</td><td class="desc">Element-wise finite check</td></tr>
+                    <tr><td><code>.isinf()</code></td><td class="returns">list[list[bool]]</td><td class="desc">Element-wise infinity check</td></tr>
+                    <tr><td><code>.any_nan()</code></td><td class="returns">bool</td><td class="desc">True if any element is NaN</td></tr>
+                    <tr><td><code>.all_finite()</code></td><td class="returns">bool</td><td class="desc">True if all elements are finite</td></tr>
+                </tbody></table>
+            </div>
+        </section>
+
+        <section id="functional">
+            <h2>Functional API</h2>
+            <p>Module-level functions in <code>rmath.array</code>:</p>
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">functional.py</span></div>
+                <pre><code><span class="kw">import</span> rmath.array <span class="kw">as</span> <span class="num">ra</span>
+
+z = <span class="num">ra</span>.<span class="fn">zeros</span>(<span class="num">3</span>, <span class="num">4</span>)
+I = <span class="num">ra</span>.<span class="fn">eye</span>(<span class="num">5</span>)
+d = <span class="num">ra</span>.<span class="fn">diag</span>([<span class="num">1.0</span>, <span class="num">2.0</span>, <span class="num">3.0</span>])
+t = <span class="num">ra</span>.<span class="fn">transpose</span>(z)
+det = <span class="num">ra</span>.<span class="fn">det</span>(I)</code></pre>
+            </div>
+            <div class="api-section">
+                <table class="api-table"><tbody>
+                    <tr><td><code>zeros(r, c)</code> · <code>ones(r, c)</code> · <code>eye(n)</code> · <code>full(r, c, v)</code> · <code>diag(vals)</code></td></tr>
+                    <tr><td><code>transpose(a)</code> · <code>matmul(a, b)</code> · <code>trace(a)</code> · <code>det(a)</code> · <code>inv(a)</code> · <code>solve(a, b)</code></td></tr>
+                    <tr><td><code>add_scalar</code> · <code>sub_scalar</code> · <code>mul_scalar</code> · <code>div_scalar</code></td></tr>
+                    <tr><td><code>add_array</code> · <code>sub_array</code> · <code>mul_array</code> · <code>div_array</code></td></tr>
+                    <tr><td><code>sum</code> · <code>mean</code> · <code>min</code> · <code>max</code> · <code>variance</code> · <code>std_dev</code></td></tr>
+                    <tr><td><code>norm_fro</code> · <code>norm_l1</code> · <code>norm_inf</code></td></tr>
+                </tbody></table>
+            </div>
+        </section>
+
+        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
     </main>
 </div>
-
 <script src="script.js"></script>
 </body>
 </html>

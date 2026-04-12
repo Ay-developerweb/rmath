@@ -3,38 +3,24 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rmath.vector | RMath Documentation</title>
+    <title>rmath.vector — RMath Documentation</title>
+    <meta name="description" content="API reference for rmath.vector — 1D parallel engine with 80+ operations.">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-
-<div class="portal-container">
-    <aside class="sidebar">
-        <a href="index.html" class="logo-container">
-            <div class="logo-icon">R</div>
-            <div class="logo-text">RMath Docs</div>
-        </a>
-
-        <div class="search-container">
-            <input type="text" id="moduleSearch" placeholder="Search modules..." autocomplete="off">
-            <span class="search-icon">🔍</span>
-        </div>
-
+<div class="portal">
+    <aside class="sidebar" id="sidebar">
+        <a href="index.html" class="sidebar-brand"><img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1</small></span></a>
+        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
         <nav id="sidebarNav">
-            <a href="index.html" class="nav-link">← Back to Portal</a>
-            <div style="margin-top: 1.5rem;"></div>
-            <div id="onThisPage">
-                <div class="nav-group">
-                    <span class="nav-label">On This Page</span>
-                    <a href="#overview" class="nav-link">Overview</a>
-                    <a href="#features" class="nav-link">Features</a>
-                    <a href="#constructors" class="nav-link">Constructors</a>
-                    <a href="#arithmetic" class="nav-link">API Reference</a>
-                </div>
-            </div>
+            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
+            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="vector.html" class="nav-link active"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">On this page</div><a href="#overview" class="nav-link">Overview</a><a href="#constructors" class="nav-link">Constructors</a><a href="#operators" class="nav-link">Operators</a><a href="#math" class="nav-link">Element-wise Math</a><a href="#reductions" class="nav-link">Reductions</a><a href="#filtering" class="nav-link">Filtering</a><a href="#sorting" class="nav-link">Sorting</a><a href="#cumulative" class="nav-link">Cumulative</a><a href="#shaping" class="nav-link">Shaping</a><a href="#complex" class="nav-link">ComplexVector</a><a href="#functional" class="nav-link">Functional API</a></div>
         </nav>
     </aside>
 
@@ -42,78 +28,209 @@
         <section id="overview" class="hero">
             <div class="badge">Core Module</div>
             <h1>rmath.<span class="gradient-text">vector</span></h1>
-            <p class="intro-text">
-                RMath's flagship 1D engine. Features over 150 parallelized operations categorized 
-                into arithmetic, trigonometry, hyperbolic, and logical filters.
+            <p class="hero-sub">
+                1-D parallel math engine. Supports operator overloading, method chaining,
+                and 80+ operations — all running on Rayon with zero GIL holding.
             </p>
-        </section>
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">example.py</span></div>
+                <pre><code><span class="kw">import</span> rmath.vector <span class="kw">as</span> <span class="num">rv</span>
 
-        <section id="features" style="margin-bottom: 4rem;">
-            <div class="module-grid">
-                <div class="doc-card">
-                    <h3>Rayon Parallel</h3>
-                    <p>Heavy loops are automatically offloaded to the Rayon thread pool with zero GIL overhead.</p>
-                </div>
-                <div class="doc-card">
-                    <h3>Operator Overloading</h3>
-                    <p>Native Python support for +, -, *, /, @, and unary negation for both Scalar and Vector operands.</p>
-                </div>
+v = <span class="num">rv</span>.<span class="fn">Vector</span>.linspace(<span class="num">0</span>, <span class="num">10</span>, <span class="num">1_000_000</span>)
+result = v.<span class="fn">sin</span>().<span class="fn">exp</span>().<span class="fn">sum</span>()   <span class="cm"># chained, parallel</span>
+
+<span class="cm"># Operators</span>
+v2 = v + <span class="num">5.0</span>
+dot = v @ v2                   <span class="cm"># dot product</span></code></pre>
             </div>
         </section>
 
         <section id="constructors">
-            <h2 style="font-size: 2rem; margin-bottom: 1.5rem;">Constructors</h2>
-            <div class="code-window">
-                <div class="code-header">
-                    <div class="window-dots"><div class="dot red"></div><div class="dot yellow"></div><div class="dot green"></div></div>
-                </div>
-                <pre><code><span class="keyword">import</span> rmath <span class="keyword">as</span> <span class="number">rm</span>
+            <h2>Constructors</h2>
+            <div class="api-section"><table class="api-table">
+                <thead><tr><th>Signature</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>Vector(data)</code></td><td class="desc">Create from any sequence of floats</td></tr>
+                    <tr><td><code>Vector.range(start, stop, step=1.0)</code></td><td class="desc">Evenly spaced values (like Python range for floats)</td></tr>
+                    <tr><td><code>Vector.linspace(start, stop, num)</code></td><td class="desc">num evenly spaced points between start and stop</td></tr>
+                    <tr><td><code>Vector.sum_range(start, stop, step)</code></td><td class="desc">Sum of range without allocating a vector</td></tr>
+                </tbody>
+            </table></div>
+        </section>
 
-v = <span class="number">rm</span>.<span class="function">Vector</span>.range(<span class="number">0</span>, <span class="number">10</span>, <span class="number">0.1</span>)
-lin = <span class="number">rm</span>.<span class="function">Vector</span>.linspace(<span class="number">0</span>, <span class="number">1</span>, <span class="number">100</span>)
-rand = <span class="number">rm</span>.<span class="function">vector</span>.randn(<span class="number">1000</span>)</code></pre>
+        <section id="operators">
+            <h2>Operators</h2>
+            <p>All operators work with both <code>float</code> and <code>Vector</code> operands.</p>
+            <div class="api-section"><table class="api-table">
+                <thead><tr><th>Operator</th><th>Explicit</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>v + x</code></td><td><code>.add_scalar(s)</code> / <code>.add_vec(v2)</code></td><td class="desc">Addition</td></tr>
+                    <tr><td><code>v - x</code></td><td><code>.sub_scalar(s)</code> / <code>.sub_vec(v2)</code></td><td class="desc">Subtraction</td></tr>
+                    <tr><td><code>v * x</code></td><td><code>.mul_scalar(s)</code> / <code>.mul_vec(v2)</code></td><td class="desc">Multiplication</td></tr>
+                    <tr><td><code>v / x</code></td><td><code>.div_scalar(s)</code> / <code>.div_vec(v2)</code></td><td class="desc">Division</td></tr>
+                    <tr><td><code>v @ v2</code></td><td><code>.dot(v2)</code></td><td class="desc">Dot product → float</td></tr>
+                    <tr><td><code>-v</code></td><td>—</td><td class="desc">Negate all elements</td></tr>
+                    <tr><td>—</td><td><code>.pow_scalar(exp)</code></td><td class="desc">Element-wise power</td></tr>
+                    <tr><td>—</td><td><code>.clamp(lo, hi)</code></td><td class="desc">Clamp elements to range</td></tr>
+                </tbody>
+            </table></div>
+        </section>
+
+        <section id="math">
+            <h2>Element-wise Math</h2>
+            <p>All return a new <code>Vector</code>.</p>
+            <div class="api-section">
+                <div class="api-section-title">Rounding &amp; Roots</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>.abs()</code> · <code>.sqrt()</code> · <code>.cbrt()</code> · <code>.ceil()</code> · <code>.floor()</code> · <code>.round()</code> · <code>.trunc()</code></td></tr>
+                </tbody></table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Trigonometric</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>.sin()</code> · <code>.cos()</code> · <code>.tan()</code></td></tr>
+                    <tr><td><code>.asin()</code> · <code>.acos()</code> · <code>.atan()</code></td></tr>
+                    <tr><td><code>.sinh()</code> · <code>.cosh()</code> · <code>.tanh()</code></td></tr>
+                </tbody></table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Exponential &amp; Logarithmic</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>.exp()</code> · <code>.exp2()</code> · <code>.expm1()</code></td></tr>
+                    <tr><td><code>.log()</code> · <code>.log2()</code> · <code>.log10()</code> · <code>.log1p()</code></td></tr>
+                </tbody></table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Other</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>.sigmoid()</code></td><td class="desc">Logistic sigmoid</td></tr>
+                    <tr><td><code>.clip(lo, hi)</code></td><td class="desc">Clamp elements</td></tr>
+                    <tr><td><code>.hypot_scalar(y)</code></td><td class="desc">sqrt(x² + y²) per element</td></tr>
+                    <tr><td><code>.atan2_scalar(x)</code></td><td class="desc">Two-arg arctangent per element</td></tr>
+                    <tr><td><code>.lerp_scalar(other, t)</code></td><td class="desc">Linear interpolation per element</td></tr>
+                </tbody></table>
             </div>
         </section>
 
-        <section id="arithmetic">
-            <h2 style="font-size: 2rem; margin-bottom: 1rem;">API Reference</h2>
-            <div style="border: 1px solid var(--border-color); border-radius: 12px; overflow: hidden;">
-                <table style="width: 100%; border-collapse: collapse; background: var(--bg-card);">
-                    <tr style="border-bottom: 1px solid var(--border-color);">
-                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Method</th>
-                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Complexity</th>
-                        <th style="padding: 1rem; text-align: left; color: var(--accent-primary);">Description</th>
-                    </tr>
-                    <tr style="border-bottom: 1px solid var(--border-color);">
-                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">v.sum()</td>
-                        <td style="padding: 1rem; font-size: 0.85rem;">O(N)</td>
-                        <td style="padding: 1rem; color: var(--text-muted);">Parallel Kahan-sum reduction.</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid var(--border-color);">
-                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">v.sin()</td>
-                        <td style="padding: 1rem; font-size: 0.85rem;">O(N)</td>
-                        <td style="padding: 1rem; color: var(--text-muted);">Element-wise parallel sine.</td>
-                    </tr>
-                    <tr style="border-bottom: 1px solid var(--border-color);">
-                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">v.unique()</td>
-                        <td style="padding: 1rem; font-size: 0.85rem;">O(N log N)</td>
-                        <td style="padding: 1rem; color: var(--text-muted);">Return sorted unique elements.</td>
-                    </tr>
-                    <tr>
-                        <td style="padding: 1rem; font-family: var(--font-mono); font-size: 0.9rem;">v.argsort()</td>
-                        <td style="padding: 1rem; font-size: 0.85rem;">O(N log N)</td>
-                        <td style="padding: 1rem; color: var(--text-muted);">Parallel unstable sort indexer.</td>
-                    </tr>
-                </table>
+        <section id="reductions">
+            <h2>Reductions</h2>
+            <div class="api-section"><table class="api-table">
+                <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>.sum()</code></td><td class="returns">float</td><td class="desc">Parallel Kahan-sum</td></tr>
+                    <tr><td><code>.prod()</code></td><td class="returns">float</td><td class="desc">Product of all elements</td></tr>
+                    <tr><td><code>.mean()</code></td><td class="returns">float</td><td class="desc">Arithmetic mean</td></tr>
+                    <tr><td><code>.variance()</code></td><td class="returns">float</td><td class="desc">Sample variance (n ≥ 2)</td></tr>
+                    <tr><td><code>.std_dev()</code></td><td class="returns">float</td><td class="desc">Sample standard deviation</td></tr>
+                    <tr><td><code>.min()</code></td><td class="returns">float</td><td class="desc">Minimum value</td></tr>
+                    <tr><td><code>.max()</code></td><td class="returns">float</td><td class="desc">Maximum value</td></tr>
+                    <tr><td><code>.any()</code></td><td class="returns">bool</td><td class="desc">True if any element is nonzero</td></tr>
+                    <tr><td><code>.all()</code></td><td class="returns">bool</td><td class="desc">True if all elements are nonzero</td></tr>
+                </tbody>
+            </table></div>
+        </section>
+
+        <section id="filtering">
+            <h2>Filtering &amp; Predicates</h2>
+            <div class="api-section"><table class="api-table">
+                <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>.filter_gt(threshold)</code></td><td class="returns">Vector</td><td class="desc">Keep elements > threshold</td></tr>
+                    <tr><td><code>.filter_lt(threshold)</code></td><td class="returns">Vector</td><td class="desc">Keep elements < threshold</td></tr>
+                    <tr><td><code>.filter_by_mask(mask)</code></td><td class="returns">Vector</td><td class="desc">Keep elements where mask is true</td></tr>
+                    <tr><td><code>.gt_mask(t)</code></td><td class="returns">Vector</td><td class="desc">Boolean mask: element > t</td></tr>
+                    <tr><td><code>.lt_mask(t)</code></td><td class="returns">Vector</td><td class="desc">Boolean mask: element < t</td></tr>
+                    <tr><td><code>.eq_mask(v)</code></td><td class="returns">Vector</td><td class="desc">Boolean mask: element == v</td></tr>
+                    <tr><td><code>.where_(mask, other)</code></td><td class="returns">Vector</td><td class="desc">Conditional select</td></tr>
+                    <tr><td><code>.isnan()</code></td><td class="returns">list[bool]</td><td class="desc">NaN check per element</td></tr>
+                    <tr><td><code>.isfinite()</code></td><td class="returns">list[bool]</td><td class="desc">Finite check per element</td></tr>
+                    <tr><td><code>.isinf()</code></td><td class="returns">list[bool]</td><td class="desc">Infinity check per element</td></tr>
+                    <tr><td><code>.is_integer()</code></td><td class="returns">list[bool]</td><td class="desc">Integer check per element</td></tr>
+                    <tr><td><code>.is_prime()</code></td><td class="returns">list[bool]</td><td class="desc">Primality check per element</td></tr>
+                </tbody>
+            </table></div>
+        </section>
+
+        <section id="sorting">
+            <h2>Sorting &amp; Reordering</h2>
+            <div class="api-section"><table class="api-table">
+                <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+                <tbody>
+                    <tr><td><code>.sort()</code></td><td class="returns">Vector</td><td class="desc">Parallel unstable sort (ascending)</td></tr>
+                    <tr><td><code>.sort_desc()</code></td><td class="returns">Vector</td><td class="desc">Sort descending</td></tr>
+                    <tr><td><code>.argsort()</code></td><td class="returns">list[int]</td><td class="desc">Indices that would sort the vector</td></tr>
+                    <tr><td><code>.reverse()</code></td><td class="returns">Vector</td><td class="desc">Reverse element order</td></tr>
+                    <tr><td><code>.unique()</code></td><td class="returns">Vector</td><td class="desc">Sorted unique elements</td></tr>
+                </tbody>
+            </table></div>
+        </section>
+
+        <section id="cumulative">
+            <h2>Cumulative</h2>
+            <div class="api-section"><table class="api-table"><tbody>
+                <tr><td><code>.cumsum()</code></td><td class="returns">Vector</td><td class="desc">Running sum</td></tr>
+                <tr><td><code>.cumprod()</code></td><td class="returns">Vector</td><td class="desc">Running product</td></tr>
+                <tr><td><code>.diff()</code></td><td class="returns">Vector</td><td class="desc">First differences (length n-1)</td></tr>
+            </tbody></table></div>
+        </section>
+
+        <section id="shaping">
+            <h2>Shaping &amp; Slicing</h2>
+            <div class="api-section"><table class="api-table"><tbody>
+                <tr><td><code>.head(n)</code></td><td class="returns">Vector</td><td class="desc">First n elements</td></tr>
+                <tr><td><code>.tail(n)</code></td><td class="returns">Vector</td><td class="desc">Last n elements</td></tr>
+                <tr><td><code>.chunks(size)</code></td><td class="returns">list[Vector]</td><td class="desc">Split into chunks</td></tr>
+                <tr><td><code>.append(val)</code></td><td class="returns">Vector</td><td class="desc">Add one element</td></tr>
+                <tr><td><code>.extend(other)</code></td><td class="returns">Vector</td><td class="desc">Concatenate two vectors</td></tr>
+                <tr><td><code>.to_list()</code></td><td class="returns">list[float]</td><td class="desc">Convert to Python list</td></tr>
+                <tr><td><code>.len()</code></td><td class="returns">int</td><td class="desc">Number of elements</td></tr>
+                <tr><td><code>.is_empty()</code></td><td class="returns">bool</td><td class="desc">True if length is 0</td></tr>
+            </tbody></table></div>
+        </section>
+
+        <section id="complex">
+            <h2>ComplexVector</h2>
+            <p>A container for complex-valued (f64 + i·f64) vectors.</p>
+            <div class="api-section"><table class="api-table"><tbody>
+                <tr><td><code>ComplexVector(real, imag)</code></td><td class="desc">Create from two sequences of floats</td></tr>
+                <tr><td><code>.to_mags()</code></td><td class="returns">Vector</td><td class="desc">Magnitude of each complex element</td></tr>
+                <tr><td><code>.to_phases()</code></td><td class="returns">Vector</td><td class="desc">Phase angle of each element</td></tr>
+            </tbody></table></div>
+        </section>
+
+        <section id="functional">
+            <h2>Functional API</h2>
+            <p>Module-level functions in <code>rmath.vector</code>:</p>
+            <div class="api-section">
+                <div class="api-section-title">Constructors</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>rand(n)</code> · <code>randn(n)</code> · <code>rand_seeded(n, seed)</code> · <code>randn_seeded(n, seed)</code></td></tr>
+                    <tr><td><code>arange(start, stop, step)</code> · <code>range(start, stop, step)</code> · <code>linspace(start, stop, num)</code></td></tr>
+                    <tr><td><code>zeros(n)</code> · <code>ones(n)</code> · <code>full(n, val)</code></td></tr>
+                </tbody></table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Math (all take Vector, return Vector)</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>sin</code> · <code>cos</code> · <code>tan</code> · <code>asin</code> · <code>acos</code> · <code>atan</code></td></tr>
+                    <tr><td><code>sinh</code> · <code>cosh</code> · <code>tanh</code></td></tr>
+                    <tr><td><code>exp</code> · <code>exp2</code> · <code>expm1</code> · <code>log</code> · <code>log2</code> · <code>log10</code> · <code>log1p</code></td></tr>
+                    <tr><td><code>sqrt</code> · <code>cbrt</code> · <code>abs</code> · <code>ceil</code> · <code>floor</code> · <code>round</code> · <code>trunc</code> · <code>fract</code> · <code>signum</code> · <code>recip</code></td></tr>
+                </tbody></table>
+            </div>
+            <div class="api-section">
+                <div class="api-section-title">Reductions (all return float)</div>
+                <table class="api-table"><tbody>
+                    <tr><td><code>vsum</code> · <code>prod</code> · <code>mean</code> · <code>median</code> · <code>variance</code> · <code>pop_variance</code> · <code>std_dev</code> · <code>pop_std_dev</code></td></tr>
+                    <tr><td><code>vmin</code> · <code>vmax</code> · <code>argmin</code> · <code>argmax</code> · <code>percentile(v, q)</code></td></tr>
+                    <tr><td><code>norm</code> · <code>norm_l1</code> · <code>norm_inf</code> · <code>norm_lp(v, p)</code> · <code>dot(v1, v2)</code></td></tr>
+                </tbody></table>
             </div>
         </section>
 
-        <footer style="margin-top: 8rem; padding-top: 2rem; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.9rem;">
-            <p>&copy; 2026 RMath Development Team. Tier-1 Documentation Portal.</p>
-        </footer>
+        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
     </main>
 </div>
-
 <script src="script.js"></script>
 </body>
 </html>

@@ -1,91 +1,115 @@
 <p align="center">
-  <img src="docs/portal/rmath_logo.svg" width="180" alt="RMath Logo">
+  <img src="docs/portal/rmath_logo.svg" width="120" alt="RMath">
 </p>
 
-# RMath: Silicon-Speed Numerical Computing for Python
+<h3 align="center">Numerical computing for Python, powered by Rust.</h3>
 
-[![CI & Publish](https://github.com/Ay-developerweb/rmath/actions/workflows/publish.yml/badge.svg)](https://github.com/Ay-developerweb/rmath/actions)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
-
-**RMath** is a high-performance numerical toolkit backed by a high-concurrency Rust engine. It provides NumPy-equivalent APIs with significant speedups in multi-threaded environments, leveraging **Rayon** for data-parallelism and **PyO3** for zero-overhead FFI.
-
-## 🚀 Why RMath?
-
-*   **Zero-GIL Parallelism**: Perform heavy matrix operations and statistical calculations without blocking the Python Global Interpreter Lock.
-*   **Rust Precision**: Built on `faer`, `matrixmultiply`, and `ndarray` for industrial-grade accuracy.
-*   **Triple-Tier Storage**: Automatic selection between Inline-Stack, Heap, and Memory-Mapped storage based on data size.
-*   **No Compiler Required**: Distributed as pre-compiled wheels for all major platforms.
+<p align="center">
+  <a href="https://pypi.org/project/rmath-py/"><img src="https://img.shields.io/pypi/v/rmath-py?color=blue" alt="PyPI"></a>
+  <a href="https://github.com/Ay-developerweb/rmath/actions/workflows/publish.yml"><img src="https://github.com/Ay-developerweb/rmath/actions/workflows/publish.yml/badge.svg" alt="CI"></a>
+  <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
+  <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/pypi/pyversions/rmath-py" alt="Python"></a>
+</p>
 
 ---
 
-## 🛠 Features & Modules
+RMath is a numerical toolkit that runs heavy math in Rust and exposes it to
+Python via [PyO3](https://pyo3.rs). Array operations, linear algebra, stats,
+calculus, and signal processing all execute **outside the GIL** on a
+[Rayon](https://github.com/rayon-rs/rayon) thread pool.
 
-### 1. `rmath.array` & `rmath.vector`
-Core N-dimensional array processing engine.
 ```python
 import rmath as rm
-import rmath.vector as rv
 
-# SIMD-accelerated vector ops
-v1 = rv.Vector([1.0, 2.0, 3.0])
-v2 = v1.exp().sin() # Parallelized element-wise ops
+data = rm.Array.randn(1000, 1000)
+avg, std = data.mean(), data.std()
+
+b = rm.Array.ones(1000, 1)
+x = rm.linalg.solve(data, b)
 ```
 
-### 2. `rmath.linalg`
-Advanced matrix solvers and decompositions.
-*   **Solvers**: LU, QR, Cholesky, and SVD.
-*   **Inversion**: High-speed matrix inversion via partial pivoting.
-
-### 3. `rmath.stats`
-Real-time descriptive and inferential statistics.
-*   Uses **Welford’s Algorithm** for single-pass, numerically stable variance/mean calculation.
-*   Full support for regression, p-value approximations, and distributions (Normal, Gamma, Beta).
-
----
-
-## 📦 Installation
-
-Install the pre-compiled binaries via pip:
+## Install
 
 ```bash
 pip install rmath-py
 ```
 
----
+Pre-built wheels are available for Windows, Linux, and macOS.
+No Rust toolchain required.
 
-## 📖 Modern Documentation Portal
+## Modules
 
-For the full API reference, architectural deep-dives, and performance benchmarks, visit our premium documentation portal:
+| Module | Description |
+|--------|-------------|
+| `rmath.array` | N-dimensional array with automatic storage tiering (stack / heap / mmap) |
+| `rmath.vector` | 1-D parallel engine — trig, reductions, sorting, filtering, complex numbers |
+| `rmath.scalar` | Precision f64 math — 80+ functions mirroring Python's `math` module |
+| `rmath.linalg` | Matrix solvers (LU, QR, Cholesky, SVD) via [faer](https://github.com/sarah-ek/faer-rs) |
+| `rmath.stats` | Descriptive and inferential statistics — Welford's algorithm, distributions, regression |
+| `rmath.calculus` | Automatic differentiation (dual numbers), numerical integration, root-finding |
+| `rmath.geometry` | 3D transforms, quaternions, convex hull |
+| `rmath.signal` | FFT, convolution, spectral analysis |
+| `rmath.nn` | Activation functions (GELU, Softmax), loss, normalization layers |
+| `rmath.special` | Gamma, beta, and error functions |
+| `rmath.constants` | Mathematical and physical constants |
 
-👉 **[https://Ay-developerweb.github.io/rmath/portal/](https://Ay-developerweb.github.io/rmath/portal/)**
+## Quick examples
 
----
+**Vector operations**
+```python
+import rmath.vector as rv
 
-## ⚡ Quick Start
+v = rv.Vector.linspace(0, 10, 1_000_000)
+result = v.sin().exp().sum()   # runs on all cores
+```
 
+**Statistics**
 ```python
 import rmath as rm
 
-# Generate a 1000x1000 matrix
-arr = rm.Array.randn(1000, 1000)
-
-# High-speed parallel stats
-avg = arr.mean()
-std = arr.std()
-
-# Linear Algebra Solver
-b = rm.Array.ones(1000, 1)
-x = rm.linalg.solve(arr, b)
-
-print(f"Residual Sum: {x.sum()}")
+data = rm.Array.randn(10_000, 1)
+report = rm.stats.describe(data)  # mean, var, skew, kurtosis
 ```
 
-## 🤝 Contributing
-RMath is built in Rust (`src/`) and exposed to Python via PyO3. 
-- **Rust**: Core logic, SIMD, and Parallelism.
-- **Python**: High-level API and Type Stubs (`.pyi`).
+**Automatic differentiation**
+```python
+import rmath.calculus as rc
 
----
+# f(x) = x² + 3x at x = 2
+result = rc.Dual(2.0, 1.0)
+out = result * result + result * 3.0
+# out.re = 10.0, out.eps = 7.0 (derivative)
+```
 
-## 📜 License
-Dual-licensed under **MIT** and **Apache 2.0**.
+## How it works
+
+```
+Python (rmath)  ──PyO3 FFI──▸  Rust core (rayon + faer + ndarray)
+                                  │
+                      ┌───────────┼───────────┐
+                      ▼           ▼           ▼
+                   Stack       Heap        Mmap
+                  (inline)   (shared)    (lazy I/O)
+```
+
+- **No GIL**: Heavy loops release the GIL and fan out across cores via Rayon.
+- **Storage tiering**: Small arrays live on the stack, large ones on the heap,
+  and huge datasets use memory-mapped files automatically.
+- **Type stubs included**: Full `.pyi` stubs ship with the package for
+  IDE autocompletion and type-checking.
+
+## Documentation
+
+Full API reference: **[ay-developerweb.github.io/rmath/portal/](https://ay-developerweb.github.io/rmath/portal/)**
+
+## Contributing
+
+RMath is built in Rust (`src/`) and exposed to Python via PyO3.
+
+- **Rust source**: `src/` — core numerical engines
+- **Python stubs**: `rmath/*.pyi` — type annotations
+- **Docs portal**: `docs/portal/` — static HTML documentation
+
+## License
+
+[MIT](LICENSE)
