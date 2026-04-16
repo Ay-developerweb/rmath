@@ -84,11 +84,61 @@ fn _rmath(m: &Bound<'_, PyModule>) -> PyResult<()> {
 
     // Root-level functions
     m.add_function(wrap_pyfunction!(scalar::loop_range, m)?)?;
+    m.add_function(wrap_pyfunction!(vector_sum, m)?)?;
+    m.add_function(wrap_pyfunction!(vector_mean, m)?)?;
+    m.add_function(wrap_pyfunction!(vector_min, m)?)?;
+    m.add_function(wrap_pyfunction!(vector_max, m)?)?;
 
     // Root-level class aliases
     m.add_class::<scalar::Scalar>()?;
     m.add_class::<vector::Vector>()?;
     m.add_class::<array::Array>()?;
+    m.add_class::<array::autograd::Tensor>()?;
+    m.add_class::<array::lazy::LazyArray>()?;
 
     Ok(())
+}
+
+#[pyfunction(name = "sum")]
+fn vector_sum(_py: Python<'_>, v: &Bound<'_, PyAny>) -> PyResult<f64> {
+    if let Ok(vec) = v.extract::<PyRef<vector::Vector>>() {
+        Ok(vec.sum())
+    } else if let Ok(vec) = vector::Vector::py_new(v.clone()) {
+        Ok(vec.sum())
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err("Expected Vector or Array compatible sequence"))
+    }
+}
+
+#[pyfunction(name = "mean")]
+fn vector_mean(_py: Python<'_>, v: &Bound<'_, PyAny>) -> PyResult<f64> {
+    if let Ok(vec) = v.extract::<PyRef<vector::Vector>>() {
+        Ok(vec.mean())
+    } else if let Ok(vec) = vector::Vector::py_new(v.clone()) {
+        Ok(vec.mean())
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err("Expected Vector or Array compatible sequence"))
+    }
+}
+
+#[pyfunction(name = "min")]
+fn vector_min(_py: Python<'_>, v: &Bound<'_, PyAny>) -> PyResult<f64> {
+    if let Ok(vec) = v.extract::<PyRef<vector::Vector>>() {
+        Ok(vec.min())
+    } else if let Ok(vec) = vector::Vector::py_new(v.clone()) {
+        Ok(vec.min())
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err("Expected Vector or Array compatible sequence"))
+    }
+}
+
+#[pyfunction(name = "max")]
+fn vector_max(_py: Python<'_>, v: &Bound<'_, PyAny>) -> PyResult<f64> {
+    if let Ok(vec) = v.extract::<PyRef<vector::Vector>>() {
+        Ok(vec.max())
+    } else if let Ok(vec) = vector::Vector::py_new(v.clone()) {
+        Ok(vec.max())
+    } else {
+        Err(pyo3::exceptions::PyTypeError::new_err("Expected Vector or Array compatible sequence"))
+    }
 }

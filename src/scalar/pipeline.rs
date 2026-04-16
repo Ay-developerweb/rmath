@@ -68,7 +68,7 @@ enum Source {
 // `&self` and return a new LazyPipeline (one clone, but only of the Vec
 // descriptor — not the underlying data).
 // ---------------------------------------------------------------------------
-#[pyclass]
+#[pyclass(module = "rmath")]
 #[derive(Clone, Debug)]
 pub struct LazyPipeline {
     source: Source,

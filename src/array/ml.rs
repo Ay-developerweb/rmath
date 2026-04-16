@@ -2,6 +2,7 @@ use pyo3::prelude::*;
 use super::core::Array;
 use crate::vector::Vector;
 use rayon::prelude::*;
+use rand::Rng;
 
 pub fn register_nn(m: &Bound<'_, PyModule>) -> PyResult<()> {
     // Activations
@@ -20,7 +21,67 @@ pub fn register_nn(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(layer_norm, m)?)?;
     m.add_function(wrap_pyfunction!(dropout, m)?)?;
     
+    // Initializers
+    let init_mod = PyModule::new(m.py(), "initializers")?;
+    register_initializers(&init_mod)?;
+    m.add_submodule(&init_mod)?;
+    pyo3::py_run!(m.py(), init_mod, "import sys; sys.modules['rmath.nn.initializers'] = init_mod");
+
     Ok(())
+}
+
+fn register_initializers(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add_function(wrap_pyfunction!(glorot_uniform, m)?)?;
+    m.add_function(wrap_pyfunction!(glorot_normal, m)?)?;
+    m.add_function(wrap_pyfunction!(he_uniform, m)?)?;
+    m.add_function(wrap_pyfunction!(he_normal, m)?)?;
+    Ok(())
+}
+
+#[pyfunction]
+#[pyo3(signature = (*shape))]
+pub fn glorot_uniform(shape: Vec<usize>) -> Array {
+    let fan_in = if shape.len() > 1 { shape[1] } else { shape[0] };
+    let fan_out = shape[0];
+    let limit = (6.0 / (fan_in as f64 + fan_out as f64)).sqrt();
+    let n: usize = shape.iter().product();
+    let mut rng = rand::thread_rng();
+    let data = (0..n).map(|_| rng.gen_range(-limit..limit)).collect();
+    Array::from_flat(data, shape)
+}
+
+#[pyfunction]
+#[pyo3(signature = (*shape))]
+pub fn glorot_normal(shape: Vec<usize>) -> Array {
+    let fan_in = if shape.len() > 1 { shape[1] } else { shape[0] };
+    let fan_out = shape[0];
+    let std = (2.0 / (fan_in as f64 + fan_out as f64)).sqrt();
+    let n: usize = shape.iter().product();
+    let mut rng = rand::thread_rng();
+    let data = (0..n).map(|_| rng.sample::<f64, _>(rand_distr::StandardNormal) * std).collect();
+    Array::from_flat(data, shape)
+}
+
+#[pyfunction]
+#[pyo3(signature = (*shape))]
+pub fn he_uniform(shape: Vec<usize>) -> Array {
+    let fan_in = if shape.len() > 1 { shape[1] } else { shape[0] };
+    let limit = (6.0 / fan_in as f64).sqrt();
+    let n: usize = shape.iter().product();
+    let mut rng = rand::thread_rng();
+    let data = (0..n).map(|_| rng.gen_range(-limit..limit)).collect();
+    Array::from_flat(data, shape)
+}
+
+#[pyfunction]
+#[pyo3(signature = (*shape))]
+pub fn he_normal(shape: Vec<usize>) -> Array {
+    let fan_in = if shape.len() > 1 { shape[1] } else { shape[0] };
+    let std = (2.0 / fan_in as f64).sqrt();
+    let n: usize = shape.iter().product();
+    let mut rng = rand::thread_rng();
+    let data = (0..n).map(|_| rng.sample::<f64, _>(rand_distr::StandardNormal) * std).collect();
+    Array::from_flat(data, shape)
 }
 
 #[pymethods]

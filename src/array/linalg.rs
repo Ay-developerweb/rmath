@@ -41,8 +41,8 @@ impl Array {
     /// Returns:
     ///     A new Inverse Array.
     #[pyo3(name = "inv")]
-    pub fn inv_py(&self) -> PyResult<Self> {
-        self.inv_internal()
+    pub fn inv_py(&self, py: Python<'_>) -> PyResult<Self> {
+        py.allow_threads(|| self.inv_internal())
     }
 
     /// Solve the linear system Ax = B for x.
@@ -53,8 +53,8 @@ impl Array {
     /// Returns:
     ///     The solution Array x.
     #[pyo3(name = "solve")]
-    pub fn solve_py(&self, b: &Array) -> PyResult<Self> {
-        self.solve_internal(b)
+    pub fn solve_py(&self, py: Python<'_>, b: &Array) -> PyResult<Self> {
+        py.allow_threads(|| self.solve_internal(b))
     }
 
     /// Return the transpose of the matrix.
@@ -67,10 +67,10 @@ impl Array {
     pub fn t(&self) -> Self { self.transpose_internal() }
 
     /// Compute the determinant of a square matrix.
-    pub fn det(&self) -> PyResult<f64> { self.det_internal() }
+    pub fn det(&self, py: Python<'_>) -> PyResult<f64> { py.allow_threads(|| self.det_internal()) }
 
     /// Estimate the rank of the matrix using SVD.
-    pub fn rank(&self) -> usize { self.rank_internal() }
+    pub fn rank(&self, py: Python<'_>) -> usize { py.allow_threads(|| self.rank_internal()) }
 
     /// Compute the trace (sum of diagonal elements) of a square matrix.
     pub fn trace(&self) -> PyResult<f64> {
@@ -88,7 +88,7 @@ impl Array {
     /// Compute the QR decomposition of the matrix.
     ///
     /// Factors matrix A into an orthogonal matrix Q and an upper triangular matrix R.
-    pub fn qr(&self) -> PyResult<(Self, Self)> { self.qr_internal() }
+    pub fn qr(&self, py: Python<'_>) -> PyResult<(Self, Self)> { py.allow_threads(|| self.qr_internal()) }
 
     /// Perform Singular Value Decomposition.
     ///
@@ -96,26 +96,43 @@ impl Array {
     ///
     /// Returns:
     ///     A tuple (U, S, V_T) where U, V_T are Arrays and S is a Vector.
-    pub fn svd(&self) -> (Self, Vector, Self) { self.svd_internal() }
+    pub fn svd(&self, py: Python<'_>) -> (Self, Vector, Self) { py.allow_threads(|| self.svd_internal()) }
 
     /// Compute the eigenvalues and eigenvectors of a symmetric matrix.
     ///
     /// Returns:
-    ///     A tuple (vecs, vals) where vecs is an Array of eigenvectors (as columns)
-    ///     and vals is a Vector of eigenvalues.
-    pub fn eigh(&self) -> PyResult<(Self, Vector)> { self.eigh_internal() }
+    ///     A tuple (vals, vecs) where vals is a Vector of eigenvalues
+    ///     and vecs is an Array of eigenvectors (as columns).
+    pub fn eigh(&self, py: Python<'_>) -> PyResult<(Vector, Self)> { py.allow_threads(|| self.eigh_internal()) }
 
     /// Compute the Cholesky decomposition of a positive-definite symmetric matrix.
     ///
     /// Returns the lower triangular matrix L such that A = LL^T.
-    pub fn cholesky(&self) -> PyResult<Self> { self.cholesky_internal() }
+    pub fn cholesky(&self, py: Python<'_>) -> PyResult<Self> { py.allow_threads(|| self.cholesky_internal()) }
 
     /// Compute the Moore-Penrose pseudo-inverse of the matrix using SVD.
-    pub fn pseudo_inv(&self) -> PyResult<Self> { self.pseudo_inv_internal() }
+    pub fn pseudo_inv(&self, py: Python<'_>) -> PyResult<Self> { py.allow_threads(|| self.pseudo_inv_internal()) }
 
     pub fn gram_matrix(&self) -> Self {
-        let m = self.to_mat();
-        Self::from_mat(m.as_ref().transpose() * m.as_ref())
+        let r = self.nrows();
+        let c = self.ncols();
+        let mut out = vec![0.0; c * c];
+        let d = self.storage_slice();
+        let offset = self.offset;
+        let rs = self.strides[0];
+        let cs = self.strides[1];
+        
+        unsafe {
+            matrixmultiply::dgemm(
+                c, r, c,
+                1.0,
+                d[offset..].as_ptr(), cs, rs, // Transposed strides
+                d[offset..].as_ptr(), rs, cs, // Original strides
+                0.0,
+                out.as_mut_ptr(), c as isize, 1,
+            );
+        }
+        Self::from_flat(out, vec![c, c])
     }
 
     pub fn covariance(&self, py: Python<'_>) -> PyResult<Self> {
@@ -134,19 +151,19 @@ impl Array {
 
 #[pyfunction]
 #[pyo3(name = "inv")]
-pub fn inv(a: &Array) -> PyResult<Array> { a.inv_internal() }
+pub fn inv(py: Python<'_>, a: &Array) -> PyResult<Array> { py.allow_threads(|| a.inv_internal()) }
 
 #[pyfunction]
 #[pyo3(name = "det")]
-pub fn det(a: &Array) -> PyResult<f64> { a.det_internal() }
+pub fn det(py: Python<'_>, a: &Array) -> PyResult<f64> { py.allow_threads(|| a.det_internal()) }
 
 #[pyfunction]
 #[pyo3(name = "solve")]
-pub fn solve(a: &Array, b: &Array) -> PyResult<Array> { a.solve_internal(b) }
+pub fn solve(py: Python<'_>, a: &Array, b: &Array) -> PyResult<Array> { py.allow_threads(|| a.solve_internal(b)) }
 
 #[pyfunction]
 #[pyo3(name = "rank")]
-pub fn rank(a: &Array) -> usize { a.rank_internal() }
+pub fn rank(py: Python<'_>, a: &Array) -> usize { py.allow_threads(|| a.rank_internal()) }
 
 #[pyfunction]
 #[pyo3(name = "transpose")]
@@ -154,23 +171,23 @@ pub fn transpose(a: &Array) -> Array { a.transpose_internal() }
 
 #[pyfunction]
 #[pyo3(name = "qr")]
-pub fn qr(a: &Array) -> PyResult<(Array, Array)> { a.qr_internal() }
+pub fn qr(py: Python<'_>, a: &Array) -> PyResult<(Array, Array)> { py.allow_threads(|| a.qr_internal()) }
 
 #[pyfunction]
 #[pyo3(name = "svd")]
-pub fn svd(a: &Array) -> (Array, Vector, Array) { a.svd_internal() }
+pub fn svd(py: Python<'_>, a: &Array) -> (Array, Vector, Array) { py.allow_threads(|| a.svd_internal()) }
 
 #[pyfunction]
 #[pyo3(name = "eigh")]
-pub fn eigh(a: &Array) -> PyResult<(Array, Vector)> { a.eigh_internal() }
+pub fn eigh(py: Python<'_>, a: &Array) -> PyResult<(Vector, Array)> { py.allow_threads(|| a.eigh_internal()) }
 
 #[pyfunction]
 #[pyo3(name = "cholesky")]
-pub fn cholesky(a: &Array) -> PyResult<Array> { a.cholesky_internal() }
+pub fn cholesky(py: Python<'_>, a: &Array) -> PyResult<Array> { py.allow_threads(|| a.cholesky_internal()) }
 
 #[pyfunction]
 #[pyo3(name = "pseudo_inv")]
-pub fn pseudo_inv(a: &Array) -> PyResult<Array> { a.pseudo_inv_internal() }
+pub fn pseudo_inv(py: Python<'_>, a: &Array) -> PyResult<Array> { py.allow_threads(|| a.pseudo_inv_internal()) }
 
 impl Array {
     pub fn inv_internal(&self) -> PyResult<Self> {
@@ -223,14 +240,14 @@ impl Array {
         (u, Vector::new(s_vec), vt)
     }
 
-    pub fn eigh_internal(&self) -> PyResult<(Self, Vector)> {
+    pub fn eigh_internal(&self) -> PyResult<(Vector, Self)> {
         self.assert_square("eigh")?;
         let m = self.to_mat();
         let eig = m.self_adjoint_eigen(faer::Side::Lower).unwrap();
         let n = self.nrows();
         let vals: Vec<f64> = (0..n).map(|i| eig.S().column_vector()[i]).collect();
         let vecs = Self::from_mat(eig.U().to_owned());
-        Ok((vecs, Vector::new(vals)))
+        Ok((Vector::new(vals), vecs))
     }
 
     pub fn cholesky_internal(&self) -> PyResult<Self> {

@@ -19,12 +19,27 @@ from . import array as array
 from . import constants as constants
 from . import linalg as linalg
 from . import calculus as calculus
+from . import nn as nn
+from . import geometry as geometry
+from . import special as special
+from . import signal as signal
 
 # Explicitly re-export classes for root access
 from .vector import Vector as Vector
-from .array import Array as Array
+from .array import Array as Array, Tensor as Tensor, LazyArray as LazyArray
+from .scalar import Scalar as Scalar
+from .calculus import Dual as Dual
+
+from typing import Union, Sequence, List
+def sum(v: Union[Vector, Sequence[float]]) -> float: ...
+def mean(v: Union[Vector, Sequence[float]]) -> float: ...
+def min(v: Union[Vector, Sequence[float]]) -> float: ...
+def max(v: Union[Vector, Sequence[float]]) -> float: ...
+def loop_range(start: int, end: int) -> 'scalar.LazyPipeline': ...
 
 __all__ = [
     "scalar", "stats", "vector", "array", "constants", "linalg", "calculus",
-    "Vector", "Array"
+    "nn", "geometry", "special", "signal",
+    "Vector", "Array", "Tensor", "LazyArray", "Scalar", "Dual",
+    "sum", "mean", "min", "max", "loop_range"
 ]

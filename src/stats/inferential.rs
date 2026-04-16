@@ -1,6 +1,7 @@
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use crate::vector::Vector;
+use crate::array::core::Array;
 
 /// Student's T-Distribution CDF approximation
 fn t_cdf_approx(t: f64, df: f64) -> f64 {
@@ -48,6 +49,63 @@ fn correlation_internal(vx: &Vector, vy: &Vector) -> PyResult<f64> {
         let den = (den_x * den_y).sqrt();
         if den == 0.0 { Ok(0.0) } else { Ok(num / den) }
     }))
+}
+
+/// Calculate the Pearson correlation matrix for an Array (rows = variables, cols = observations).
+#[pyfunction]
+pub fn correlation_matrix(py: Python<'_>, arr: &Array) -> PyResult<Array> {
+    if arr.ndim() != 2 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Array must be 2D"));
+    }
+    let n_vars = arr.nrows();
+    let n_obs = arr.ncols();
+    if n_obs < 2 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Need at least 2 observations per variable"));
+    }
+
+    py.allow_threads(move || {
+        let data = arr.data();
+        let stats: Vec<(f64, f64)> = (0..n_vars).into_par_iter().map(|i| {
+            let row = &data[i * n_obs..(i + 1) * n_obs];
+            let mean = row.iter().sum::<f64>() / n_obs as f64;
+            let den = row.iter().map(|&x| (x - mean).powi(2)).sum::<f64>();
+            (mean, den)
+        }).collect();
+
+        let mut res_data = vec![0.0; n_vars * n_vars];
+        
+        // Compute symmetric correlation matrix
+        res_data.par_chunks_mut(n_vars).enumerate().for_each(|(i, res_row)| {
+            let (mi, den_i) = stats[i];
+            let row_i = &data[i * n_obs..(i + 1) * n_obs];
+            
+            for j in i..n_vars {
+                if i == j {
+                    res_row[j] = 1.0;
+                    continue;
+                }
+                let (mj, den_j) = stats[j];
+                let row_j = &data[j * n_obs..(j + 1) * n_obs];
+                
+                let num: f64 = row_i.iter().zip(row_j.iter())
+                    .map(|(&xi, &xj)| (xi - mi) * (xj - mj))
+                    .sum();
+                
+                let den = (den_i * den_j).sqrt();
+                let r = if den == 0.0 { 0.0 } else { num / den };
+                res_row[j] = r;
+            }
+        });
+
+        // Fill symmetric part
+        for i in 0..n_vars {
+            for j in 0..i {
+                res_data[i * n_vars + j] = res_data[j * n_vars + i];
+            }
+        }
+
+        Ok(Array::from_flat(res_data, vec![n_vars, n_vars]))
+    })
 }
 
 /// Calculate the sample covariance between two variables.

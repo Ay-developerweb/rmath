@@ -13,11 +13,12 @@ Modules:
     - calculus: Automatic differentiation (AD) and integration.
 """
 from ._rmath import (
-    loop_range
+    loop_range, sum, mean, min, max
 )
 # Import our new package-modules (for hovers/docs)
 from .vector import Vector
 from .array import Array
+from .array import Tensor, LazyArray
 from .scalar import Scalar
 from .calculus import Dual
 
@@ -35,10 +36,10 @@ from . import constants
 
 # Standard __all__ for clean exports
 __all__ = [
-    "Array", "Vector", "Scalar",
+    "Array", "Vector", "Scalar", "Tensor", "LazyArray",
     "scalar", "stats", "vector", "array", "constants",
     "geometry", "linalg", "nn", "special", "signal",
-    "calculus", "loop_range"
+    "calculus", "loop_range", "sum", "mean", "min", "max"
 ]
 
 # Cleanup: Remove modules that might have been imported during initialization

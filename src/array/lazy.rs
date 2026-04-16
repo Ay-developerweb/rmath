@@ -9,7 +9,7 @@ use super::core::Array;
 // Actual data is NOT loaded until .load() or iteration is called.
 // Supports: .rmath binary, CSV, memory-mapped f64 binary (.bin)
 
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct LazyArray {
     pub path:   String,
     pub format: LazyFormat,
@@ -121,11 +121,23 @@ impl LazyArray {
     pub fn __repr__(&self) -> String {
         format!("LazyArray(path={:?}, format={:?}, shape={:?})", self.path, self.format, self.shape)
     }
+
+    pub fn close(&self) {
+        // No-op for standard LazyArray since files are opened per operation.
+        // Provided for context manager compatibility.
+    }
+
+    pub fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> { slf }
+
+    #[pyo3(signature = (_exc_type, _exc_value, _traceback))]
+    pub fn __exit__(&self, _exc_type: &Bound<'_, PyAny>, _exc_value: &Bound<'_, PyAny>, _traceback: &Bound<'_, PyAny>) {
+        self.close();
+    }
 }
 
 // ─── ChunkIterator ───────────────────────────────────────────────────────────
 
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct ChunkIterator {
     path:       String,
     format:     LazyFormat,
@@ -180,12 +192,12 @@ impl ChunkIterator {
 // ─── MmapArray ───────────────────────────────────────────────────────────────
 // Zero-copy memory-mapped f64 array. Data stays on disk until accessed.
 
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct MmapArray {
     pub path:  String,
     pub rows:  usize,
     pub cols:  usize,
-    mmap:      memmap2::Mmap,
+    mmap:      Option<memmap2::Mmap>,
 }
 
 impl MmapArray {
@@ -194,13 +206,17 @@ impl MmapArray {
             pyo3::exceptions::PyIOError::new_err(format!("Cannot open {}: {}", path, e)))?;
         let mmap = unsafe { memmap2::Mmap::map(&file) }.map_err(|e|
             pyo3::exceptions::PyIOError::new_err(format!("mmap failed: {}", e)))?;
-        Ok(MmapArray { path, rows, cols, mmap })
+        Ok(MmapArray { path, rows, cols, mmap: Some(mmap) })
     }
 
-    fn as_f64_slice(&self) -> &[f64] {
-        let ptr = self.mmap.as_ptr() as *const f64;
-        let len = self.mmap.len() / 8;
-        unsafe { std::slice::from_raw_parts(ptr, len) }
+    fn as_f64_slice(&self) -> PyResult<&[f64]> {
+        if let Some(mmap) = &self.mmap {
+            let ptr = mmap.as_ptr() as *const f64;
+            let len = mmap.len() / 8;
+            Ok(unsafe { std::slice::from_raw_parts(ptr, len) })
+        } else {
+            Err(pyo3::exceptions::PyValueError::new_err("MmapArray is closed"))
+        }
     }
 }
 
@@ -211,11 +227,12 @@ impl MmapArray {
         Self::new(path, rows, cols)
     }
 
+    #[getter]
     pub fn shape(&self) -> (usize, usize) { (self.rows, self.cols) }
 
     pub fn get_row(&self, i: usize) -> PyResult<Vec<f64>> {
         if i >= self.rows { return Err(pyo3::exceptions::PyIndexError::new_err("Row out of bounds")); }
-        let s = self.as_f64_slice();
+        let s = self.as_f64_slice()?;
         Ok(s[i*self.cols..(i+1)*self.cols].to_vec())
     }
 
@@ -223,20 +240,31 @@ impl MmapArray {
         if row >= self.rows || col >= self.cols {
             return Err(pyo3::exceptions::PyIndexError::new_err("Index out of bounds"));
         }
-        Ok(self.as_f64_slice()[row * self.cols + col])
+        Ok(self.as_f64_slice()?[row * self.cols + col])
     }
 
     pub fn load_rows(&self, start: usize, end: usize) -> PyResult<Array> {
         let end = end.min(self.rows);
         if start >= end { return Err(pyo3::exceptions::PyValueError::new_err("start >= end")); }
-        let s = self.as_f64_slice();
+        let s = self.as_f64_slice()?;
         let data = s[start*self.cols..end*self.cols].to_vec();
         Ok(Array::from_flat(data, vec![end-start, self.cols]))
     }
 
-    pub fn load_all(&self) -> Array {
-        let data = self.as_f64_slice().to_vec();
-        Array::from_flat(data, vec![self.rows, self.cols])
+    pub fn load_all(&self) -> PyResult<Array> {
+        let data = self.as_f64_slice()?.to_vec();
+        Ok(Array::from_flat(data, vec![self.rows, self.cols]))
+    }
+
+    pub fn close(&mut self) {
+        self.mmap = None;
+    }
+
+    pub fn __enter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> { slf }
+
+    #[pyo3(signature = (_exc_type, _exc_value, _traceback))]
+    pub fn __exit__(&mut self, _exc_type: &Bound<'_, PyAny>, _exc_value: &Bound<'_, PyAny>, _traceback: &Bound<'_, PyAny>) {
+        self.close();
     }
 
     /// Memory-mapped chunk iterator — yields Array chunks without copying until needed
@@ -256,7 +284,7 @@ impl MmapArray {
     }
 }
 
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct MmapChunkIterator {
     path:       String,
     rows:       usize,

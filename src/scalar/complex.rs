@@ -44,7 +44,7 @@ fn extract_complex(obj: &Bound<'_, PyAny>) -> PyResult<Complex> {
     )))
 }
 
-#[pyclass]
+#[pyclass(module = "rmath")]
 #[derive(Debug, Clone, Copy)]
 pub struct Complex {
     #[pyo3(get, set)]

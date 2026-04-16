@@ -4,7 +4,7 @@ use statrs::distribution::{Normal as SNormal, StudentsT as SStudentT, Poisson as
 use statrs::statistics::Distribution;
 
 /// Normal (Gaussian) distribution.
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct Normal {
     inner: SNormal,
 }
@@ -27,10 +27,17 @@ impl Normal {
     pub fn ppf(&self, x: f64) -> f64 { self.inner.inverse_cdf(x) }
     /// Theoretical mean of the distribution.
     pub fn mean(&self) -> f64 { self.inner.mean().unwrap_or(f64::NAN) }
+    
+    /// Sample `n` values from the distribution.
+    pub fn sample(&self, n: usize) -> crate::vector::Vector {
+        let mut rng = rand::thread_rng();
+        let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
+        crate::vector::Vector::new(data)
+    }
 }
 
 /// Student's T-distribution.
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct StudentT {
     inner: SStudentT,
 }
@@ -48,10 +55,15 @@ impl StudentT {
     pub fn pdf(&self, x: f64) -> f64 { self.inner.pdf(x) }
     pub fn cdf(&self, x: f64) -> f64 { self.inner.cdf(x) }
     pub fn ppf(&self, x: f64) -> f64 { self.inner.inverse_cdf(x) }
+    pub fn sample(&self, n: usize) -> crate::vector::Vector {
+        let mut rng = rand::thread_rng();
+        let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
+        crate::vector::Vector::new(data)
+    }
 }
 
 /// Poisson distribution.
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct Poisson {
     inner: SPoisson,
 }
@@ -70,10 +82,15 @@ impl Poisson {
     pub fn pmf(&self, k: u64) -> f64 { self.inner.pmf(k) }
     /// Cumulative distribution function at `k`.
     pub fn cdf(&self, k: f64) -> f64 { self.inner.cdf(k.floor() as u64) }
+    pub fn sample(&self, n: usize) -> crate::vector::Vector {
+        let mut rng = rand::thread_rng();
+        let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
+        crate::vector::Vector::new(data)
+    }
 }
 
 /// Exponential distribution.
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct Exponential {
     inner: SExp,
 }
@@ -91,6 +108,11 @@ impl Exponential {
     pub fn pdf(&self, x: f64) -> f64 { self.inner.pdf(x) }
     pub fn cdf(&self, x: f64) -> f64 { self.inner.cdf(x) }
     pub fn ppf(&self, x: f64) -> f64 { self.inner.inverse_cdf(x) }
+    pub fn sample(&self, n: usize) -> crate::vector::Vector {
+        let mut rng = rand::thread_rng();
+        let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
+        crate::vector::Vector::new(data)
+    }
 }
 
 pub fn register_distributions(m: &Bound<'_, PyModule>) -> PyResult<()> {

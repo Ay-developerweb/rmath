@@ -31,8 +31,12 @@ def svd(matrix: Array) -> Tuple[Array, Vector, Array]:
     """Perform Singular Value Decomposition."""
     ...
 
-def eigh(matrix: Array) -> Tuple[Array, Vector]:
-    """Eigenvalues and eigenvectors of a symmetric matrix."""
+def eigh(matrix: Array) -> Tuple[Vector, Array]:
+    """Eigenvalues and eigenvectors of a symmetric matrix.
+    
+    Returns:
+        tuple (vals, vecs)
+    """
     ...
 
 def cholesky(matrix: Array) -> Array:

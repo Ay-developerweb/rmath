@@ -8,13 +8,21 @@ impl Array {
     // ── Arithmetic operators ──────────────────────────────────────────────
 
     pub fn __add__<'py>(&self, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let py = rhs.py();
         if let Ok(other) = rhs.extract::<PyRef<Array>>() {
-            return self.broadcast_op(&other, |a, b| a + b, "+");
+            let this = self.clone();
+            let other_arr = other.clone();
+            return py.allow_threads(move || this.broadcast_op(&other_arr, |a, b| a + b, "+"));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
-            return self.broadcast_vector(&v, |a, b| a + b);
+            let this = self.clone();
+            let v_owned = v.clone();
+            return py.allow_threads(move || this.broadcast_vector(&v_owned, |a, b| a + b));
         }
-        if let Ok(s) = rhs.extract::<f64>() { return Ok(self.map_elements(|x| x + s)); }
+        if let Ok(s) = rhs.extract::<f64>() { 
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_elements(|x| x + s))); 
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Invalid type for +"))
     }
 
@@ -32,14 +40,26 @@ impl Array {
         self.broadcast_op(other, |a, b| a * b, "*")
     }
 
+    pub fn div_array_elementwise(&self, other: &Array) -> PyResult<Self> {
+        self.broadcast_op(other, |a, b| a / b, "/")
+    }
+
     pub fn __sub__<'py>(&self, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let py = rhs.py();
         if let Ok(other) = rhs.extract::<PyRef<Array>>() {
-            return self.broadcast_op(&other, |a, b| a - b, "-");
+            let this = self.clone();
+            let other_arr = other.clone();
+            return py.allow_threads(move || this.broadcast_op(&other_arr, |a, b| a - b, "-"));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
-            return self.broadcast_vector(&v, |a, b| a - b);
+            let this = self.clone();
+            let v_owned = v.clone();
+            return py.allow_threads(move || this.broadcast_vector(&v_owned, |a, b| a - b));
         }
-        if let Ok(s) = rhs.extract::<f64>() { return Ok(self.map_elements(|x| x - s)); }
+        if let Ok(s) = rhs.extract::<f64>() { 
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_elements(|x| x - s))); 
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Invalid type for -"))
     }
 
@@ -49,13 +69,21 @@ impl Array {
     }
 
     pub fn __mul__<'py>(&self, rhs: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let py = rhs.py();
         if let Ok(other) = rhs.extract::<PyRef<Array>>() {
-            return self.broadcast_op(&other, |a, b| a * b, "*");
+            let this = self.clone();
+            let other_arr = other.clone();
+            return py.allow_threads(move || this.broadcast_op(&other_arr, |a, b| a * b, "*"));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
-            return self.broadcast_vector(&v, |a, b| a * b);
+            let this = self.clone();
+            let v_owned = v.clone();
+            return py.allow_threads(move || this.broadcast_vector(&v_owned, |a, b| a * b));
         }
-        if let Ok(s) = rhs.extract::<f64>() { return Ok(self.map_elements(|x| x * s)); }
+        if let Ok(s) = rhs.extract::<f64>() { 
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_elements(|x| x * s))); 
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Invalid type for *"))
     }
 
@@ -137,16 +165,24 @@ impl Array {
     // ── Matrix multiply ───────────────────────────────────────────────────
 
     pub fn __matmul__<'py>(&self, rhs: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+        self.matmul(rhs)
+    }
+
+    pub fn matmul<'py>(&self, rhs: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
         let py = rhs.py();
         if let Ok(other) = rhs.extract::<PyRef<Array>>() {
-            let res = self.matmul_array(&other);
+            let this = self.clone();
+            let other_arr = other.clone();
+            let res = py.allow_threads(move || this.matmul_array(&other_arr));
             return Ok(res.into_pyobject(py)?.into_any());
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
             if self.ncols() != v.len_internal() {
                 return Err(pyo3::exceptions::PyValueError::new_err("matmul dim mismatch"));
             }
-            let res = self.matmul_vec(&v);
+            let this = self.clone();
+            let v_owned = v.clone();
+            let res = py.allow_threads(move || this.matmul_vec(&v_owned));
             return Ok(Vector::new(res).into_pyobject(py)?.into_any());
         }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected Array or Vector"))
@@ -157,7 +193,8 @@ impl Array {
             return Err(pyo3::exceptions::PyValueError::new_err("Dim mismatch for Transpose Matmul"));
         }
         let (r, c) = (self.nrows(), self.ncols());
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         let result: Vec<f64> = v.with_slice(|s| {
             (0..c).into_par_iter().map(|j| {
                 (0..r).map(|i| d[i * c + j] * s[i]).sum()
@@ -206,16 +243,50 @@ impl Array {
 
     // ── Reductions ────────────────────────────────────────────────────────
 
+    /// Kahan compensated summation — O(ε) error regardless of N.
     pub fn sum_all(&self) -> f64 {
-        let s = self.data();
-        if s.len() >= 131072 {
-            s.par_iter().sum::<f64>()
+        let contig = self.to_contiguous();
+        let s = contig.data();
+        if s.is_empty() { return 0.0; }
+        if s.len() >= PAR_THRESHOLD {
+            // Parallel: chunk → Kahan per chunk → Kahan-merge
+            let chunk_size = (s.len() / rayon::current_num_threads()).max(1024);
+            let partials: Vec<(f64, f64)> = s.par_chunks(chunk_size).map(|chunk| {
+                let mut sum = 0.0_f64;
+                let mut comp = 0.0_f64;
+                for &x in chunk {
+                    let y = x - comp;
+                    let t = sum + y;
+                    comp = (t - sum) - y;
+                    sum = t;
+                }
+                (sum, comp)
+            }).collect();
+            let mut total = 0.0_f64;
+            let mut comp = 0.0_f64;
+            for (ps, pc) in partials {
+                // merge partial sum (subtract its residual compensation)
+                let y = (ps - pc) - comp;
+                let t = total + y;
+                comp = (t - total) - y;
+                total = t;
+            }
+            total
         } else {
-            s.iter().sum::<f64>()
+            let mut sum = 0.0_f64;
+            let mut comp = 0.0_f64;
+            for &x in s.iter() {
+                let y = x - comp;
+                let t = sum + y;
+                comp = (t - sum) - y;
+                sum = t;
+            }
+            sum
         }
     }
     pub fn prod(&self)    -> f64 { 
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         if d.is_empty() { return 1.0; }
         if d.len() >= 131072 {
             d.par_iter().cloned().product()
@@ -228,23 +299,28 @@ impl Array {
         if n == 0 { return f64::NAN; }
         self.sum_all() / n as f64
     }
+    /// Welford's single-pass variance — numerically stable, single memory pass.
     pub fn variance(&self) -> f64 {
         let n = self.len();
         if n < 2 { return f64::NAN; }
-        let mu = self.mean();
-        let sd = self.data();
-        let m2: f64 = if n >= 131072 {
-            sd.par_iter().map(|&x| (x - mu).powi(2)).sum()
-        } else {
-            sd.iter().map(|&x| (x - mu).powi(2)).sum()
-        };
+        let contig = self.to_contiguous();
+        let sd = contig.data();
+        let mut mean = 0.0_f64;
+        let mut m2 = 0.0_f64;
+        for (i, &x) in sd.iter().enumerate() {
+            let delta = x - mean;
+            mean += delta / (i + 1) as f64;
+            let delta2 = x - mean;
+            m2 += delta * delta2;
+        }
         m2 / (n - 1) as f64
     }
     pub fn std_dev(&self) -> f64 {
         self.variance().sqrt()
     }
     pub fn min(&self) -> f64 {
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         if d.is_empty() { return f64::INFINITY; }
         if d.len() >= 131072 {
             d.par_iter().cloned().min_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
@@ -253,7 +329,8 @@ impl Array {
         }
     }
     pub fn max(&self) -> f64 {
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         if d.is_empty() { return f64::NEG_INFINITY; }
         if d.len() >= 131072 {
             d.par_iter().cloned().max_by(|a, b| a.partial_cmp(b).unwrap()).unwrap()
@@ -262,7 +339,8 @@ impl Array {
         }
     }
     pub fn argmin(&self) -> usize {
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         if d.is_empty() { return 0; }
         if d.len() >= 131072 {
             d.par_iter().enumerate()
@@ -273,7 +351,8 @@ impl Array {
         }
     }
     pub fn argmax(&self) -> usize {
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         if d.is_empty() { return 0; }
         if d.len() >= 131072 {
             d.par_iter().enumerate()
@@ -290,7 +369,8 @@ impl Array {
             None => Ok(self.sum_all().into_pyobject(py)?.into_any()),
             Some(0) => {
                 let (r, c) = (self.nrows(), self.ncols());
-                let d = self.data();
+                let contig = self.to_contiguous();
+                let d = contig.data();
                 // Cache-friendly: iterate row-major, accumulate into column sums
                 let mut sums = vec![0.0f64; c];
                 for i in 0..r {
@@ -301,7 +381,8 @@ impl Array {
             }
             Some(1) => {
                 let (r, c) = (self.nrows(), self.ncols());
-                let d = self.data();
+                let contig = self.to_contiguous();
+                let d = contig.data();
                 let sums: Vec<f64> = (0..r).map(|i| d[i*c..(i+1)*c].iter().sum()).collect();
                 Ok(Vector::new(sums).into_pyobject(py)?.into_any())
             }
@@ -312,7 +393,8 @@ impl Array {
     pub fn mean_axis0(&self) -> PyResult<Vector> {
         let (r, c) = (self.nrows(), self.ncols());
         if r == 0 { return Err(pyo3::exceptions::PyValueError::new_err("Empty array")); }
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         // Cache-friendly: iterate row-major
         let mut sums = vec![0.0f64; c];
         for i in 0..r {
@@ -327,7 +409,8 @@ impl Array {
     pub fn mean_axis1(&self) -> PyResult<Vector> {
         let (r, c) = (self.nrows(), self.ncols());
         if c == 0 { return Err(pyo3::exceptions::PyValueError::new_err("Empty array")); }
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         let sums: Vec<f64> = (0..r).map(|i| d[i*c..(i+1)*c].iter().sum::<f64>() / c as f64).collect();
         Ok(Vector::new(sums))
     }
@@ -336,7 +419,8 @@ impl Array {
         let (r, c) = (self.nrows(), self.ncols());
         if r < 2 { return Err(pyo3::exceptions::PyValueError::new_err("Need at least 2 rows")); }
         let mu = self.mean_axis0()?;
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         let stds: Vec<f64> = mu.with_slice(|s| {
             (0..c).map(|j| {
                 let var: f64 = (0..r).map(|i| (d[i*c+j] - s[j]).powi(2)).sum::<f64>() / (r-1) as f64;
@@ -349,7 +433,8 @@ impl Array {
     pub fn var_axis0(&self) -> PyResult<Vector> {
         let (r, c) = (self.nrows(), self.ncols());
         if r < 2 { return Err(pyo3::exceptions::PyValueError::new_err("Need at least 2 rows")); }
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         
         // Parallel Welford for each column
         let vars: Vec<f64> = (0..c).into_par_iter().map(|j| {
@@ -369,23 +454,65 @@ impl Array {
 
     // ── Comparison / mask ops ─────────────────────────────────────────────
 
-    pub fn gt(&self, val: f64)  -> Vec<bool> { self.data().iter().map(|&x| x > val).collect() }
-    pub fn lt(&self, val: f64)  -> Vec<bool> { self.data().iter().map(|&x| x < val).collect() }
-    pub fn ge(&self, val: f64)  -> Vec<bool> { self.data().iter().map(|&x| x >= val).collect() }
-    pub fn le(&self, val: f64)  -> Vec<bool> { self.data().iter().map(|&x| x <= val).collect() }
-    pub fn eq_scalar(&self, val: f64) -> Vec<bool> { self.data().iter().map(|&x| x == val).collect() }
-    pub fn ne_scalar(&self, val: f64) -> Vec<bool> { self.data().iter().map(|&x| x != val).collect() }
-    pub fn isnan(&self)    -> Vec<bool> { self.data().iter().map(|x| x.is_nan()).collect() }
-    pub fn isfinite(&self) -> Vec<bool> { self.data().iter().map(|x| x.is_finite()).collect() }
-    pub fn isinf(&self)    -> Vec<bool> { self.data().iter().map(|x| x.is_infinite()).collect() }
+    pub fn gt(&self, val: f64)  -> Vec<bool> { self.to_contiguous().data().iter().map(|&x| x > val).collect() }
+    pub fn lt(&self, val: f64)  -> Vec<bool> { self.to_contiguous().data().iter().map(|&x| x < val).collect() }
+    pub fn ge(&self, val: f64)  -> Vec<bool> { self.to_contiguous().data().iter().map(|&x| x >= val).collect() }
+    pub fn le(&self, val: f64)  -> Vec<bool> { self.to_contiguous().data().iter().map(|&x| x <= val).collect() }
+    pub fn eq_scalar(&self, val: f64) -> Vec<bool> { self.to_contiguous().data().iter().map(|&x| x == val).collect() }
+    pub fn ne_scalar(&self, val: f64) -> Vec<bool> { self.to_contiguous().data().iter().map(|&x| x != val).collect() }
+    pub fn isnan(&self)    -> Vec<bool> { self.to_contiguous().data().iter().map(|x| x.is_nan()).collect() }
+    pub fn isfinite(&self) -> Vec<bool> { self.to_contiguous().data().iter().map(|x| x.is_finite()).collect() }
+    pub fn isinf(&self)    -> Vec<bool> { self.to_contiguous().data().iter().map(|x| x.is_infinite()).collect() }
 
     pub fn where_scalar(&self, mask: Vec<bool>, other: f64) -> PyResult<Self> {
         if mask.len() != self.len() {
             return Err(pyo3::exceptions::PyValueError::new_err("Mask len mismatch"));
         }
-        let data: Vec<f64> = self.data().iter().zip(mask.iter())
+        let contig = self.to_contiguous();
+        let data: Vec<f64> = contig.data().iter().zip(mask.iter())
             .map(|(&x, &m)| if m { x } else { other }).collect();
         Ok(Self::from_flat(data, self.shape.clone()))
+    }
+
+    pub fn correlation_matrix<'py>(&self, py: Python<'py>) -> PyResult<Self> {
+        crate::stats::inferential::correlation_matrix(py, self)
+    }
+
+    pub fn cdist<'py>(&self, py: Python<'py>, other: &Array) -> PyResult<Self> {
+        crate::geometry::cdist(py, self, other)
+    }
+
+    /// Calculate the Euclidean distance between this Array (rows) and a query point.
+    /// If the query is a 1D Vector, returns a 1D Vector of distances.
+    pub fn distance<'py>(&self, py: Python<'py>, query: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
+        if let Ok(v) = query.extract::<PyRef<Vector>>() {
+            let (r, c) = (self.nrows(), self.ncols());
+            if c != v.len_internal() {
+                return Err(pyo3::exceptions::PyValueError::new_err("Dimension mismatch between Array columns and query Vector"));
+            }
+            let contig = self.to_contiguous();
+            let d = contig.data();
+            let distances: Vec<f64> = v.with_slice(|vs| {
+                if r >= PAR_THRESHOLD {
+                    (0..r).into_par_iter().map(|i| {
+                        let row = &d[i*c..(i+1)*c];
+                        row.iter().zip(vs.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt()
+                    }).collect()
+                } else {
+                    (0..r).map(|i| {
+                        let row = &d[i*c..(i+1)*c];
+                        row.iter().zip(vs.iter()).map(|(a, b)| (a - b).powi(2)).sum::<f64>().sqrt()
+                    }).collect()
+                }
+            });
+            Ok(Vector::new(distances).into_pyobject(py)?.into_any())
+        } else if let Ok(arr) = query.extract::<PyRef<Array>>() {
+            // Fall back to cdist if passing an Array
+            let res = crate::geometry::cdist(py, self, &arr)?;
+            Ok(res.into_pyobject(py)?.into_any())
+        } else {
+            Err(pyo3::exceptions::PyTypeError::new_err("Query must be a Vector or Array"))
+        }
     }
 }
 
@@ -400,6 +527,7 @@ pub fn arange(start: f64, stop: f64, step: f64) -> PyResult<Array> {
 pub fn array_range(start: f64, stop: f64, step: f64) -> PyResult<Array> {
     Array::arange(start, stop, step)
 }
+
 
 #[pyfunction]
 pub fn zeros(rows: usize, cols: usize) -> Array {
@@ -418,7 +546,7 @@ impl Array {
         let res_shape = Array::broadcast_shapes(&self.shape, &other.shape)?;
         
         // Tier 1: Identical Shapes (Hot Path)
-        if self.shape == other.shape {
+        if self.shape == other.shape && self.is_contiguous() && other.is_contiguous() {
             let s_data = self.data();
             let o_data = other.data();
             let n = s_data.len();
@@ -431,7 +559,7 @@ impl Array {
         }
 
         // Tier 2: 2D Broadcasting Fast-Path
-        if self.ndim() <= 2 && other.ndim() <= 2 {
+        if self.ndim() <= 2 && other.ndim() <= 2 && self.is_contiguous() && other.is_contiguous() {
             fn get_rc(s: &[usize]) -> (usize, usize) {
                 match s.len() {
                     0 => (1, 1),
@@ -460,11 +588,11 @@ impl Array {
             return Ok(Self::from_flat(out, res_shape));
         }
 
-        // Tier 3: General N-D Broadcasting (Slow Path)
+        // Tier 3: General N-D Broadcasting (Slow Path, Stride-Aware)
         let n: usize = res_shape.iter().product();
         let res_strides = Array::compute_strides(&res_shape);
-        let d1 = self.data();
-        let d2 = other.data();
+        let d1 = self.storage_slice();
+        let d2 = other.storage_slice();
         let s1 = &self.shape;
         let s2 = &other.shape;
         let st1 = &self.strides;
@@ -472,22 +600,23 @@ impl Array {
         let res_ndim = res_shape.len();
 
         let out_data: Vec<f64> = (0..n).map(|i| {
-            let mut idx1 = 0;
-            let mut idx2 = 0;
+            let mut idx1 = self.offset as isize;
+            let mut idx2 = other.offset as isize;
             let mut rem = i;
             for d in 0..res_ndim {
-                let coord = rem / res_strides[d];
-                rem %= res_strides[d];
+                let res_stride_d = res_strides[d] as usize;
+                let coord = rem / res_stride_d;
+                rem %= res_stride_d;
                 if d >= res_ndim - s1.len() {
                     let s_d = d - (res_ndim - s1.len());
-                    if s1[s_d] > 1 { idx1 += coord * st1[s_d]; }
+                    if s1[s_d] > 1 { idx1 += coord as isize * st1[s_d]; }
                 }
                 if d >= res_ndim - s2.len() {
                     let s_d = d - (res_ndim - s2.len());
-                    if s2[s_d] > 1 { idx2 += coord * st2[s_d]; }
+                    if s2[s_d] > 1 { idx2 += coord as isize * st2[s_d]; }
                 }
             }
-            f(d1[idx1], d2[idx2])
+            f(d1[idx1 as usize], d2[idx2 as usize])
         }).collect();
         
         Ok(Self::from_flat(out_data, res_shape))
@@ -498,7 +627,8 @@ impl Array {
             return Err(pyo3::exceptions::PyValueError::new_err("Vector broadcast len mismatch"));
         }
         let (r, c) = (self.nrows(), self.ncols());
-        let sd = self.data();
+        let contig = self.to_contiguous();
+        let sd = contig.data();
         let data: Vec<f64> = v.with_slice(|vs| {
             (0..r*c).map(|k| f(sd[k], vs[k % c])).collect()
         });
@@ -546,14 +676,30 @@ impl Array {
         let nd1 = self.ndim();
         let nd2 = other.ndim();
 
-        // 2D Fast Path
+        // 2D Fast Path using matrixmultiply (Zero-copy layout aware)
         if nd1 == 2 && nd2 == 2 {
-            let (r1, c1) = (self.nrows(), self.ncols());
-            let (r2, c2) = (other.nrows(), other.ncols());
-            if c1 != r2 { panic!("MatMul dim mismatch: {}x{} @ {}x{}", r1, c1, r2, c2); }
-            let a = self.to_mat();
-            let b = other.to_mat();
-            return Self::from_mat(a * b);
+            let m = self.nrows();
+            let k = self.ncols();
+            let n = other.ncols();
+            if k != other.nrows() { panic!("MatMul dim mismatch: {}x{} @ {}x{}", m, k, other.nrows(), n); }
+            
+            let mut out = vec![0.0; m * n];
+            let rsa = self.strides[0];
+            let csa = self.strides[1];
+            let rsb = other.strides[0];
+            let csb = other.strides[1];
+            
+            unsafe {
+                matrixmultiply::dgemm(
+                    m, k, n,
+                    1.0,
+                    self.storage_slice()[self.offset..].as_ptr(), rsa, csa,
+                    other.storage_slice()[other.offset..].as_ptr(), rsb, csb,
+                    0.0,
+                    out.as_mut_ptr(), n as isize, 1,
+                );
+            }
+            return Self::from_flat(out, vec![m, n]);
         }
 
         // Batch MatMul (Rank 3+)
@@ -603,26 +749,29 @@ impl Array {
         let my_ndim = my_batch_shape.len();
 
         for d in 0..res_ndim {
-            let coord = rem / res_batch_strides[d];
-            rem %= res_batch_strides[d];
+            let res_stride_d = res_batch_strides[d] as usize;
+            let coord = rem / res_stride_d;
+            rem %= res_stride_d;
             
             if d >= res_ndim - my_ndim {
                 let my_d = d - (res_ndim - my_ndim);
                 if my_batch_shape[my_d] > 1 {
-                    my_idx += coord * my_batch_strides[my_d];
+                    my_idx += coord * my_batch_strides[my_d] as usize;
                 }
             }
         }
         
         let slice_len = r * c;
         let start = my_idx * slice_len;
-        let data = self.data()[start..start+slice_len].to_vec();
+        let contig = self.to_contiguous();
+        let data = contig.data()[start..start+slice_len].to_vec();
         Array::from_flat(data, vec![r, c])
     }
 
     pub fn matmul_vec(&self, v: &Vector) -> Vec<f64> {
         let (r, c) = (self.nrows(), self.ncols());
-        let d = self.data();
+        let contig = self.to_contiguous();
+        let d = contig.data();
         v.with_slice(|s| {
             (0..r).into_par_iter().map(|i| {
                 (0..c).map(|j| d[i*c+j] * s[j]).sum()

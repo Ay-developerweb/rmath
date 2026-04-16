@@ -20,6 +20,7 @@ pub fn register_stats(m: &Bound<'_, PyModule>) -> PyResult<()> {
     
     // Inferential Statistics
     m.add_function(wrap_pyfunction!(inferential::correlation, m)?)?;
+    m.add_function(wrap_pyfunction!(inferential::correlation_matrix, m)?)?;
     m.add_function(wrap_pyfunction!(inferential::covariance, m)?)?;
     m.add_function(wrap_pyfunction!(inferential::t_test_independent, m)?)?;
     // Alias for backward compatibility

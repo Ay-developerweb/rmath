@@ -3,6 +3,7 @@ use ::rand::prelude::*;
 use ::rand::rngs::StdRng;
 use ::rand::SeedableRng;
 use ::rand_distr::{StandardNormal, Distribution};
+use rayon::prelude::*;
 use super::core::Vector;
 
 // ---------------------------------------------------------------------------
@@ -16,8 +17,15 @@ use super::core::Vector;
 ///     >>> v = rand(100)
 #[pyfunction(name = "rand")]
 pub fn vector_rand(n: usize) -> Vector {
-    let mut rng = ::rand::thread_rng();
-    Vector::new((0..n).map(|_| rng.r#gen::<f64>()).collect())
+    let data: Vec<f64> = if n >= 8192 {
+        (0..n).into_par_iter()
+            .map_init(|| ::rand::thread_rng(), |rng, _| rng.r#gen::<f64>())
+            .collect()
+    } else {
+        let mut rng = ::rand::thread_rng();
+        (0..n).map(|_| rng.r#gen::<f64>()).collect()
+    };
+    Vector::new(data)
 }
 
 /// Standard-normal random vector (mean=0, std=1).
@@ -27,9 +35,16 @@ pub fn vector_rand(n: usize) -> Vector {
 ///     >>> v = randn(100)
 #[pyfunction(name = "randn")]
 pub fn vector_randn(n: usize) -> Vector {
-    let mut rng = ::rand::thread_rng();
-    let dist = StandardNormal;
-    Vector::new((0..n).map(|_| dist.sample(&mut rng)).collect())
+    let data: Vec<f64> = if n >= 8192 {
+        (0..n).into_par_iter()
+            .map_init(|| ::rand::thread_rng(), |rng, _| rng.sample(StandardNormal))
+            .collect()
+    } else {
+        let mut rng = ::rand::thread_rng();
+        let dist = StandardNormal;
+        (0..n).map(|_| dist.sample(&mut rng)).collect()
+    };
+    Vector::new(data)
 }
 
 /// Seeded uniform random vector — reproducible.
@@ -155,7 +170,7 @@ pub fn mean(v: &Vector) -> PyResult<f64> {
 #[pyfunction] pub fn std_dev(v: &Vector) -> f64 { v.std_dev() }
 #[pyfunction] pub fn pop_std_dev(v: &Vector) -> f64 { v.pop_std_dev() }
 #[pyfunction] pub fn median(v: &Vector) -> f64 { v.median() }
-#[pyfunction] pub fn percentile(v: &Vector, q: f64) -> PyResult<f64> { v.percentile(q) }
+#[pyfunction] pub fn percentile(v: &Vector, q: f64) -> PyResult<f64> { v.percentile_internal(q) }
 
 #[pyfunction]
 pub fn vmin(v: &Vector) -> PyResult<f64> {
@@ -174,7 +189,10 @@ pub fn vmax(v: &Vector) -> PyResult<f64> {
 #[pyfunction] pub fn norm(v: &Vector) -> f64 { v.norm() }
 #[pyfunction] pub fn norm_l1(v: &Vector) -> f64 { v.norm_l1() }
 #[pyfunction] pub fn norm_inf(v: &Vector) -> f64 { v.norm_inf() }
-#[pyfunction] pub fn norm_lp(v: &Vector, p: f64) -> PyResult<f64> { v.norm_lp(p) }
+#[pyfunction] pub fn norm_lp(v: &Vector, p: f64) -> PyResult<f64> {
+    if p <= 0.0 { return Err(pyo3::exceptions::PyValueError::new_err("p must be > 0")); }
+    Ok(v.norm_lp(p))
+}
 #[pyfunction] pub fn dot(v1: &Vector, v2: &Vector) -> PyResult<f64> { v1.dot(v2) }
 
 // ---------------------------------------------------------------------------

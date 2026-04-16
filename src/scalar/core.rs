@@ -19,7 +19,7 @@ use std::collections::hash_map::DefaultHasher;
 /// print(float(x))       # 3.14
 /// print(f"{x:.2f}")     # 3.14
 /// ```
-#[pyclass]
+#[pyclass(module = "rmath")]
 #[derive(Debug, Clone, Copy)]
 pub struct Scalar(pub f64);
 

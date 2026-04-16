@@ -11,6 +11,13 @@ pub enum OpType {
     MatMul,
     Sigmoid,
     ReLU,
+    Div,
+    Sum,
+    Exp,
+    Log,
+    Tanh,
+    Neg,
+    Abs,
     None, // For leaf nodes
 }
 
@@ -22,7 +29,7 @@ pub struct GraphNode {
 
 /// Tensor wraps rmath::Array with Autograd capabilities.
 /// Shared state (RwLock) ensures updates are reflected across all clones.
-#[pyclass]
+#[pyclass(module = "rmath")]
 #[derive(Clone)]
 pub struct Tensor {
     pub data_ptr: Arc<RwLock<Array>>,
@@ -35,10 +42,29 @@ pub struct Tensor {
 #[pymethods]
 impl Tensor {
     #[new]
-    #[pyo3(signature = (data, requires_grad = false))]
-    pub fn new(data: Array, requires_grad: bool) -> Self {
+    #[pyo3(signature = (data, requires_grad = false, **kwargs))]
+    pub fn new(data: Bound<'_, PyAny>, requires_grad: bool, kwargs: Option<&Bound<'_, pyo3::types::PyDict>>) -> PyResult<Self> {
+        let mut arr = Tensor::extract_array_from_any(&data)?;
+        if let Some(kw) = kwargs {
+            if let Ok(Some(dt)) = kw.get_item("dtype") {
+                if let Ok(dt_str) = dt.extract::<&str>() {
+                    arr = arr.apply_dtype(Some(dt_str))?;
+                }
+            }
+        }
+        Ok(Tensor {
+            data_ptr: Arc::new(RwLock::new(arr)),
+            grad: Arc::new(Mutex::new(None)),
+            requires_grad,
+            node: None,
+        })
+    }
+
+    /// Internal wrapper to instantiate Tensor with an existing array safely
+    #[staticmethod]
+    fn from_array(arr: Array, requires_grad: bool) -> Self {
         Tensor {
-            data_ptr: Arc::new(RwLock::new(data)),
+            data_ptr: Arc::new(RwLock::new(arr)),
             grad: Arc::new(Mutex::new(None)),
             requires_grad,
             node: None,
@@ -63,10 +89,37 @@ impl Tensor {
         *g = None;
     }
 
+    /// Set requires_grad in place (Torch alias)
+    #[pyo3(name = "requires_grad_")]
+    pub fn requires_grad_(&mut self, requires_grad: bool) -> Self {
+        self.requires_grad = requires_grad;
+        self.clone()
+    }
+
     /// Update the underlying data (used by optimizers)
     pub fn update_data(&mut self, new_data: Array) {
         let mut data = self.data_ptr.write().unwrap();
         *data = new_data;
+    }
+
+    #[getter]
+    pub fn shape(&self) -> Vec<usize> {
+        self.data_ptr.read().unwrap().shape.clone()
+    }
+
+    #[getter]
+    pub fn dtype(&self) -> String {
+        self.data_ptr.read().unwrap().dtype.clone()
+    }
+
+    #[getter]
+    #[pyo3(name = "ndim")]
+    pub fn ndim_py(&self) -> usize {
+        self.data_ptr.read().unwrap().shape.len()
+    }
+
+    pub fn __getitem__(&self, py: Python<'_>, index: Bound<'_, PyAny>) -> PyResult<PyObject> {
+        self.data().__getitem__(py, index)
     }
 
     /// Topological sort to get all nodes in execution order
@@ -99,8 +152,8 @@ impl Tensor {
         {
             let mut g = self.grad.lock().unwrap();
             if g.is_none() {
-                let data = self.data();
-                *g = Some(Array::full_internal(&data.shape(), 1.0));
+                let shape = self.data_ptr.read().unwrap().shape.clone();
+                *g = Some(Array::full_internal(&shape, 1.0));
             }
         }
         
@@ -111,45 +164,121 @@ impl Tensor {
         }
     }
 
-    pub fn __add__(&self, other: &Tensor) -> PyResult<Self> {
-        let res_data = self.data().add_array(&other.data())?;
-        let mut res = Tensor::new(res_data, self.requires_grad || other.requires_grad);
+    // ── Arithmetic Operators ─────────────────────────────────────────────
+
+    pub fn __add__<'py>(&self, other: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let other_tensor = Self::extract_tensor(other)?;
+        let self_data = self.data_ptr.read().unwrap();
+        let other_data = other_tensor.data_ptr.read().unwrap();
+        let res_data = self_data.add_array(&other_data)?;
+        drop(self_data); drop(other_data);
+        let mut res = Tensor::from_array(res_data, self.requires_grad || other_tensor.requires_grad);
         if res.requires_grad {
-            res.node = Some(Arc::new(GraphNode { op: OpType::Add, inputs: vec![self.clone(), other.clone()] }));
+            res.node = Some(Arc::new(GraphNode { op: OpType::Add, inputs: vec![self.clone(), other_tensor] }));
         }
         Ok(res)
     }
 
-    pub fn __sub__(&self, other: &Tensor) -> PyResult<Self> {
-        let res_data = self.data().sub_array(&other.data())?;
-        let mut res = Tensor::new(res_data, self.requires_grad || other.requires_grad);
+    pub fn __radd__<'py>(&self, other: &Bound<'py, PyAny>) -> PyResult<Self> {
+        self.__add__(other)
+    }
+
+    pub fn __sub__<'py>(&self, other: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let other_tensor = Self::extract_tensor(other)?;
+        let self_data = self.data_ptr.read().unwrap();
+        let other_data = other_tensor.data_ptr.read().unwrap();
+        let res_data = self_data.sub_array(&other_data)?;
+        drop(self_data); drop(other_data);
+        let mut res = Tensor::from_array(res_data, self.requires_grad || other_tensor.requires_grad);
         if res.requires_grad {
-            res.node = Some(Arc::new(GraphNode { op: OpType::Sub, inputs: vec![self.clone(), other.clone()] }));
+            res.node = Some(Arc::new(GraphNode { op: OpType::Sub, inputs: vec![self.clone(), other_tensor] }));
         }
         Ok(res)
     }
 
-    pub fn __mul__(&self, other: &Tensor) -> PyResult<Self> {
-        let res_data = self.data().mul_array_elementwise(&other.data())?;
-        let mut res = Tensor::new(res_data, self.requires_grad || other.requires_grad);
+    pub fn __rsub__<'py>(&self, other: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let other_tensor = Self::extract_tensor(other)?;
+        let other_data = other_tensor.data_ptr.read().unwrap();
+        let self_data = self.data_ptr.read().unwrap();
+        let res_data = other_data.sub_array(&self_data)?;
+        drop(other_data); drop(self_data);
+        let mut res = Tensor::from_array(res_data, self.requires_grad || other_tensor.requires_grad);
         if res.requires_grad {
-            res.node = Some(Arc::new(GraphNode { op: OpType::Mul, inputs: vec![self.clone(), other.clone()] }));
+            res.node = Some(Arc::new(GraphNode { op: OpType::Sub, inputs: vec![other_tensor, self.clone()] }));
+        }
+        Ok(res)
+    }
+
+    pub fn __mul__<'py>(&self, other: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let other_tensor = Self::extract_tensor(other)?;
+        let self_data = self.data_ptr.read().unwrap();
+        let other_data = other_tensor.data_ptr.read().unwrap();
+        let res_data = self_data.mul_array_elementwise(&other_data)?;
+        drop(self_data); drop(other_data);
+        let mut res = Tensor::from_array(res_data, self.requires_grad || other_tensor.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Mul, inputs: vec![self.clone(), other_tensor] }));
+        }
+        Ok(res)
+    }
+
+    pub fn __rmul__<'py>(&self, other: &Bound<'py, PyAny>) -> PyResult<Self> {
+        self.__mul__(other)
+    }
+
+    pub fn __truediv__<'py>(&self, other: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let other_tensor = Self::extract_tensor(other)?;
+        let self_data = self.data_ptr.read().unwrap();
+        let other_data = other_tensor.data_ptr.read().unwrap();
+        // Pure Rust elementwise division — no Python dispatch
+        let res_data = self_data.div_array_elementwise(&other_data)?;
+        drop(self_data); drop(other_data);
+        let mut res = Tensor::from_array(res_data, self.requires_grad || other_tensor.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Div, inputs: vec![self.clone(), other_tensor] }));
+        }
+        Ok(res)
+    }
+
+    pub fn __rtruediv__<'py>(&self, other: &Bound<'py, PyAny>) -> PyResult<Self> {
+        let other_tensor = Self::extract_tensor(other)?;
+        let other_data = other_tensor.data_ptr.read().unwrap();
+        let self_data = self.data_ptr.read().unwrap();
+        let res_data = other_data.div_array_elementwise(&self_data)?;
+        drop(other_data); drop(self_data);
+        let mut res = Tensor::from_array(res_data, self.requires_grad || other_tensor.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Div, inputs: vec![other_tensor, self.clone()] }));
         }
         Ok(res)
     }
 
     pub fn __matmul__(&self, other: &Tensor) -> PyResult<Self> {
-        let res_data = self.data().matmul_array(&other.data());
-        let mut res = Tensor::new(res_data, self.requires_grad || other.requires_grad);
+        let self_data = self.data_ptr.read().unwrap();
+        let other_data = other.data_ptr.read().unwrap();
+        let res_data = self_data.matmul_array(&other_data);
+        drop(self_data); drop(other_data);
+        let mut res = Tensor::from_array(res_data, self.requires_grad || other.requires_grad);
         if res.requires_grad {
             res.node = Some(Arc::new(GraphNode { op: OpType::MatMul, inputs: vec![self.clone(), other.clone()] }));
         }
         Ok(res)
     }
 
+    pub fn __neg__(&self) -> Self {
+        let res_data = self.data_ptr.read().unwrap().map_elements(|x| -x);
+        let mut res = Tensor::from_array(res_data, self.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Neg, inputs: vec![self.clone()] }));
+        }
+        res
+    }
+
+    // ── Activation / Math Ops (with autograd) ────────────────────────────
+
     pub fn sigmoid(&self) -> Self {
-        let res_data = self.data().sigmoid();
-        let mut res = Tensor::new(res_data, self.requires_grad);
+        let res_data = self.data_ptr.read().unwrap().sigmoid();
+        let mut res = Tensor::from_array(res_data, self.requires_grad);
         if res.requires_grad {
             res.node = Some(Arc::new(GraphNode { op: OpType::Sigmoid, inputs: vec![self.clone()] }));
         }
@@ -157,13 +286,104 @@ impl Tensor {
     }
 
     pub fn relu(&self) -> Self {
-        let res_data = self.data().relu();
-        let mut res = Tensor::new(res_data, self.requires_grad);
+        let res_data = self.data_ptr.read().unwrap().relu();
+        let mut res = Tensor::from_array(res_data, self.requires_grad);
         if res.requires_grad {
             res.node = Some(Arc::new(GraphNode { op: OpType::ReLU, inputs: vec![self.clone()] }));
         }
         res
     }
+
+    /// Element-wise exponential with autograd support.
+    pub fn exp(&self) -> Self {
+        let res_data = self.data_ptr.read().unwrap().exp();
+        let mut res = Tensor::from_array(res_data, self.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Exp, inputs: vec![self.clone()] }));
+        }
+        res
+    }
+
+    /// Element-wise natural logarithm with autograd support.
+    pub fn log(&self) -> Self {
+        let res_data = self.data_ptr.read().unwrap().log();
+        let mut res = Tensor::from_array(res_data, self.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Log, inputs: vec![self.clone()] }));
+        }
+        res
+    }
+
+    /// Element-wise tanh with autograd support.
+    pub fn tanh(&self) -> Self {
+        let res_data = self.data_ptr.read().unwrap().tanh();
+        let mut res = Tensor::from_array(res_data, self.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Tanh, inputs: vec![self.clone()] }));
+        }
+        res
+    }
+
+    /// Element-wise absolute value with autograd support.
+    pub fn abs(&self) -> Self {
+        let res_data = self.data_ptr.read().unwrap().abs();
+        let mut res = Tensor::from_array(res_data, self.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Abs, inputs: vec![self.clone()] }));
+        }
+        res
+    }
+
+    // ── Reduction Ops ────────────────────────────────────────────────────
+
+    /// Sum all elements, returning a scalar Tensor with autograd support.
+    pub fn sum(&self) -> Self {
+        let d = self.data_ptr.read().unwrap();
+        let total: f64 = d.sum_all();
+        drop(d);
+        let res_data = Array::from_flat(vec![total], vec![1]);
+        let mut res = Tensor::from_array(res_data, self.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Sum, inputs: vec![self.clone()] }));
+        }
+        res
+    }
+
+    /// Mean of all elements, returning a scalar Tensor.
+    pub fn mean(&self) -> Self {
+        let d = self.data_ptr.read().unwrap();
+        let n = d.len() as f64;
+        let total: f64 = d.sum_all();
+        drop(d);
+        let res_data = Array::from_flat(vec![total / n], vec![1]);
+        let mut res = Tensor::from_array(res_data, self.requires_grad);
+        if res.requires_grad {
+            res.node = Some(Arc::new(GraphNode { op: OpType::Sum, inputs: vec![self.clone()] }));
+        }
+        res
+    }
+
+    // ── Shape Ops ────────────────────────────────────────────────────────
+
+    /// Reshape the tensor (no autograd graph node needed — shape-only change).
+    pub fn reshape(&self, new_shape: Vec<usize>) -> PyResult<Self> {
+        let reshaped = self.data_ptr.read().unwrap().reshape(new_shape)?;
+        Ok(Tensor::from_array(reshaped, self.requires_grad))
+    }
+
+    /// Transpose the last two dimensions.
+    pub fn transpose(&self) -> Self {
+        let t = self.data_ptr.read().unwrap().transpose_internal();
+        Tensor::from_array(t.to_contiguous(), self.requires_grad)
+    }
+
+    /// Alias for transpose (PyTorch-style).
+    #[pyo3(name = "t")]
+    pub fn t_py(&self) -> Self {
+        self.transpose()
+    }
+
+    // ── Display ──────────────────────────────────────────────────────────
 
     pub fn __repr__(&self) -> String {
         let op_name = match &self.node {
@@ -174,16 +394,81 @@ impl Tensor {
                 OpType::MatMul => "MatMul",
                 OpType::Sigmoid => "Sigmoid",
                 OpType::ReLU => "ReLU",
+                OpType::Div => "Div",
+                OpType::Sum => "Sum",
+                OpType::Exp => "Exp",
+                OpType::Log => "Log",
+                OpType::Tanh => "Tanh",
+                OpType::Neg => "Neg",
+                OpType::Abs => "Abs",
                 OpType::None => "None",
             },
             None => "None",
         };
+        let repr = self.data_ptr.read().unwrap().__repr__();
         format!("Tensor(data={}, grad_fn={}, requires_grad={})", 
-            self.data().__repr__(), op_name, self.requires_grad)
+            repr, op_name, self.requires_grad)
+    }
+
+    // ── Static Constructors ──────────────────────────────────────────────
+
+    #[staticmethod]
+    #[pyo3(signature = (*shape, requires_grad = false, **kwargs))]
+    pub fn zeros(shape: Vec<usize>, requires_grad: bool, kwargs: Option<&Bound<'_, pyo3::types::PyDict>>) -> PyResult<Self> {
+        let mut arr = Array::zeros_internal(&shape);
+        if let Some(kw) = kwargs {
+            if let Ok(Some(dt)) = kw.get_item("dtype") {
+                arr = arr.apply_dtype(Some(dt.extract::<&str>()?))?;
+            }
+        }
+        Ok(Tensor::from_array(arr, requires_grad))
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (*shape, requires_grad = false, **kwargs))]
+    pub fn ones(shape: Vec<usize>, requires_grad: bool, kwargs: Option<&Bound<'_, pyo3::types::PyDict>>) -> PyResult<Self> {
+        let mut arr = Array::ones_internal(&shape);
+        if let Some(kw) = kwargs {
+            if let Ok(Some(dt)) = kw.get_item("dtype") {
+                arr = arr.apply_dtype(Some(dt.extract::<&str>()?))?;
+            }
+        }
+        Ok(Tensor::from_array(arr, requires_grad))
+    }
+
+    #[staticmethod]
+    #[pyo3(signature = (*shape, requires_grad = false, **kwargs))]
+    pub fn randn(shape: Vec<usize>, requires_grad: bool, kwargs: Option<&Bound<'_, pyo3::types::PyDict>>) -> PyResult<Self> {
+        let mut arr = Array::randn(shape);
+        if let Some(kw) = kwargs {
+            if let Ok(Some(dt)) = kw.get_item("dtype") {
+                arr = arr.apply_dtype(Some(dt.extract::<&str>()?))?;
+            }
+        }
+        Ok(Tensor::from_array(arr, requires_grad))
     }
 }
 
 impl Tensor {
+    fn extract_tensor(other: &Bound<'_, PyAny>) -> PyResult<Tensor> {
+        if let Ok(t) = other.extract::<PyRef<Tensor>>() {
+            Ok(t.clone())
+        } else if let Ok(s) = other.extract::<f64>() {
+            Ok(Tensor::from_array(Array::from_flat(vec![s], vec![1]), false))
+        } else {
+            Err(pyo3::exceptions::PyTypeError::new_err("Expected Tensor or scalar"))
+        }
+    }
+    
+    fn extract_array_from_any(data: &Bound<'_, PyAny>) -> PyResult<Array> {
+        if let Ok(arr) = data.extract::<PyRef<Array>>() {
+            Ok(arr.clone())
+        } else {
+            // Fallback to Array sequence parser matching
+            Array::new(data.clone(), None)
+        }
+    }
+
     fn backward_step(&self) {
         let node = match &self.node {
             Some(n) => n,
@@ -214,11 +499,36 @@ impl Tensor {
             }
             OpType::Mul => {
                 if node.inputs[0].requires_grad {
-                    let ig = grad.mul_array_elementwise(&node.inputs[1].data()).unwrap();
+                    let b_data = node.inputs[1].data_ptr.read().unwrap();
+                    let ig = grad.mul_array_elementwise(&b_data).unwrap();
+                    drop(b_data);
                     node.inputs[0].accumulate_grad(&ig);
                 }
                 if node.inputs[1].requires_grad {
-                    let ig = grad.mul_array_elementwise(&node.inputs[0].data()).unwrap();
+                    let a_data = node.inputs[0].data_ptr.read().unwrap();
+                    let ig = grad.mul_array_elementwise(&a_data).unwrap();
+                    drop(a_data);
+                    node.inputs[1].accumulate_grad(&ig);
+                }
+            }
+            OpType::Div => {
+                // Pure Rust backward — no Python::with_gil needed
+                // d/da (a/b) = 1/b,  d/db (a/b) = -a/b²
+                if node.inputs[0].requires_grad {
+                    let b_data = node.inputs[1].data_ptr.read().unwrap();
+                    let ig = grad.div_array_elementwise(&b_data).unwrap();
+                    drop(b_data);
+                    node.inputs[0].accumulate_grad(&ig);
+                }
+                if node.inputs[1].requires_grad {
+                    let a_data = node.inputs[0].data_ptr.read().unwrap();
+                    let b_data = node.inputs[1].data_ptr.read().unwrap();
+                    // -a / b²  =  -a * b^{-2}
+                    let b_sq = b_data.mul_array_elementwise(&b_data).unwrap();
+                    let a_neg = a_data.map_elements(|x| -x);
+                    drop(a_data); drop(b_data);
+                    let num = grad.mul_array_elementwise(&a_neg).unwrap();
+                    let ig = num.div_array_elementwise(&b_sq).unwrap();
                     node.inputs[1].accumulate_grad(&ig);
                 }
             }
@@ -226,18 +536,24 @@ impl Tensor {
                 let a = &node.inputs[0];
                 let b = &node.inputs[1];
                 if a.requires_grad {
-                    let ig = grad.matmul_array(&b.data().transpose_internal());
+                    let b_data = b.data_ptr.read().unwrap();
+                    let ig = grad.matmul_array(&b_data.transpose_internal());
+                    drop(b_data);
                     a.accumulate_grad(&ig);
                 }
                 if b.requires_grad {
-                    let ig = a.data().transpose_internal().matmul_array(&grad);
+                    let a_data = a.data_ptr.read().unwrap();
+                    let ig = a_data.transpose_internal().matmul_array(&grad);
+                    drop(a_data);
                     b.accumulate_grad(&ig);
                 }
             }
             OpType::Sigmoid => {
                 let input = &node.inputs[0];
                 if input.requires_grad {
-                    let deriv = input.data().sigmoid_deriv();
+                    let d = input.data_ptr.read().unwrap();
+                    let deriv = d.sigmoid_deriv();
+                    drop(d);
                     let ig = grad.mul_array_elementwise(&deriv).unwrap();
                     input.accumulate_grad(&ig);
                 }
@@ -245,8 +561,67 @@ impl Tensor {
             OpType::ReLU => {
                 let input = &node.inputs[0];
                 if input.requires_grad {
-                    let deriv = input.data().relu_deriv();
+                    let d = input.data_ptr.read().unwrap();
+                    let deriv = d.relu_deriv();
+                    drop(d);
                     let ig = grad.mul_array_elementwise(&deriv).unwrap();
+                    input.accumulate_grad(&ig);
+                }
+            }
+            OpType::Sum => {
+                let input = &node.inputs[0];
+                if input.requires_grad {
+                    let grad_val = grad.data()[0];
+                    let shape = input.data_ptr.read().unwrap().shape.clone();
+                    let ig = Array::full_internal(&shape, grad_val);
+                    input.accumulate_grad(&ig);
+                }
+            }
+            OpType::Exp => {
+                let input = &node.inputs[0];
+                if input.requires_grad {
+                    let d = input.data_ptr.read().unwrap();
+                    let exp_x = d.exp();
+                    drop(d);
+                    let ig = grad.mul_array_elementwise(&exp_x).unwrap();
+                    input.accumulate_grad(&ig);
+                }
+            }
+            OpType::Log => {
+                let input = &node.inputs[0];
+                if input.requires_grad {
+                    let d = input.data_ptr.read().unwrap();
+                    let recip = d.map_elements(|x| 1.0 / x);
+                    drop(d);
+                    let ig = grad.mul_array_elementwise(&recip).unwrap();
+                    input.accumulate_grad(&ig);
+                }
+            }
+            OpType::Tanh => {
+                let input = &node.inputs[0];
+                if input.requires_grad {
+                    let d = input.data_ptr.read().unwrap();
+                    let tanh_x = d.tanh();
+                    drop(d);
+                    let deriv = tanh_x.map_elements(|t| 1.0 - t * t);
+                    let ig = grad.mul_array_elementwise(&deriv).unwrap();
+                    input.accumulate_grad(&ig);
+                }
+            }
+            OpType::Neg => {
+                let input = &node.inputs[0];
+                if input.requires_grad {
+                    let ig = grad.map_elements(|x| -x);
+                    input.accumulate_grad(&ig);
+                }
+            }
+            OpType::Abs => {
+                let input = &node.inputs[0];
+                if input.requires_grad {
+                    let d = input.data_ptr.read().unwrap();
+                    let sign = d.map_elements(|x| if x > 0.0 { 1.0 } else if x < 0.0 { -1.0 } else { 0.0 });
+                    drop(d);
+                    let ig = grad.mul_array_elementwise(&sign).unwrap();
                     input.accumulate_grad(&ig);
                 }
             }

@@ -1,6 +1,15 @@
 use pyo3::prelude::*;
 use rayon::prelude::*;
 use crate::vector::core::Vector;
+use crate::array::core::Array;
+
+fn extract_vector(obj: &Bound<'_, PyAny>) -> PyResult<Vector> {
+    if let Ok(v) = obj.extract::<PyRef<Vector>>() {
+        Ok(v.clone())
+    } else {
+        Ok(Vector::new(obj.extract::<Vec<f64>>()?))
+    }
+}
 
 /// Calculate the Euclidean distance (L2 norm) between two vectors.
 ///
@@ -10,7 +19,9 @@ use crate::vector::core::Vector;
 ///     >>> euclidean_distance(Vector([0, 0]), Vector([3, 4]))
 ///     5.0
 #[pyfunction]
-pub fn euclidean_distance(v1: &Vector, v2: &Vector) -> PyResult<f64> {
+pub fn euclidean_distance(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) -> PyResult<f64> {
+    let v1 = extract_vector(&v1_any)?;
+    let v2 = extract_vector(&v2_any)?;
     v1.with_slice(|s1| v2.with_slice(|s2| {
         if s1.len() != s2.len() {
             return Err(pyo3::exceptions::PyValueError::new_err("Dimension mismatch"));
@@ -26,7 +37,9 @@ pub fn euclidean_distance(v1: &Vector, v2: &Vector) -> PyResult<f64> {
 
 /// Calculate the Manhattan distance (L1 norm) between two vectors.
 #[pyfunction]
-pub fn manhattan_distance(v1: &Vector, v2: &Vector) -> PyResult<f64> {
+pub fn manhattan_distance(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) -> PyResult<f64> {
+    let v1 = extract_vector(&v1_any)?;
+    let v2 = extract_vector(&v2_any)?;
     v1.with_slice(|s1| v2.with_slice(|s2| {
         if s1.len() != s2.len() {
             return Err(pyo3::exceptions::PyValueError::new_err("Dimension mismatch"));
@@ -42,7 +55,9 @@ pub fn manhattan_distance(v1: &Vector, v2: &Vector) -> PyResult<f64> {
 
 /// Calculate the Minkowski distance (Lp norm) between two vectors.
 #[pyfunction]
-pub fn minkowski_distance(v1: &Vector, v2: &Vector, p: f64) -> PyResult<f64> {
+pub fn minkowski_distance(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>, p: f64) -> PyResult<f64> {
+    let v1 = extract_vector(&v1_any)?;
+    let v2 = extract_vector(&v2_any)?;
     v1.with_slice(|s1| v2.with_slice(|s2| {
         if s1.len() != s2.len() {
             return Err(pyo3::exceptions::PyValueError::new_err("Dimension mismatch"));
@@ -60,7 +75,9 @@ pub fn minkowski_distance(v1: &Vector, v2: &Vector, p: f64) -> PyResult<f64> {
 ///
 /// Returns a value in `[-1, 1]` representing the cosine of the angle between them.
 #[pyfunction]
-pub fn cosine_similarity(v1: &Vector, v2: &Vector) -> PyResult<f64> {
+pub fn cosine_similarity(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) -> PyResult<f64> {
+    let v1 = extract_vector(&v1_any)?;
+    let v2 = extract_vector(&v2_any)?;
     v1.with_slice(|s1| v2.with_slice(|s2| {
         if s1.len() != s2.len() {
             return Err(pyo3::exceptions::PyValueError::new_err("Dimension mismatch"));
@@ -82,9 +99,11 @@ pub fn cosine_similarity(v1: &Vector, v2: &Vector) -> PyResult<f64> {
 
 /// Project vector `v` onto target vector `target`.
 #[pyfunction]
-pub fn projection(v: &Vector, target: &Vector) -> PyResult<Vector> {
-    let dot_vt = v.dot(target)?;
-    let dot_tt = target.dot(target)?;
+pub fn projection(v_any: Bound<'_, PyAny>, target_any: Bound<'_, PyAny>) -> PyResult<Vector> {
+    let v = extract_vector(&v_any)?;
+    let target = extract_vector(&target_any)?;
+    let dot_vt = v.dot(&target)?;
+    let dot_tt = target.dot(&target)?;
     if dot_tt == 0.0 { Ok(target.clone()) }
     else { 
         let scalar = dot_vt / dot_tt;
@@ -94,7 +113,9 @@ pub fn projection(v: &Vector, target: &Vector) -> PyResult<Vector> {
 
 /// Calculate the 3D cross product of two vectors.
 #[pyfunction]
-pub fn cross_product(v1: &Vector, v2: &Vector) -> PyResult<Vector> {
+pub fn cross_product(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) -> PyResult<Vector> {
+    let v1 = extract_vector(&v1_any)?;
+    let v2 = extract_vector(&v2_any)?;
     v1.with_slice(|s1| v2.with_slice(|s2| {
         if s1.len() != 3 || s2.len() != 3 {
             return Err(pyo3::exceptions::PyValueError::new_err("Cross product is only defined for 3D vectors"));
@@ -110,9 +131,47 @@ pub fn cross_product(v1: &Vector, v2: &Vector) -> PyResult<Vector> {
 
 /// Calculate the angle in radians between two vectors.
 #[pyfunction]
-pub fn angle_between(v1: &Vector, v2: &Vector) -> PyResult<f64> {
-    let cos_theta = cosine_similarity(v1, v2)?;
+pub fn angle_between(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) -> PyResult<f64> {
+    let cos_theta = cosine_similarity(v1_any, v2_any)?;
     Ok(cos_theta.clamp(-1.0, 1.0).acos())
+}
+
+/// Compute the pairwise Euclidean distance matrix between two sets of points.
+///
+/// Args:
+///     a: First set of points (M x D Array).
+///     b: Second set of points (N x D Array).
+///
+/// Returns:
+///     M x N Array containing pairwise Euclidean distances.
+#[pyfunction]
+pub fn cdist(py: Python<'_>, a: &Array, b: &Array) -> PyResult<Array> {
+    if a.ndim() != 2 || b.ndim() != 2 {
+        return Err(pyo3::exceptions::PyValueError::new_err("Inputs must be 2D Arrays"));
+    }
+    let m = a.nrows();
+    let n = b.nrows();
+    let d = a.ncols();
+    if d != b.ncols() {
+        return Err(pyo3::exceptions::PyValueError::new_err("Point dimensions must match"));
+    }
+
+    py.allow_threads(move || {
+        let a_data = a.data();
+        let b_data = b.data();
+        let mut res_data = vec![0.0; m * n];
+
+        res_data.par_chunks_mut(n).enumerate().for_each(|(i, row_res)| {
+            let p1 = &a_data[i * d..(i + 1) * d];
+            for j in 0..n {
+                let p2 = &b_data[j * d..(j + 1) * d];
+                let dist: f64 = p1.iter().zip(p2.iter()).map(|(x, y)| (x - y).powi(2)).sum();
+                row_res[j] = dist.sqrt();
+            }
+        });
+
+        Ok(Array::from_flat(res_data, vec![m, n]))
+    })
 }
 
 pub mod transforms;
@@ -130,5 +189,6 @@ pub fn register_geometry(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<(
     m.add_function(wrap_pyfunction!(projection, m)?)?;
     m.add_function(wrap_pyfunction!(cross_product, m)?)?;
     m.add_function(wrap_pyfunction!(angle_between, m)?)?;
+    m.add_function(wrap_pyfunction!(cdist, m)?)?;
     Ok(())
 }

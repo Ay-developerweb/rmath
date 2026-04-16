@@ -27,20 +27,53 @@ pub fn is_point_in_polygon(x: f64, y: f64, poly_x: Vec<f64>, poly_y: Vec<f64>) -
     inside
 }
 
+use crate::array::core::Array;
+
 /// Compute the Convex Hull of a set of 2D points using the Monotone Chain algorithm.
 ///
-/// Returns a tuple of (Hull-X, Hull-Y) coordinates.
+/// Accepts either an Array of shape (N, 2) or two lists of X and Y coordinates.
 ///
-/// Examples:
-///     >>> from rmath.geometry import convex_hull
-///     >>> hx, hy = convex_hull([0, 2, 1, 1], [0, 0, 2, 1])
+/// Returns:
+///     If input is Array: Returns an Array of shape (M, 2)
+///     If input is lists: Returns a tuple of (Hull-X, Hull-Y)
 #[pyfunction]
-pub fn convex_hull(points_x: Vec<f64>, points_y: Vec<f64>) -> PyResult<(Vec<f64>, Vec<f64>)> {
-    let n = points_x.len();
-    if n != points_y.len() { return Err(pyo3::exceptions::PyValueError::new_err("Mismatch")); }
-    if n < 3 { return Ok((points_x, points_y)); }
+#[pyo3(signature = (arg1, arg2=None))]
+pub fn convex_hull<'py>(py: Python<'py>, arg1: Bound<'py, PyAny>, arg2: Option<Bound<'py, PyAny>>) -> PyResult<Bound<'py, PyAny>> {
+    let mut is_array = false;
+    let (pts_x, pts_y) = if let Some(a2) = arg2 {
+        let x: Vec<f64> = arg1.extract()?;
+        let y: Vec<f64> = a2.extract()?;
+        (x, y)
+    } else {
+        let arr: PyRef<Array> = arg1.extract()?;
+        if arr.ndim() != 2 || arr.ncols() != 2 {
+            return Err(pyo3::exceptions::PyValueError::new_err("Array must be shape (N, 2)"));
+        }
+        is_array = true;
+        let data = arr.data();
+        let rows = arr.nrows();
+        let mut x = Vec::with_capacity(rows);
+        let mut y = Vec::with_capacity(rows);
+        for i in 0..rows {
+            x.push(data[i*2]);
+            y.push(data[i*2+1]);
+        }
+        (x, y)
+    };
 
-    let mut pts: Vec<(f64, f64)> = points_x.into_iter().zip(points_y.into_iter()).collect();
+    let n = pts_x.len();
+    if n != pts_y.len() { return Err(pyo3::exceptions::PyValueError::new_err("Length mismatch")); }
+    
+    if n < 3 {
+        return if is_array {
+            let data: Vec<f64> = pts_x.into_iter().zip(pts_y.into_iter()).flat_map(|(x, y)| vec![x, y]).collect();
+            Ok(Array::from_flat(data, vec![n, 2]).into_pyobject(py)?.into_any())
+        } else {
+            Ok(pyo3::types::PyTuple::new(py, vec![pts_x, pts_y])?.into_any())
+        };
+    }
+
+    let mut pts: Vec<(f64, f64)> = pts_x.into_iter().zip(pts_y.into_iter()).collect();
     // Sort by x, then y
     pts.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap().then(a.1.partial_cmp(&b.1).unwrap()));
 
@@ -68,6 +101,12 @@ pub fn convex_hull(points_x: Vec<f64>, points_y: Vec<f64>) -> PyResult<(Vec<f64>
     upper.pop();
     lower.extend(upper);
 
-    let (hx, hy): (Vec<f64>, Vec<f64>) = lower.into_iter().unzip();
-    Ok((hx, hy))
+    if is_array {
+        let m = lower.len();
+        let data: Vec<f64> = lower.into_iter().flat_map(|(x, y)| vec![x, y]).collect();
+        Ok(Array::from_flat(data, vec![m, 2]).into_pyobject(py)?.into_any())
+    } else {
+        let (hx, hy): (Vec<f64>, Vec<f64>) = lower.into_iter().unzip();
+        Ok(pyo3::types::PyTuple::new(py, vec![hx, hy])?.into_any())
+    }
 }

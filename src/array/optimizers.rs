@@ -2,7 +2,7 @@ use pyo3::prelude::*;
 use super::autograd::Tensor;
 use super::core::Array;
 
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct SGD {
     pub params: Vec<Tensor>,
     pub lr: f64,
@@ -59,7 +59,7 @@ impl SGD {
 }
 
 /// Adam Optimizer: The industry standard for deep learning
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct Adam {
     params: Vec<Tensor>,
     lr: f64,

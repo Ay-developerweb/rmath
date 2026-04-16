@@ -7,7 +7,7 @@ use rayon::prelude::*;
 ///
 /// `ComplexVector` provides optimized operations for Fourier-domain or
 /// analytical signal data where complex numbers are required.
-#[pyclass]
+#[pyclass(module = "rmath")]
 #[derive(Clone)]
 pub struct ComplexVector {
     pub data: Vec<Complex64>,
@@ -47,5 +47,19 @@ impl ComplexVector {
 
     pub fn __len__(&self) -> usize {
         self.data.len()
+    }
+
+    /// Apply a boolean mask in-place, zeroing out elements where the mask is false.
+    /// Highly efficient for frequency filtering in DSP.
+    pub fn mask_inplace(&mut self, mask: Vec<bool>) -> PyResult<()> {
+        if mask.len() != self.data.len() {
+            return Err(pyo3::exceptions::PyValueError::new_err("Mask length mismatch"));
+        }
+        for (i, &keep) in mask.iter().enumerate() {
+            if !keep {
+                self.data[i] = Complex64::new(0.0, 0.0);
+            }
+        }
+        Ok(())
     }
 }

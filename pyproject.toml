@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "rmath-py"
-description = "Numerical computing for Python, powered by Rust."
+description = "Drop-in numerical accelerator for Python, powered by Rust."
 readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"

@@ -15,7 +15,7 @@ use pyo3::prelude::*;
 ///     24.0
 ///     >>> res.derivative   # 2*3 + 5 = 11
 ///     11.0
-#[pyclass]
+#[pyclass(module = "rmath")]
 #[derive(Clone, Copy, Debug)]
 pub struct Dual {
     pub val: f64,
@@ -98,6 +98,21 @@ impl Dual {
     /// Derivative: (1/u) * du/dx
     pub fn log(&self) -> Dual {
         Dual { val: self.val.ln(), der: self.der / self.val }
+    }
+
+    /// Derivative: 2/sqrt(pi) * exp(-u^2) * du/dx
+    pub fn erf(&self) -> Dual {
+        let val = statrs::function::erf::erf(self.val);
+        let pi = std::f64::consts::PI;
+        let der = (2.0 / pi.sqrt()) * (-self.val * self.val).exp() * self.der;
+        Dual { val, der }
+    }
+
+    /// Derivative: gamma(u) * digamma(u) * du/dx
+    pub fn gamma(&self) -> Dual {
+        let val = statrs::function::gamma::gamma(self.val);
+        let der = val * statrs::function::gamma::digamma(self.val) * self.der;
+        Dual { val, der }
     }
 }
 

@@ -14,8 +14,8 @@ impl Array {
 
     /// Export to numpy ndarray (optimized)
     pub fn to_numpy<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let vec = self.data().to_vec();
-        // to_pyarray returns a Bound<PyArray<f64, Ix1>>
+        let contiguous = self.to_contiguous();
+        let vec = contiguous.data().to_vec();
         let arr = vec.to_pyarray(py); 
         // PyArrayMethods::reshape requires an IntoDimension type
         let reshaped = arr.reshape(numpy::ndarray::IxDyn(&self.shape))?;
@@ -92,7 +92,8 @@ impl Array {
         name: Option<String>
     ) -> PyResult<Bound<'py, PyAny>> {
         let pd = py.import("pandas")?;
-        let flat: Vec<f64> = self.data().to_vec();
+        let contiguous = self.to_contiguous();
+        let flat: Vec<f64> = contiguous.data().to_vec();
         let py_list = flat.into_pyobject(py)?;
         let kwargs = PyDict::new(py);
         if let Some(n) = name {
@@ -103,20 +104,28 @@ impl Array {
 
     // ── PyTorch ───────────────────────────────────────────────────────────
 
-    /// Export to torch.Tensor (copies data, preserves shape)
+    /// Export to torch.Tensor (via NumPy — single memcpy, no N Python floats)
     pub fn to_torch<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let torch = py.import("torch")?;
         let np_arr = self.to_numpy(py)?;
-        Ok(torch.call_method1("from_numpy", (np_arr,))?.into_any())
+        // torch.from_numpy() shares memory; .clone() detaches from NumPy
+        let tensor = torch.call_method1("from_numpy", (&np_arr,))?;
+        Ok(tensor.call_method0("clone")?.into_any())
     }
 
-    /// Import from torch.Tensor → Array
+    /// Import from torch.Tensor -> Array
     #[staticmethod]
     pub fn from_torch<'py>(tensor: &Bound<'py, PyAny>) -> PyResult<Array> {
-        let np_arr = tensor.call_method0("detach")?
+        // Extract shape and flat data via Python calls
+        // This avoids the numpy Rust crate entirely, sidestepping version mismatches
+        let shape_obj = tensor.getattr("shape")?;
+        let shape: Vec<usize> = shape_obj.extract()?;
+        let flat_list = tensor.call_method0("detach")?
             .call_method0("cpu")?
-            .call_method0("numpy")?;
-        Array::from_numpy(&np_arr)
+            .call_method0("flatten")?
+            .call_method0("tolist")?;
+        let data: Vec<f64> = flat_list.extract()?;
+        Ok(Array::from_flat(data, shape))
     }
 
     // ── DLPack ────────────────────────────────────────────────────────────
@@ -135,24 +144,21 @@ impl Array {
 
     // ── JAX ───────────────────────────────────────────────────────────────
 
-    /// Export to jax.numpy array
+    /// Export to jax.numpy array (via NumPy — single memcpy, no N Python floats)
     pub fn to_jax<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let jnp = py.import("jax.numpy")?;
-        let flat: Vec<f64> = self.data().to_vec();
-        let py_list = flat.into_pyobject(py)?;
-        let arr = jnp.call_method1("array", (py_list,))?;
-        let shape_tuple = pyo3::types::PyTuple::new(py, &self.shape)?;
-        Ok(arr.call_method1("reshape", (shape_tuple,))?.into_any())
+        let np_arr = self.to_numpy(py)?;
+        // jnp.asarray accepts NumPy arrays with efficient transfer
+        Ok(jnp.call_method1("asarray", (&np_arr,))?.into_any())
     }
 
     /// Import from jax array → Array
     #[staticmethod]
     pub fn from_jax<'py>(arr: &Bound<'py, PyAny>) -> PyResult<Array> {
-        // jax arrays support numpy conversion
-        let np = Python::with_gil(|py| py.import("numpy")
-            .and_then(|np| np.call_method1("asarray", (arr,)))
-            .map(|a| a.unbind()))?;
-        Python::with_gil(|py| Array::from_numpy(np.bind(py)))
+        let py = arr.py();
+        let np = py.import("numpy")?;
+        let np_arr = np.call_method1("asarray", (arr,))?;
+        Array::from_numpy(&np_arr)
     }
 
     // ── Scikit-learn compatible ───────────────────────────────────────────
@@ -168,7 +174,8 @@ impl Array {
             return Err(pyo3::exceptions::PyValueError::new_err(
                 "sklearn requires 2-D array"));
         }
-        if self.data().iter().any(|x| x.is_nan() || x.is_infinite()) {
+        let contiguous = self.to_contiguous();
+        if contiguous.data().iter().any(|x| x.is_nan() || x.is_infinite()) {
             return Err(pyo3::exceptions::PyValueError::new_err(
                 "Array contains NaN or Inf values"));
         }
@@ -182,7 +189,8 @@ impl Array {
 
     /// Export as flat Python list (avoids nested list overhead)
     pub fn to_flat_py<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
-        let v: Vec<f64> = self.data().to_vec();
+        let contiguous = self.to_contiguous();
+        let v: Vec<f64> = contiguous.data().to_vec();
         Ok(PyList::new(py, v)?.into_any())
     }
 }

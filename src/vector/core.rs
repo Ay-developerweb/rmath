@@ -50,7 +50,7 @@ pub enum VectorStorage {
 ///
 /// Use `Vector` when dealing specifically with 1D signals or column data
 /// where the overhead of N-D coordinate mapping is unwanted.
-#[pyclass]
+#[pyclass(module = "rmath")]
 #[derive(Clone)]
 pub struct Vector {
     pub storage: VectorStorage,
@@ -268,6 +268,194 @@ impl Vector {
         if n < 2 { return (m, 0.0, n); }
         (m, (m2 / (n as f64 - 1.0)).sqrt(), n)
     }
+
+    // -----------------------------------------------------------------------
+    // Core reductions & stats — internal Rust API (no GIL required)
+    //
+    // These methods contain the actual computation.  The #[pymethods] block
+    // exposes thin wrappers that release the GIL and delegate here.
+    // Rust callers (stats, ops, inferential) call these directly.
+    // -----------------------------------------------------------------------
+
+    pub fn sum(&self) -> f64 {
+        if self.is_empty() { return 0.0; }
+        self.kahan_sum()
+    }
+
+    pub fn prod(&self) -> f64 {
+        if self.is_empty() { return 1.0; }
+        self.with_slice(|s| {
+            if s.len() >= PAR_THRESHOLD {
+                s.par_iter().cloned().reduce(|| 1.0, |a, b| a * b)
+            } else {
+                s.iter().cloned().product()
+            }
+        })
+    }
+
+    pub fn mean(&self) -> f64 {
+        let n = self.len_internal();
+        if n == 0 { return f64::NAN; }
+        self.sum() / n as f64
+    }
+
+    pub fn min(&self) -> f64 {
+        if self.is_empty() { return f64::NAN; }
+        self.with_slice(|s| {
+            if s.len() >= PAR_THRESHOLD {
+                s.par_iter().cloned().reduce(|| f64::INFINITY, f64::min)
+            } else {
+                s.iter().cloned().fold(f64::INFINITY, f64::min)
+            }
+        })
+    }
+
+    pub fn max(&self) -> f64 {
+        if self.is_empty() { return f64::NAN; }
+        self.with_slice(|s| {
+            if s.len() >= PAR_THRESHOLD {
+                s.par_iter().cloned().reduce(|| f64::NEG_INFINITY, f64::max)
+            } else {
+                s.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+            }
+        })
+    }
+
+    pub fn argmin(&self) -> isize {
+        if self.is_empty() { return -1; }
+        self.with_slice(|s| {
+            s.iter().enumerate()
+                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(i, _)| i as isize)
+                .unwrap_or(-1)
+        })
+    }
+
+    pub fn argmax(&self) -> isize {
+        if self.is_empty() { return -1; }
+        self.with_slice(|s| {
+            s.iter().enumerate()
+                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                .map(|(i, _)| i as isize)
+                .unwrap_or(-1)
+        })
+    }
+
+    pub fn variance(&self) -> f64 {
+        let (_, m2, n) = self.welford();
+        if n < 2 { return f64::NAN; }
+        m2 / (n - 1) as f64
+    }
+
+    pub fn pop_variance(&self) -> f64 {
+        let (_, m2, n) = self.welford();
+        if n == 0 { return f64::NAN; }
+        m2 / n as f64
+    }
+
+    pub fn std_dev(&self) -> f64 { self.variance().sqrt() }
+    pub fn pop_std_dev(&self) -> f64 { self.pop_variance().sqrt() }
+
+    pub fn median(&self) -> f64 {
+        let n = self.len_internal();
+        if n == 0 { return f64::NAN; }
+        let mut s = self.with_slice(|sl| sl.to_vec());
+        s.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        if n % 2 == 1 { s[n / 2] } else { (s[n / 2 - 1] + s[n / 2]) / 2.0 }
+    }
+
+    pub fn percentile_internal(&self, q: f64) -> PyResult<f64> {
+        if q < 0.0 || q > 100.0 {
+            return Err(pyo3::exceptions::PyValueError::new_err("q must be in [0, 100]"));
+        }
+        let n = self.len_internal();
+        if n == 0 { return Ok(f64::NAN); }
+        let mut s = self.with_slice(|sl| sl.to_vec());
+        s.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        let pos = (q / 100.0) * (n - 1) as f64;
+        let lo = pos.floor() as usize;
+        let hi = pos.ceil() as usize;
+        let frac = pos - lo as f64;
+        Ok(s[lo] + frac * (s[hi] - s[lo]))
+    }
+
+    pub fn norm(&self) -> f64 {
+        self.with_slice(|s| {
+            let sq: f64 = if s.len() >= PAR_THRESHOLD {
+                s.par_iter().map(|x| x * x).sum()
+            } else {
+                s.iter().map(|x| x * x).sum()
+            };
+            sq.sqrt()
+        })
+    }
+
+    pub fn norm_l1(&self) -> f64 {
+        self.with_slice(|s| {
+            if s.len() >= PAR_THRESHOLD {
+                s.par_iter().map(|x| x.abs()).sum()
+            } else {
+                s.iter().map(|x| x.abs()).sum()
+            }
+        })
+    }
+
+    pub fn norm_inf(&self) -> f64 {
+        self.with_slice(|s| {
+            s.iter().map(|x| x.abs()).fold(0.0_f64, f64::max)
+        })
+    }
+
+    pub fn norm_lp(&self, p: f64) -> f64 {
+        self.with_slice(|s| {
+            let sum: f64 = s.iter().map(|x| x.abs().powf(p)).sum();
+            sum.powf(1.0 / p)
+        })
+    }
+
+    pub fn dot(&self, other: &Vector) -> PyResult<f64> {
+        let n = self.len_internal();
+        if n != other.len_internal() {
+            return Err(pyo3::exceptions::PyValueError::new_err(format!(
+                "dot: length mismatch {} vs {}", n, other.len_internal()
+            )));
+        }
+        Ok(self.with_slice(|s1| other.with_slice(|s2| {
+            if n >= PAR_THRESHOLD {
+                s1.par_iter().zip(s2.par_iter()).map(|(a,b)| a*b).sum()
+            } else {
+                s1.iter().zip(s2.iter()).map(|(a,b)| a*b).sum()
+            }
+        })))
+    }
+
+    pub fn sort_asc(&self) -> Vector {
+        let mut v = self.with_slice(|s| s.to_vec());
+        v.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+        Vector::new(v)
+    }
+
+    pub fn sort_desc_internal(&self) -> Vector {
+        let mut v = self.with_slice(|s| s.to_vec());
+        v.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
+        Vector::new(v)
+    }
+
+    pub fn argsort(&self) -> Vec<usize> {
+        let mut idx: Vec<usize> = (0..self.len_internal()).collect();
+        self.with_slice(|s| {
+            idx.sort_unstable_by(|&a, &b| s[a].partial_cmp(&s[b]).unwrap_or(std::cmp::Ordering::Equal));
+        });
+        idx
+    }
+
+    pub fn add_scalar(&self, s: f64) -> Vector { self.map_internal(|x| x + s) }
+    pub fn sub_scalar(&self, s: f64) -> Vector { self.map_internal(|x| x - s) }
+    pub fn mul_scalar(&self, s: f64) -> Vector { self.map_internal(|x| x * s) }
+    pub fn div_scalar(&self, s: f64) -> PyResult<Vector> {
+        if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("division by zero")); }
+        Ok(self.map_internal(|x| x / s))
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -419,6 +607,16 @@ impl Vector {
     // Python sequence protocol
     // -----------------------------------------------------------------------
 
+    #[getter]
+    pub fn shape(&self) -> Vec<usize> { vec![self.len_internal()] }
+
+    #[getter]
+    #[pyo3(name = "ndim")]
+    pub fn ndim_py(&self) -> usize { 1 }
+
+    #[getter]
+    pub fn size(&self) -> usize { self.len_internal() }
+
     pub fn __len__(&self) -> usize { self.len_internal() }
 
     pub fn __iter__(&self) -> VectorIter {
@@ -494,10 +692,12 @@ impl Vector {
     /// Standard string representation.
     pub fn __repr__(&self) -> String {
         self.with_slice(|s| {
-            if s.len() <= 6 {
-                format!("Vector({:?})", s)
+            if s.len() <= 10 {
+                let formatted_vals: Vec<String> = s.iter().map(|v| format!("{v:.4}")).collect();
+                format!("Vector([{}])", formatted_vals.join(", "))
             } else {
-                format!("Vector([{}, {}, ..., {}], len={})", s[0], s[1], s[s.len()-1], s.len())
+                format!("Vector([{}, {}, ..., {}, {}], len={})", 
+                    s[0], s[1], s[s.len()-2], s[s.len()-1], s.len())
             }
         })
     }
@@ -552,32 +752,63 @@ impl Vector {
     // -----------------------------------------------------------------------
 
     pub fn __add__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
-        if let Ok(s) = rhs.extract::<f64>() { return Ok(self.map_internal(|x| x + s)); }
-        if let Ok(v) = rhs.extract::<PyRef<Vector>>() { return self.zip_map_internal(&v, |a,b| a+b); }
+        let py = rhs.py();
+        if let Ok(s) = rhs.extract::<f64>() {
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_internal(|x| x + s)));
+        }
+        if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
+            let this = self.clone();
+            let other = v.clone();
+            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a + b));
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
     }
 
     pub fn __radd__(&self, lhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
-        // addition is commutative
+        // addition is commutative — delegates to __add__ which releases GIL
         self.__add__(lhs)
     }
 
     pub fn __sub__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
-        if let Ok(s) = rhs.extract::<f64>() { return Ok(self.map_internal(|x| x - s)); }
-        if let Ok(v) = rhs.extract::<PyRef<Vector>>() { return self.zip_map_internal(&v, |a,b| a-b); }
+        let py = rhs.py();
+        if let Ok(s) = rhs.extract::<f64>() {
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_internal(|x| x - s)));
+        }
+        if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
+            let this = self.clone();
+            let other = v.clone();
+            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a - b));
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
     }
 
     pub fn __rsub__(&self, lhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
-        // lhs - self
-        if let Ok(s) = lhs.extract::<f64>() { return Ok(self.map_internal(|x| s - x)); }
-        if let Ok(v) = lhs.extract::<PyRef<Vector>>() { return v.zip_map_internal(self, |a,b| a-b); }
+        let py = lhs.py();
+        if let Ok(s) = lhs.extract::<f64>() {
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_internal(|x| s - x)));
+        }
+        if let Ok(v) = lhs.extract::<PyRef<Vector>>() {
+            let this = self.clone();
+            let other = v.clone();
+            return py.allow_threads(move || other.zip_map_internal(&this, |a, b| a - b));
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
     }
 
     pub fn __mul__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
-        if let Ok(s) = rhs.extract::<f64>() { return Ok(self.map_internal(|x| x * s)); }
-        if let Ok(v) = rhs.extract::<PyRef<Vector>>() { return self.zip_map_internal(&v, |a,b| a*b); }
+        let py = rhs.py();
+        if let Ok(s) = rhs.extract::<f64>() {
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_internal(|x| x * s)));
+        }
+        if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
+            let this = self.clone();
+            let other = v.clone();
+            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a * b));
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
     }
 
@@ -586,45 +817,76 @@ impl Vector {
     }
 
     pub fn __truediv__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
+        let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
             if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("division by zero")); }
-            return Ok(self.map_internal(|x| x / s));
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_internal(|x| x / s)));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
+            let this = self.clone();
+            let other = v.clone();
             // elementwise: 0-divisors produce INFINITY (documented IEEE behaviour)
-            return self.zip_map_internal(&v, |a,b| a/b);
+            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a / b));
         }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
     }
 
     pub fn __rtruediv__(&self, lhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
-        // lhs / self
-        if let Ok(s) = lhs.extract::<f64>() { return Ok(self.map_internal(|x| s / x)); }
-        if let Ok(v) = lhs.extract::<PyRef<Vector>>() { return v.zip_map_internal(self, |a,b| a/b); }
+        let py = lhs.py();
+        if let Ok(s) = lhs.extract::<f64>() {
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_internal(|x| s / x)));
+        }
+        if let Ok(v) = lhs.extract::<PyRef<Vector>>() {
+            let this = self.clone();
+            let other = v.clone();
+            return py.allow_threads(move || other.zip_map_internal(&this, |a, b| a / b));
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
     }
 
     pub fn __floordiv__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
+        let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
             if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("division by zero")); }
-            return Ok(self.map_internal(|x| (x/s).floor()));
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_internal(|x| (x / s).floor())));
         }
-        if let Ok(v) = rhs.extract::<PyRef<Vector>>() { return self.zip_map_internal(&v, |a,b| (a/b).floor()); }
+        if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
+            let this = self.clone();
+            let other = v.clone();
+            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| (a / b).floor()));
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
     }
 
     pub fn __mod__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
+        let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
             if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("modulo by zero")); }
-            return Ok(self.map_internal(|x| x % s));
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_internal(|x| x % s)));
         }
-        if let Ok(v) = rhs.extract::<PyRef<Vector>>() { return self.zip_map_internal(&v, |a,b| a%b); }
+        if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
+            let this = self.clone();
+            let other = v.clone();
+            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a % b));
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
     }
 
     pub fn __pow__(&self, exp: &Bound<'_, PyAny>, _modulo: Option<&Bound<'_, PyAny>>) -> PyResult<Vector> {
-        if let Ok(s) = exp.extract::<f64>() { return Ok(self.map_internal(|x| x.powf(s))); }
-        if let Ok(v) = exp.extract::<PyRef<Vector>>() { return self.zip_map_internal(&v, |a,b| a.powf(b)); }
+        let py = exp.py();
+        if let Ok(s) = exp.extract::<f64>() {
+            let this = self.clone();
+            return py.allow_threads(move || Ok(this.map_internal(|x| x.powf(s))));
+        }
+        if let Ok(v) = exp.extract::<PyRef<Vector>>() {
+            let this = self.clone();
+            let other = v.clone();
+            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a.powf(b)));
+        }
         Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
     }
 
@@ -632,13 +894,35 @@ impl Vector {
         self.__pow__(exp, None)
     }
 
-    pub fn __neg__(&self) -> Vector { self.map_internal(|x| -x) }
+    pub fn __neg__(&self, py: Python<'_>) -> Vector {
+        let this = self.clone();
+        py.allow_threads(move || this.map_internal(|x| -x))
+    }
     pub fn __pos__(&self) -> Vector { self.clone() }
-    pub fn __abs__(&self) -> Vector { self.map_internal(|x| x.abs()) }
+    pub fn __abs__(&self, py: Python<'_>) -> Vector {
+        let this = self.clone();
+        py.allow_threads(move || this.map_internal(|x| x.abs()))
+    }
 
     /// Zero-copy conversion to Array
     pub fn into_array(&self) -> Array {
         Array::from_flat(self.to_list(), vec![self.len_internal()])
+    }
+
+    /// Export to numpy ndarray
+    pub fn to_numpy<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
+        self.into_array().to_numpy(py)
+    }
+
+    /// __array__ protocol — lets np.array(vec) work directly
+    #[pyo3(signature = (dtype=None, copy=None))]
+    pub fn __array__<'py>(
+        &self,
+        py: Python<'py>,
+        dtype: Option<Bound<'py, PyAny>>,
+        copy: Option<bool>,
+    ) -> PyResult<Bound<'py, PyAny>> {
+        self.into_array().__array__(py, dtype, copy)
     }
 
     pub fn add(&self, other: &Bound<'_, PyAny>) -> PyResult<Vector> { self.__add__(other) }
@@ -651,16 +935,36 @@ impl Vector {
     pub fn mul_vec(&self, other: &Vector) -> PyResult<Vector> { self.zip_map_internal(other, |a, b| a * b) }
     pub fn div_vec(&self, other: &Vector) -> PyResult<Vector> { self.zip_map_internal(other, |a, b| a / b) }
 
-    pub fn add_scalar(&self, s: f64) -> Vector { self.map_internal(|x| x + s) }
-    pub fn sub_scalar(&self, s: f64) -> Vector { self.map_internal(|x| x - s) }
-    pub fn mul_scalar(&self, s: f64) -> Vector { self.map_internal(|x| x * s) }
-    pub fn div_scalar(&self, s: f64) -> PyResult<Vector> {
+    // -----------------------------------------------------------------------
+    // Scalar / Vec named arithmetic — GIL-releasing wrappers
+    // (internal implementations live in the non-pymethods impl block)
+    // -----------------------------------------------------------------------
+
+    #[pyo3(name = "add_scalar")]
+    pub fn add_scalar_py(&self, py: Python<'_>, s: f64) -> Vector {
+        let this = self.clone();
+        py.allow_threads(move || this.add_scalar(s))
+    }
+    #[pyo3(name = "sub_scalar")]
+    pub fn sub_scalar_py(&self, py: Python<'_>, s: f64) -> Vector {
+        let this = self.clone();
+        py.allow_threads(move || this.sub_scalar(s))
+    }
+    #[pyo3(name = "mul_scalar")]
+    pub fn mul_scalar_py(&self, py: Python<'_>, s: f64) -> Vector {
+        let this = self.clone();
+        py.allow_threads(move || this.mul_scalar(s))
+    }
+    #[pyo3(name = "div_scalar")]
+    pub fn div_scalar_py(&self, py: Python<'_>, s: f64) -> PyResult<Vector> {
         if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("division by zero")); }
-        Ok(self.map_internal(|x| x / s))
+        let this = self.clone();
+        py.allow_threads(move || Ok(this.map_internal(|x| x / s)))
     }
 
     // -----------------------------------------------------------------------
-    // Reductions — all return f64 (NaN for empty), never Option
+    // Reductions — GIL-releasing wrappers
+    // (all return f64 / NaN for empty, never Option)
     // -----------------------------------------------------------------------
 
     /// Sum all elements using Kahan compensated summation.
@@ -669,208 +973,170 @@ impl Vector {
     ///     >>> from rmath import Vector
     ///     >>> Vector([1, 2, 3]).sum()
     ///     6.0
-    pub fn sum(&self) -> f64 {
-        if self.is_empty() { return 0.0; }
-        self.kahan_sum()
+    #[pyo3(name = "sum")]
+    pub fn sum_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.sum())
     }
 
-    pub fn prod(&self) -> f64 {
-        if self.is_empty() { return 1.0; }
-        self.with_slice(|s| {
-            if s.len() >= PAR_THRESHOLD {
-                s.par_iter().cloned().reduce(|| 1.0, |a, b| a * b)
-            } else {
-                s.iter().cloned().product()
-            }
-        })
+    #[pyo3(name = "prod")]
+    pub fn prod_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.prod())
     }
 
     /// Arithmetic mean. Returns `NaN` for an empty vector.
-    pub fn mean(&self) -> f64 {
-        let n = self.len_internal();
-        if n == 0 { return f64::NAN; }
-        self.sum() / n as f64
+    #[pyo3(name = "mean")]
+    pub fn mean_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.mean())
     }
 
     /// Minimum value.  Returns NaN for empty vector.
-    pub fn min(&self) -> f64 {
-        if self.is_empty() { return f64::NAN; }
-        self.with_slice(|s| {
-            if s.len() >= PAR_THRESHOLD {
-                s.par_iter().cloned().reduce(|| f64::INFINITY, f64::min)
-            } else {
-                s.iter().cloned().fold(f64::INFINITY, f64::min)
-            }
-        })
+    #[pyo3(name = "min")]
+    pub fn min_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.min())
     }
 
     /// Maximum value.  Returns NaN for empty vector.
-    pub fn max(&self) -> f64 {
-        if self.is_empty() { return f64::NAN; }
-        self.with_slice(|s| {
-            if s.len() >= PAR_THRESHOLD {
-                s.par_iter().cloned().reduce(|| f64::NEG_INFINITY, f64::max)
-            } else {
-                s.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
-            }
-        })
+    #[pyo3(name = "max")]
+    pub fn max_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.max())
     }
 
     /// Index of the minimum element.  Returns -1 for empty.
-    pub fn argmin(&self) -> isize {
-        if self.is_empty() { return -1; }
-        self.with_slice(|s| {
-            s.iter().enumerate()
-                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(i, _)| i as isize)
-                .unwrap_or(-1)
-        })
+    #[pyo3(name = "argmin")]
+    pub fn argmin_py(&self, py: Python<'_>) -> isize {
+        let this = self.clone();
+        py.allow_threads(move || this.argmin())
     }
 
     /// Index of the maximum element.  Returns -1 for empty.
-    pub fn argmax(&self) -> isize {
-        if self.is_empty() { return -1; }
-        self.with_slice(|s| {
-            s.iter().enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(i, _)| i as isize)
-                .unwrap_or(-1)
+    #[pyo3(name = "argmax")]
+    pub fn argmax_py(&self, py: Python<'_>) -> isize {
+        let this = self.clone();
+        py.allow_threads(move || this.argmax())
+    }
+
+    /// Standardize (zero-mean, unit-variance).
+    #[pyo3(name = "standardize")]
+    pub fn standardize_py(&self, py: Python<'_>) -> Self {
+        let this = self.clone();
+        py.allow_threads(move || {
+            let (m, s, _) = this.moments();
+            if s == 0.0 { this } else { this.map_internal(|x| (x - m) / s) }
         })
     }
 
-    /// Sample variance (Bessel correction, n-1).  NaN for n < 2.
-    pub fn standardize(&self) -> Self {
-        let (m, s, _) = self.moments();
-        if s == 0.0 {
-            self.clone()
-        } else {
-            self.sub_scalar(m).div_scalar(s).unwrap()
-        }
-    }
-
-    pub fn softmax(&self) -> Self {
-        self.with_slice(|s| {
-            if s.is_empty() { return Self::zeros(0); }
-            let max_val = s.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-            let exps: Vec<f64> = s.par_iter().map(|&x| (x - max_val).exp()).collect();
-            let sum_exps: f64 = exps.par_iter().sum();
-            if sum_exps == 0.0 {
-                Self::new(vec![1.0 / s.len() as f64; s.len()])
-            } else {
-                Self::new(exps).div_scalar(sum_exps).unwrap()
-            }
+    #[pyo3(name = "softmax")]
+    pub fn softmax_py(&self, py: Python<'_>) -> Self {
+        let this = self.clone();
+        py.allow_threads(move || {
+            this.with_slice(|s| {
+                if s.is_empty() { return Self::zeros(0); }
+                let max_val = s.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
+                let exps: Vec<f64> = s.par_iter().map(|&x| (x - max_val).exp()).collect();
+                let sum_exps: f64 = exps.par_iter().sum();
+                if sum_exps == 0.0 {
+                    Self::new(vec![1.0 / s.len() as f64; s.len()])
+                } else {
+                    Self::new(exps).div_scalar(sum_exps).unwrap()
+                }
+            })
         })
     }
+
     /// Sample variance (Bessel's correction n-1). Returns `NaN` for n < 2.
     ///
     /// Examples:
     ///     >>> from rmath import Vector
     ///     >>> Vector([1, 2, 3]).variance()
     ///     1.0
-    pub fn variance(&self) -> f64 {
-        let (_, m2, n) = self.welford();
-        if n < 2 { return f64::NAN; }
-        m2 / (n - 1) as f64
+    #[pyo3(name = "variance")]
+    pub fn variance_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.variance())
     }
 
     /// Population variance (divided by n). Returns `NaN` for an empty vector.
-    pub fn pop_variance(&self) -> f64 {
-        let (_, m2, n) = self.welford();
-        if n == 0 { return f64::NAN; }
-        m2 / n as f64
+    #[pyo3(name = "pop_variance")]
+    pub fn pop_variance_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.pop_variance())
     }
 
     /// Sample standard deviation.
-    pub fn std_dev(&self) -> f64 { self.variance().sqrt() }
+    #[pyo3(name = "std_dev")]
+    pub fn std_dev_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.std_dev())
+    }
 
     /// Population standard deviation.
-    pub fn pop_std_dev(&self) -> f64 { self.pop_variance().sqrt() }
+    #[pyo3(name = "pop_std_dev")]
+    pub fn pop_std_dev_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.pop_std_dev())
+    }
 
     /// Median.  Returns NaN for empty.  Does not require sorted input.
-    pub fn median(&self) -> f64 {
-        let n = self.len_internal();
-        if n == 0 { return f64::NAN; }
-        let mut s = self.with_slice(|sl| sl.to_vec());
-        s.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        if n % 2 == 1 {
-            s[n / 2]
-        } else {
-            (s[n / 2 - 1] + s[n / 2]) / 2.0
-        }
+    #[pyo3(name = "median")]
+    pub fn median_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.median())
     }
 
     /// q-th percentile (0–100).  Linear interpolation.
-    pub fn percentile(&self, q: f64) -> PyResult<f64> {
-        if q < 0.0 || q > 100.0 {
-            return Err(pyo3::exceptions::PyValueError::new_err("q must be in [0, 100]"));
-        }
-        let n = self.len_internal();
-        if n == 0 { return Ok(f64::NAN); }
-        let mut s = self.with_slice(|sl| sl.to_vec());
-        s.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        let pos = (q / 100.0) * (n - 1) as f64;
-        let lo = pos.floor() as usize;
-        let hi = pos.ceil() as usize;
-        let frac = pos - lo as f64;
-        Ok(s[lo] + frac * (s[hi] - s[lo]))
+    #[pyo3(name = "percentile")]
+    pub fn percentile_py(&self, py: Python<'_>, q: f64) -> PyResult<f64> {
+        let this = self.clone();
+        py.allow_threads(move || this.percentile_internal(q))
     }
 
     /// L2 (Euclidean) norm: sqrt(sum(x²)).
-    pub fn norm(&self) -> f64 {
-        self.with_slice(|s| {
-            let sq: f64 = if s.len() >= PAR_THRESHOLD {
-                s.par_iter().map(|x| x * x).sum()
-            } else {
-                s.iter().map(|x| x * x).sum()
-            };
-            sq.sqrt()
-        })
+    #[pyo3(name = "norm")]
+    pub fn norm_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.norm())
     }
 
     /// L1 (Manhattan) norm: sum(|x|).
-    pub fn norm_l1(&self) -> f64 {
-        self.with_slice(|s| {
-            if s.len() >= PAR_THRESHOLD {
-                s.par_iter().map(|x| x.abs()).sum()
-            } else {
-                s.iter().map(|x| x.abs()).sum()
-            }
-        })
+    #[pyo3(name = "norm_l1")]
+    pub fn norm_l1_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.norm_l1())
     }
 
     /// L-infinity (Chebyshev) norm: max(|x|).
-    pub fn norm_inf(&self) -> f64 {
-        self.with_slice(|s| {
-            s.iter().map(|x| x.abs()).fold(0.0_f64, f64::max)
-        })
+    #[pyo3(name = "norm_inf")]
+    pub fn norm_inf_py(&self, py: Python<'_>) -> f64 {
+        let this = self.clone();
+        py.allow_threads(move || this.norm_inf())
     }
 
     /// General Lp norm: (sum(|x|^p))^(1/p).
-    pub fn norm_lp(&self, p: f64) -> PyResult<f64> {
+    #[pyo3(name = "norm_lp")]
+    pub fn norm_lp_py(&self, py: Python<'_>, p: f64) -> PyResult<f64> {
         if p <= 0.0 {
             return Err(pyo3::exceptions::PyValueError::new_err("p must be > 0"));
         }
-        Ok(self.with_slice(|s| {
-            let sum: f64 = s.iter().map(|x| x.abs().powf(p)).sum();
-            sum.powf(1.0 / p)
-        }))
+        let this = self.clone();
+        py.allow_threads(move || {
+            Ok(this.with_slice(|s| {
+                let sum: f64 = s.iter().map(|x| x.abs().powf(p)).sum();
+                sum.powf(1.0 / p)
+            }))
+        })
     }
 
     /// Dot product.
-    pub fn dot(&self, other: &Vector) -> PyResult<f64> {
-        let n = self.len_internal();
-        if n != other.len_internal() {
-            return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "dot: length mismatch {} vs {}", n, other.len_internal()
-            )));
-        }
-        Ok(self.with_slice(|s1| other.with_slice(|s2| {
-            if n >= PAR_THRESHOLD {
-                s1.par_iter().zip(s2.par_iter()).map(|(a,b)| a*b).sum()
-            } else {
-                s1.iter().zip(s2.iter()).map(|(a,b)| a*b).sum()
-            }
-        })))
+    #[pyo3(name = "dot")]
+    pub fn dot_py(&self, py: Python<'_>, other: &Vector) -> PyResult<f64> {
+        let this = self.clone();
+        let other = other.clone();
+        py.allow_threads(move || this.dot(&other))
     }
 
     // -----------------------------------------------------------------------
@@ -994,26 +1260,24 @@ impl Vector {
     // -----------------------------------------------------------------------
 
     /// Return a sorted copy of the vector (ascending).
-    pub fn sort(&self) -> Vector {
-        let mut v = self.with_slice(|s| s.to_vec());
-        v.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        Vector::new(v)
+    #[pyo3(name = "sort")]
+    pub fn sort_py(&self, py: Python<'_>) -> Vector {
+        let this = self.clone();
+        py.allow_threads(move || this.sort_asc())
     }
 
     /// Return a sorted copy of the vector (descending).
-    pub fn sort_desc(&self) -> Vector {
-        let mut v = self.with_slice(|s| s.to_vec());
-        v.sort_unstable_by(|a, b| b.partial_cmp(a).unwrap_or(std::cmp::Ordering::Equal));
-        Vector::new(v)
+    #[pyo3(name = "sort_desc")]
+    pub fn sort_desc_py(&self, py: Python<'_>) -> Vector {
+        let this = self.clone();
+        py.allow_threads(move || this.sort_desc_internal())
     }
 
     /// Return argsort indices (ascending order).
-    pub fn argsort(&self) -> Vec<usize> {
-        let mut idx: Vec<usize> = (0..self.len_internal()).collect();
-        self.with_slice(|s| {
-            idx.sort_unstable_by(|&a, &b| s[a].partial_cmp(&s[b]).unwrap_or(std::cmp::Ordering::Equal));
-        });
-        idx
+    #[pyo3(name = "argsort")]
+    pub fn argsort_py(&self, py: Python<'_>) -> Vec<usize> {
+        let this = self.clone();
+        py.allow_threads(move || this.argsort())
     }
 
     /// Reverse order.
@@ -1193,7 +1457,7 @@ enum IterSource {
     Heap(Arc<Vec<f64>>),
 }
 
-#[pyclass]
+#[pyclass(module = "rmath")]
 pub struct VectorIter {
     source: IterSource,
     pos: usize,
