@@ -3,8 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RMath — Numerical Computing for Python</title>
-    <meta name="description" content="RMath is a numerical toolkit that runs heavy math in Rust and exposes it to Python. Arrays, linear algebra, stats, calculus, and signal processing — all outside the GIL.">
+    <title>RMath — Drop-in Numerical Accelerator for Python</title>
+    <meta name="description" content="RMath is a high-speed numerical accelerator that offloads heavy math to Rust and integrates seamlessly into the Python ecosystem. Arrays, linear algebra, stats, autograd, and signal processing — all outside the GIL.">
     <link rel="stylesheet" href="style.css">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
     <aside class="sidebar" id="sidebar">
         <a href="index.html" class="sidebar-brand">
             <img src="rmath_logo.svg" alt="RMath">
-            <span>RMath<small>v0.1</small></span>
+            <span>RMath<small>v0.1.4</small></span>
         </a>
 
         <div class="sidebar-search">
@@ -36,6 +36,7 @@
             <div class="nav-group">
                 <div class="nav-group-title">Core</div>
                 <a href="array.html" class="nav-link"><code>rmath.array</code></a>
+                <a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a>
                 <a href="vector.html" class="nav-link"><code>rmath.vector</code></a>
                 <a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a>
             </div>
@@ -55,17 +56,22 @@
                 <a href="special.html" class="nav-link"><code>rmath.special</code></a>
                 <a href="constants.html" class="nav-link"><code>rmath.constants</code></a>
             </div>
+
+            <div class="nav-group">
+                <div class="nav-group-title">Ecosystem</div>
+                <a href="interop.html" class="nav-link"><code>Interop</code></a>
+            </div>
         </nav>
     </aside>
 
     <main class="content">
         <section class="hero">
-            <div class="badge">v0.1.0 — Beta</div>
-            <h1>Numerical computing<br>for <span class="gradient-text">modern Python.</span></h1>
+            <div class="badge">v0.1.4 — Beta</div>
+            <h1>Drop-in accelerator<br>for <span class="gradient-text">Python computing.</span></h1>
             <p class="hero-sub">
-                RMath runs heavy math in Rust and exposes it to Python via PyO3.
-                All array operations, linear algebra, and statistics execute outside the GIL
-                on a Rayon thread pool.
+                RMath offloads heavy mathematical workloads to Rust and integrates seamlessly
+                back into Python via PyO3. Array operations, autograd, linear algebra, and statistics
+                all execute <strong>outside the GIL</strong> on a Rayon thread pool.
             </p>
 
             <div class="hero-actions">
@@ -81,16 +87,21 @@
                 </div>
                 <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
 
-<span class="cm"># Create a 1000×1000 random matrix</span>
+<span class="cm"># Create a 1000×1000 random matrix — runs in Rust</span>
 data = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">1000</span>, <span class="num">1000</span>)
 
-<span class="cm"># Parallel stats — runs outside the GIL</span>
+<span class="cm"># Parallel stats — executes outside the GIL</span>
 avg = data.<span class="fn">mean</span>()
 std = data.<span class="fn">std_dev</span>()
 
-<span class="cm"># Solve a linear system</span>
-b = <span class="num">rm</span>.<span class="fn">Array</span>.ones(<span class="num">1000</span>, <span class="num">1</span>)
-x = <span class="num">rm</span>.linalg.<span class="fn">solve</span>(data, b)</code></pre>
+<span class="cm"># Autograd — forward + backward in Rust</span>
+x = <span class="num">rm</span>.<span class="fn">Tensor</span>.randn(<span class="num">100</span>, <span class="num">100</span>, requires_grad=<span class="kw">True</span>)
+y = (x.<span class="fn">sigmoid</span>() * x).<span class="fn">sum</span>()
+y.<span class="fn">backward</span>()
+<span class="kw">print</span>(x.grad)  <span class="cm"># gradients computed in pure Rust</span>
+
+<span class="cm"># Zero-copy bridge to NumPy</span>
+np_arr = data.<span class="fn">to_numpy</span>()</code></pre>
             </div>
         </section>
 
@@ -109,36 +120,63 @@ x = <span class="num">rm</span>.linalg.<span class="fn">solve</span>(data, b)</c
         <section id="quickstart">
             <h2>Quick Start</h2>
 
-            <h3>Vector math</h3>
+            <h3>N-Dimensional Arrays</h3>
             <div class="code-window">
                 <div class="code-header">
                     <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-                    <span class="filename">vectors.py</span>
+                    <span class="filename">arrays.py</span>
                 </div>
-                <pre><code><span class="kw">import</span> rmath.vector <span class="kw">as</span> <span class="num">rv</span>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
 
-v = <span class="num">rv</span>.<span class="fn">Vector</span>.linspace(<span class="num">0</span>, <span class="num">10</span>, <span class="num">1_000_000</span>)
-result = v.<span class="fn">sin</span>().<span class="fn">exp</span>().<span class="fn">sum</span>()     <span class="cm"># chained, parallel</span>
+a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>],
+              [<span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>]])
+b = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">2</span>, <span class="num">3</span>)
 
-<span class="cm"># Operator overloading</span>
-v2 = v + <span class="num">5.0</span>
-dot = v @ v2</code></pre>
+c = a + b              <span class="cm"># element-wise add</span>
+d = a.<span class="fn">sin</span>().<span class="fn">exp</span>()      <span class="cm"># chained element-wise ops</span>
+avg = a.<span class="fn">mean</span>()         <span class="cm"># global reduction → 3.5</span>
+
+<span class="cm"># Works with any dimension</span>
+vol = <span class="num">rm</span>.<span class="fn">Array</span>.zeros(<span class="num">16</span>, <span class="num">3</span>, <span class="num">256</span>, <span class="num">256</span>)  <span class="cm"># 4-D tensor</span></code></pre>
             </div>
 
-            <h3>Automatic differentiation</h3>
+            <h3>Autograd (Tensor)</h3>
             <div class="code-window">
                 <div class="code-header">
                     <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
-                    <span class="filename">autodiff.py</span>
+                    <span class="filename">autograd.py</span>
                 </div>
-                <pre><code><span class="kw">import</span> rmath.calculus <span class="kw">as</span> <span class="num">rc</span>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
 
-<span class="cm"># f(x) = x² + 3x, evaluated at x = 2</span>
-x = <span class="num">rc</span>.<span class="fn">Dual</span>(<span class="num">2.0</span>, <span class="num">1.0</span>)
-y = x * x + x * <span class="num">3.0</span>
+<span class="cm"># Training-ready tensors with gradient tracking</span>
+W = <span class="num">rm</span>.<span class="fn">Tensor</span>.randn(<span class="num">3</span>, <span class="num">3</span>, requires_grad=<span class="kw">True</span>)
+x = <span class="num">rm</span>.<span class="fn">Tensor</span>.randn(<span class="num">3</span>, <span class="num">1</span>)
 
-<span class="kw">print</span>(y.value)       <span class="cm"># 10.0</span>
-<span class="kw">print</span>(y.derivative)  <span class="cm"># 7.0 → f'(x) = 2x + 3</span></code></pre>
+y = (W @ x).<span class="fn">sigmoid</span>().<span class="fn">sum</span>()
+y.<span class="fn">backward</span>()
+
+<span class="kw">print</span>(W.grad)  <span class="cm"># ∂y/∂W — computed via reverse-mode AD</span></code></pre>
+            </div>
+
+            <h3>Ecosystem Interop</h3>
+            <div class="code-window">
+                <div class="code-header">
+                    <div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div>
+                    <span class="filename">interop.py</span>
+                </div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<span class="kw">from</span> sklearn.linear_model <span class="kw">import</span> LinearRegression
+
+<span class="cm"># Generate data in Rust, feed directly to scikit-learn</span>
+X = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">1</span>)
+Y = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">1</span>)
+
+model = LinearRegression()
+model.<span class="fn">fit</span>(X, Y)  <span class="cm"># Just Works™ — __array__ protocol</span>
+
+<span class="cm"># Explicit bridges</span>
+np_arr = X.<span class="fn">to_numpy</span>()
+torch_t = X.<span class="fn">to_torch</span>()</code></pre>
             </div>
 
             <h3>Statistics</h3>
@@ -153,29 +191,39 @@ data = [<span class="num">2.4</span>, <span class="num">3.1</span>, <span class=
 report = <span class="num">rm</span>.stats.<span class="fn">describe</span>(data)
 
 <span class="cm"># {'count': 6, 'mean': 2.98, 'variance': 0.14,</span>
-<span class="cm">#  'std': 0.37, 'skewness': 0.04, 'kurtosis': -1.28}</span></code></pre>
+<span class="cm">#  'std': 0.37, 'skewness': 0.04, 'kurtosis': -1.28}</span>
+
+<span class="cm"># Welch's T-test</span>
+a = [<span class="num">2.1</span>, <span class="num">2.5</span>, <span class="num">2.3</span>]
+b = [<span class="num">3.1</span>, <span class="num">3.5</span>, <span class="num">3.3</span>]
+t_stat, p_val = <span class="num">rm</span>.stats.<span class="fn">t_test_independent</span>(a, b)</code></pre>
             </div>
         </section>
 
         <section id="modules">
             <h2>Modules</h2>
-            <p style="color: var(--text-dim); margin-bottom: 1rem;">Click any module to see the full API reference.</p>
+            <p style="color: var(--text-dim); margin-bottom: 1rem;">Click any module to see the full API reference with examples.</p>
 
             <div class="card-grid">
                 <a href="array.html" class="card">
                     <div class="card-icon">📊</div>
                     <h3>rmath.array</h3>
-                    <p>N-dimensional arrays with automatic storage tiering — stack, heap, or memory-mapped.</p>
+                    <p>N-dimensional arrays with flat contiguous storage, automatic parallelization, and zero-copy NumPy interop.</p>
+                </a>
+                <a href="tensor.html" class="card">
+                    <div class="card-icon">🧬</div>
+                    <h3>rmath.Tensor</h3>
+                    <p>Reverse-mode autograd engine. Forward ops, backward passes, and gradient tracking — 3.98× faster than PyTorch.</p>
                 </a>
                 <a href="vector.html" class="card">
                     <div class="card-icon">📐</div>
                     <h3>rmath.vector</h3>
-                    <p>1-D parallel engine with 80+ operations: trig, sorting, filtering, complex numbers.</p>
+                    <p>1-D parallel engine with 90+ operations: trig, sorting, filtering, complex numbers, and lazy pipelines.</p>
                 </a>
                 <a href="scalar.html" class="card">
                     <div class="card-icon">🔢</div>
                     <h3>rmath.scalar</h3>
-                    <p>Precision f64 math — 80+ functions that mirror and extend Python's math module.</p>
+                    <p>Precision f64 math — 110+ functions, Complex numbers, and lazy evaluation pipelines.</p>
                 </a>
                 <a href="linalg.html" class="card">
                     <div class="card-icon">🧮</div>
@@ -185,27 +233,27 @@ report = <span class="num">rm</span>.stats.<span class="fn">describe</span>(data
                 <a href="stats.html" class="card">
                     <div class="card-icon">📈</div>
                     <h3>rmath.stats</h3>
-                    <p>Descriptive and inferential statistics — T-tests, ANOVA, regression, distributions.</p>
+                    <p>Descriptive and inferential statistics — T-tests, ANOVA, regression, and probability distributions.</p>
                 </a>
                 <a href="calculus.html" class="card">
                     <div class="card-icon">∫</div>
                     <h3>rmath.calculus</h3>
-                    <p>Automatic differentiation via dual numbers, numerical integration, root-finding.</p>
+                    <p>Forward-mode AD via dual numbers, numerical integration, and Newton-Raphson root-finding.</p>
                 </a>
                 <a href="geometry.html" class="card">
                     <div class="card-icon">📏</div>
                     <h3>rmath.geometry</h3>
-                    <p>Distance metrics, quaternions, cross products, convex hull, point-in-polygon.</p>
+                    <p>Distance metrics, quaternions, cross products, convex hull, and point-in-polygon tests.</p>
                 </a>
                 <a href="signal.html" class="card">
                     <div class="card-icon">〰️</div>
                     <h3>rmath.signal</h3>
-                    <p>FFT, inverse FFT, convolution (full / same / valid modes), spectral analysis.</p>
+                    <p>FFT, inverse FFT, real FFT, and convolution with full / same / valid modes.</p>
                 </a>
                 <a href="nn.html" class="card">
                     <div class="card-icon">🧠</div>
                     <h3>rmath.nn</h3>
-                    <p>Activations (GELU, Softmax), loss functions, normalization, pooling layers.</p>
+                    <p>Activations (GELU, Softmax, HardSwish), loss functions, normalization, dropout, and pooling.</p>
                 </a>
                 <a href="special.html" class="card">
                     <div class="card-icon">Γ</div>
@@ -216,6 +264,11 @@ report = <span class="num">rm</span>.stats.<span class="fn">describe</span>(data
                     <div class="card-icon">π</div>
                     <h3>rmath.constants</h3>
                     <p>Mathematical constants (π, e, φ) and machine-precision values (epsilon, max float).</p>
+                </a>
+                <a href="interop.html" class="card">
+                    <div class="card-icon">🔗</div>
+                    <h3>Interop</h3>
+                    <p>Zero-copy bridges to NumPy, PyTorch, JAX, pandas, and scikit-learn via the __array__ protocol.</p>
                 </a>
             </div>
         </section>
@@ -240,6 +293,56 @@ report = <span class="num">rm</span>.stats.<span class="fn">describe</span>(data
             <div class="callout">
                 <strong>No GIL:</strong> Heavy loops release the Python GIL and execute across all CPU cores
                 via Rayon. Small arrays stay on the stack for zero-allocation speed.
+            </div>
+
+            <div class="callout">
+                <strong>Flat Storage:</strong> Arrays store data in a contiguous <code>Vec&lt;f64&gt;</code> buffer
+                with a separate shape vector. This enables cache-friendly access patterns and
+                efficient N-dimensional reshaping without data movement.
+            </div>
+        </section>
+
+        <section id="performance">
+            <h2>Performance</h2>
+            <p style="color: var(--text-dim); margin-bottom: 1rem;">Benchmarked on Windows (CPython 3.13, AMD64). Medians of 20 runs, 3 warmup.</p>
+
+            <div class="api-section">
+                <div class="api-section-title">Vector — 50× over pure Python</div>
+                <table class="api-table">
+                    <thead><tr><th>Operation</th><th>Size</th><th>Speedup</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>sum_range</code></td><td>100K</td><td class="returns"><strong>6,076×</strong></td></tr>
+                        <tr><td><code>norm_l1</code></td><td>100K</td><td class="returns"><strong>142×</strong></td></tr>
+                        <tr><td><code>std_dev</code></td><td>100K</td><td class="returns"><strong>119×</strong></td></tr>
+                        <tr><td><code>dot</code></td><td>100K</td><td class="returns"><strong>43×</strong></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="api-section">
+                <div class="api-section-title">Array — 3.2× over NumPy</div>
+                <table class="api-table">
+                    <thead><tr><th>Operation</th><th>Size</th><th>Speedup</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>transpose</code></td><td>500×200</td><td class="returns"><strong>65×</strong></td></tr>
+                        <tr><td><code>from_numpy</code></td><td>500×200</td><td class="returns"><strong>38×</strong></td></tr>
+                        <tr><td><code>gelu</code></td><td>500×200</td><td class="returns"><strong>18×</strong></td></tr>
+                        <tr><td><code>tanh</code></td><td>500×200</td><td class="returns"><strong>5×</strong></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="api-section">
+                <div class="api-section-title">Tensor Autograd — 3.98× over PyTorch</div>
+                <table class="api-table">
+                    <thead><tr><th>Operation</th><th>Size</th><th>Speedup</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>add</code> (forward)</td><td>200×200</td><td class="returns"><strong>8.7×</strong></td></tr>
+                        <tr><td><code>reshape</code></td><td>200×200</td><td class="returns"><strong>6.6×</strong></td></tr>
+                        <tr><td><code>sigmoid</code> (forward)</td><td>200×200</td><td class="returns"><strong>6.1×</strong></td></tr>
+                        <tr><td><code>training_step</code></td><td>100×100</td><td class="returns"><strong>3.2×</strong></td></tr>
+                    </tbody>
+                </table>
             </div>
         </section>
 

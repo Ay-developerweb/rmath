@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.Tensor — Autograd Engine | RMath Documentation</title>
+    <meta name="description" content="API reference for rmath.Tensor — reverse-mode automatic differentiation engine with gradient tracking, 3.98× faster than PyTorch.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="portal">
+    <aside class="sidebar" id="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span>
+        </a>
+        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
+        <nav id="sidebarNav">
+            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
+            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="tensor.html" class="nav-link active"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link"><code>Interop</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">On this page</div><a href="#overview" class="nav-link">Overview</a><a href="#constructors" class="nav-link">Constructors</a><a href="#forward" class="nav-link">Forward Ops</a><a href="#backward" class="nav-link">Backward Pass</a><a href="#shape" class="nav-link">Shape Ops</a><a href="#training" class="nav-link">Training Loop</a><a href="#vs-pytorch" class="nav-link">vs PyTorch</a></div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="overview" class="hero">
+            <div class="badge">Core Module · Autograd</div>
+            <h1>rmath.<span class="gradient-text">Tensor</span></h1>
+            <p class="hero-sub">
+                Reverse-mode automatic differentiation engine built on top of <code>rmath.Array</code>.
+                Tracks computation graphs, computes gradients via <code>.backward()</code>, and executes
+                entirely in Rust — <strong>3.98× faster than PyTorch</strong> on CPU for small-to-medium models.
+            </p>
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">tensor_demo.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># Create tensors with gradient tracking</span>
+x = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>], [<span class="num">3.0</span>, <span class="num">4.0</span>]], requires_grad=<span class="kw">True</span>)
+W = <span class="num">rm</span>.<span class="fn">Tensor</span>.randn(<span class="num">2</span>, <span class="num">2</span>, requires_grad=<span class="kw">True</span>)
+
+<span class="cm"># Forward pass — builds computation graph</span>
+y = (W @ x).<span class="fn">sigmoid</span>().<span class="fn">sum</span>()
+
+<span class="cm"># Backward pass — computes ∂y/∂W and ∂y/∂x</span>
+y.<span class="fn">backward</span>()
+
+<span class="kw">print</span>(W.grad)   <span class="cm"># gradient of y w.r.t. W</span>
+<span class="kw">print</span>(x.grad)   <span class="cm"># gradient of y w.r.t. x</span></code></pre>
+            </div>
+        </section>
+
+        <section id="constructors">
+            <h2>Constructors</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Signature</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>Tensor(data, requires_grad=False)</code></td><td class="desc">Create from nested lists or an <code>Array</code>. Optionally enable gradient tracking.</td></tr>
+                        <tr><td><code>Tensor.zeros(*shape, requires_grad=False)</code></td><td class="desc">Tensor filled with zeros.</td></tr>
+                        <tr><td><code>Tensor.ones(*shape, requires_grad=False)</code></td><td class="desc">Tensor filled with ones.</td></tr>
+                        <tr><td><code>Tensor.randn(*shape, requires_grad=False)</code></td><td class="desc">Tensor with standard normal random values.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">constructors.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># From nested lists</span>
+t = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>]], requires_grad=<span class="kw">True</span>)
+
+<span class="cm"># From an existing Array</span>
+arr = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">3</span>, <span class="num">3</span>)
+t2 = <span class="num">rm</span>.<span class="fn">Tensor</span>(arr, requires_grad=<span class="kw">True</span>)
+
+<span class="cm"># Static constructors</span>
+z = <span class="num">rm</span>.<span class="fn">Tensor</span>.zeros(<span class="num">5</span>, <span class="num">5</span>)                        <span class="cm"># no grad by default</span>
+w = <span class="num">rm</span>.<span class="fn">Tensor</span>.randn(<span class="num">3</span>, <span class="num">3</span>, requires_grad=<span class="kw">True</span>)    <span class="cm"># trainable weights</span></code></pre>
+            </div>
+        </section>
+
+        <section id="forward">
+            <h2>Forward Operations</h2>
+            <p>All operations return a new Tensor. If any input has <code>requires_grad=True</code>, the output records the operation for the backward pass.</p>
+
+            <div class="api-section">
+                <div class="api-section-title">Arithmetic</div>
+                <table class="api-table">
+                    <thead><tr><th>Operation</th><th>Python Syntax</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>add</code></td><td><code>a + b</code></td><td class="desc">Element-wise addition (Tensor or scalar)</td></tr>
+                        <tr><td><code>sub</code></td><td><code>a - b</code></td><td class="desc">Element-wise subtraction</td></tr>
+                        <tr><td><code>mul</code></td><td><code>a * b</code></td><td class="desc">Element-wise multiplication (Hadamard product)</td></tr>
+                        <tr><td><code>div</code></td><td><code>a / b</code></td><td class="desc">Element-wise division</td></tr>
+                        <tr><td><code>matmul</code></td><td><code>a @ b</code></td><td class="desc">Matrix multiplication</td></tr>
+                        <tr><td><code>neg</code></td><td><code>-a</code></td><td class="desc">Unary negation</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="api-section">
+                <div class="api-section-title">Activations</div>
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Formula</th><th>Gradient</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.sigmoid()</code></td><td>σ(x) = 1 / (1 + e⁻ˣ)</td><td class="desc">σ(x) · (1 − σ(x))</td></tr>
+                        <tr><td><code>.tanh()</code></td><td>tanh(x)</td><td class="desc">1 − tanh²(x)</td></tr>
+                        <tr><td><code>.exp()</code></td><td>eˣ</td><td class="desc">eˣ</td></tr>
+                        <tr><td><code>.log()</code></td><td>ln(x)</td><td class="desc">1/x</td></tr>
+                        <tr><td><code>.abs()</code></td><td>|x|</td><td class="desc">sign(x)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">forward_ops.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+a = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>], [<span class="num">3.0</span>, <span class="num">4.0</span>]])
+b = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">5.0</span>, <span class="num">6.0</span>], [<span class="num">7.0</span>, <span class="num">8.0</span>]])
+
+<span class="cm"># Arithmetic (no grad tracking by default)</span>
+c = a + b           <span class="cm"># [[6, 8], [10, 12]]</span>
+d = a * b           <span class="cm"># [[5, 12], [21, 32]]</span>
+e = a @ b           <span class="cm"># matrix multiply → [[19, 22], [43, 50]]</span>
+
+<span class="cm"># Activations</span>
+s = a.<span class="fn">sigmoid</span>()      <span class="cm"># element-wise sigmoid</span>
+t = a.<span class="fn">tanh</span>()         <span class="cm"># element-wise tanh</span>
+x = a.<span class="fn">exp</span>()          <span class="cm"># element-wise exp</span></code></pre>
+            </div>
+        </section>
+
+        <section id="backward">
+            <h2>Backward Pass</h2>
+            <p>Call <code>.backward()</code> on a scalar Tensor to compute gradients for all upstream tensors with <code>requires_grad=True</code>. Gradients accumulate in the <code>.grad</code> property.</p>
+
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Property / Method</th><th>Type</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.backward()</code></td><td>None</td><td class="desc">Compute gradients via reverse-mode AD. Must be called on a scalar.</td></tr>
+                        <tr><td><code>.grad</code></td><td>Tensor | None</td><td class="desc">Accumulated gradient after <code>.backward()</code> has been called.</td></tr>
+                        <tr><td><code>.requires_grad</code></td><td>bool</td><td class="desc">Whether this tensor participates in gradient computation.</td></tr>
+                        <tr><td><code>.data()</code></td><td>Array</td><td class="desc">Access the underlying Array (detached from the graph).</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Gradient Correctness Examples</h3>
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">gradients.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># ── Addition: ∂(a+b)/∂a = 1, ∂(a+b)/∂b = 1 ──</span>
+a = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">1.0</span>]], requires_grad=<span class="kw">True</span>)
+b = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">2.0</span>]], requires_grad=<span class="kw">True</span>)
+c = (a + b).<span class="fn">sum</span>()
+c.<span class="fn">backward</span>()
+<span class="kw">print</span>(a.grad)  <span class="cm"># Tensor(data=Array([[1.0]]), ...)</span>
+<span class="kw">print</span>(b.grad)  <span class="cm"># Tensor(data=Array([[1.0]]), ...)</span>
+
+<span class="cm"># ── Multiplication: ∂(a*b)/∂a = b, ∂(a*b)/∂b = a ──</span>
+x = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">3.0</span>]], requires_grad=<span class="kw">True</span>)
+y = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">4.0</span>]], requires_grad=<span class="kw">True</span>)
+z = (x * y).<span class="fn">sum</span>()
+z.<span class="fn">backward</span>()
+<span class="kw">print</span>(x.grad)  <span class="cm"># 4.0 (value of y)</span>
+<span class="kw">print</span>(y.grad)  <span class="cm"># 3.0 (value of x)</span>
+
+<span class="cm"># ── Sigmoid: ∂σ(0)/∂x = σ(0)·(1-σ(0)) = 0.25 ──</span>
+s = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">0.0</span>]], requires_grad=<span class="kw">True</span>)
+out = s.<span class="fn">sigmoid</span>().<span class="fn">sum</span>()
+out.<span class="fn">backward</span>()
+<span class="kw">print</span>(s.grad)  <span class="cm"># 0.25</span>
+
+<span class="cm"># ── Chain rule: sigmoid(x²) ──</span>
+v = <span class="num">rm</span>.<span class="fn">Tensor</span>([[<span class="num">1.0</span>]], requires_grad=<span class="kw">True</span>)
+out = (v * v).<span class="fn">sigmoid</span>().<span class="fn">sum</span>()
+out.<span class="fn">backward</span>()
+<span class="kw">print</span>(v.grad)  <span class="cm"># 2x · σ(x²) · (1 - σ(x²)) ≈ 0.3350</span></code></pre>
+            </div>
+        </section>
+
+        <section id="shape">
+            <h2>Shape Operations</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.sum()</code></td><td>Tensor (scalar)</td><td class="desc">Sum all elements. Required before <code>.backward()</code>.</td></tr>
+                        <tr><td><code>.mean()</code></td><td>Tensor (scalar)</td><td class="desc">Arithmetic mean of all elements.</td></tr>
+                        <tr><td><code>.reshape(shape)</code></td><td>Tensor</td><td class="desc">Reshape without copying data.</td></tr>
+                        <tr><td><code>.transpose()</code></td><td>Tensor</td><td class="desc">Matrix transpose.</td></tr>
+                        <tr><td><code>.shape</code></td><td>list[int]</td><td class="desc">Dimensions of the underlying array.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">shape_ops.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+t = <span class="num">rm</span>.<span class="fn">Tensor</span>.randn(<span class="num">4</span>, <span class="num">6</span>)
+<span class="kw">print</span>(t.shape)          <span class="cm"># [4, 6]</span>
+
+flat = t.<span class="fn">reshape</span>([<span class="num">24</span>])
+<span class="kw">print</span>(flat.shape)       <span class="cm"># [24]</span>
+
+square = t.<span class="fn">reshape</span>([<span class="num">2</span>, <span class="num">12</span>])
+<span class="kw">print</span>(square.shape)     <span class="cm"># [2, 12]</span>
+
+tr = t.<span class="fn">transpose</span>()
+<span class="kw">print</span>(tr.shape)         <span class="cm"># [6, 4]</span></code></pre>
+            </div>
+        </section>
+
+        <section id="training">
+            <h2>Training Loop</h2>
+            <p>A complete example showing how to train a simple model using <code>Tensor</code> autograd.</p>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">training.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># Simple linear model: y = Wx</span>
+W = <span class="num">rm</span>.<span class="fn">Tensor</span>.randn(<span class="num">3</span>, <span class="num">3</span>, requires_grad=<span class="kw">True</span>)
+lr = <span class="num">0.01</span>
+
+<span class="kw">for</span> step <span class="kw">in</span> <span class="fn">range</span>(<span class="num">100</span>):
+    <span class="cm"># Forward</span>
+    x = <span class="num">rm</span>.<span class="fn">Tensor</span>.randn(<span class="num">3</span>, <span class="num">1</span>)
+    pred = (W @ x).<span class="fn">sigmoid</span>()
+    loss = pred.<span class="fn">sum</span>()
+
+    <span class="cm"># Backward</span>
+    loss.<span class="fn">backward</span>()
+
+    <span class="cm"># Manual SGD update</span>
+    grad_data = W.grad.<span class="fn">data</span>()
+    w_data = W.<span class="fn">data</span>()
+    new_data = w_data - grad_data * lr
+    W = <span class="num">rm</span>.<span class="fn">Tensor</span>(new_data, requires_grad=<span class="kw">True</span>)
+
+    <span class="kw">if</span> step % <span class="num">20</span> == <span class="num">0</span>:
+        <span class="kw">print</span>(<span class="str">f"Step {step}, Loss: {loss}"</span>)</code></pre>
+            </div>
+        </section>
+
+        <section id="vs-pytorch">
+            <h2>RMath Tensor vs PyTorch</h2>
+            <p>Side-by-side API comparison for developers coming from PyTorch.</p>
+
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>PyTorch</th><th>RMath</th><th>Notes</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>torch.tensor(data, requires_grad=True)</code></td><td><code>rm.Tensor(data, requires_grad=True)</code></td><td class="desc">Identical API</td></tr>
+                        <tr><td><code>torch.zeros(3, 3)</code></td><td><code>rm.Tensor.zeros(3, 3)</code></td><td class="desc">Identical API</td></tr>
+                        <tr><td><code>torch.randn(3, 3)</code></td><td><code>rm.Tensor.randn(3, 3)</code></td><td class="desc">Identical API</td></tr>
+                        <tr><td><code>y.backward()</code></td><td><code>y.backward()</code></td><td class="desc">Identical API</td></tr>
+                        <tr><td><code>x.grad</code></td><td><code>x.grad</code></td><td class="desc">Identical API</td></tr>
+                        <tr><td><code>x.data</code></td><td><code>x.data()</code></td><td class="desc">Method call, returns Array</td></tr>
+                        <tr><td><code>x.detach()</code></td><td><code>x.data()</code></td><td class="desc">Use <code>.data()</code> to detach</td></tr>
+                        <tr><td><code>with torch.no_grad():</code></td><td><code>requires_grad=False</code></td><td class="desc">Set at construction time</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout">
+                <strong>Performance:</strong> RMath Tensor averages <strong>3.98× faster</strong> than PyTorch
+                on CPU for 200×200 matrices. The advantage comes from zero-copy <code>Arc&lt;RwLock&gt;</code>
+                data access and pure-Rust backward passes with no GIL re-entry.
+            </div>
+        </section>
+
+        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
+    </main>
+</div>
+<script src="script.js"></script>
+</body>
+</html>

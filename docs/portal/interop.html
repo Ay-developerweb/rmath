@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interop — Ecosystem Bridges | RMath Documentation</title>
+    <meta name="description" content="Zero-copy bridges between RMath and NumPy, PyTorch, JAX, pandas, and scikit-learn via the __array__ protocol.">
+    <link rel="stylesheet" href="style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+</head>
+<body>
+<div class="portal">
+    <aside class="sidebar" id="sidebar">
+        <a href="index.html" class="sidebar-brand">
+            <img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span>
+        </a>
+        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
+        <nav id="sidebarNav">
+            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
+            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link active"><code>Interop</code></a></div>
+            <div class="nav-group"><div class="nav-group-title">On this page</div><a href="#overview" class="nav-link">Overview</a><a href="#protocol" class="nav-link">__array__ Protocol</a><a href="#numpy" class="nav-link">NumPy</a><a href="#pytorch" class="nav-link">PyTorch</a><a href="#jax" class="nav-link">JAX</a><a href="#pandas" class="nav-link">pandas</a><a href="#sklearn" class="nav-link">Scikit-Learn</a><a href="#perf" class="nav-link">Performance</a></div>
+        </nav>
+    </aside>
+
+    <main class="content">
+        <section id="overview" class="hero">
+            <div class="badge">Ecosystem</div>
+            <h1>Ecosystem <span class="gradient-text">Interop</span></h1>
+            <p class="hero-sub">
+                RMath is a <strong>drop-in accelerator</strong>, not a replacement.
+                Every <code>Array</code> and <code>Tensor</code> can flow freely between NumPy, PyTorch,
+                JAX, pandas, and scikit-learn — often with zero-copy transfers.
+            </p>
+        </section>
+
+        <section id="protocol">
+            <h2>The <code>__array__</code> Protocol</h2>
+            <p>
+                RMath's <code>Array</code> class implements Python's <code>__array__</code> protocol.
+                This means any library that expects a NumPy array will automatically convert
+                an <code>rm.Array</code> without you writing a single extra line of code.
+            </p>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">protocol.py</span></div>
+                <pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>]])
+
+<span class="cm"># This "Just Works" — np.array() calls a.__array__() internally</span>
+result = np.<span class="fn">linalg</span>.<span class="fn">eigvals</span>(a)
+<span class="kw">print</span>(result)  <span class="cm"># NumPy receives the data with no manual conversion</span></code></pre>
+            </div>
+
+            <div class="callout">
+                <strong>How it works:</strong> When a library calls <code>np.array(obj)</code> or
+                <code>np.asarray(obj)</code>, Python checks if <code>obj</code> has an <code>__array__</code>
+                method. RMath's implementation returns a properly shaped NumPy array backed by a
+                contiguous memory buffer — typically a single memcpy.
+            </div>
+        </section>
+
+        <section id="numpy">
+            <h2>NumPy</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>Array.from_numpy(np_arr)</code></td><td>NumPy → RMath</td><td class="desc">Import a NumPy ndarray into an RMath Array.</td></tr>
+                        <tr><td><code>arr.to_numpy()</code></td><td>RMath → NumPy</td><td class="desc">Export to a NumPy ndarray. Shape is preserved.</td></tr>
+                        <tr><td><code>np.array(arr)</code></td><td>RMath → NumPy</td><td class="desc">Automatic via <code>__array__</code> protocol.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">numpy_bridge.py</span></div>
+                <pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># NumPy → RMath</span>
+np_arr = np.<span class="fn">array</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>], [<span class="num">3.0</span>, <span class="num">4.0</span>]])
+rm_arr = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_numpy</span>(np_arr)
+<span class="kw">print</span>(rm_arr)
+<span class="cm"># Array([</span>
+<span class="cm">#        [ 1.0000,  2.0000],</span>
+<span class="cm">#        [ 3.0000,  4.0000]])</span>
+
+<span class="cm"># RMath → NumPy (explicit)</span>
+back = rm_arr.<span class="fn">to_numpy</span>()
+<span class="kw">print</span>(back)
+<span class="cm"># array([[1., 2.],</span>
+<span class="cm">#        [3., 4.]])</span>
+
+<span class="cm"># Roundtrip check</span>
+<span class="kw">assert</span> np.<span class="fn">allclose</span>(np_arr, back)  <span class="cm"># True — no precision loss</span></code></pre>
+            </div>
+        </section>
+
+        <section id="pytorch">
+            <h2>PyTorch</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>Array.from_torch(tensor)</code></td><td>PyTorch → RMath</td><td class="desc">Import a PyTorch CPU tensor.</td></tr>
+                        <tr><td><code>arr.to_torch()</code></td><td>RMath → PyTorch</td><td class="desc">Export to a PyTorch tensor. Routes via NumPy for efficiency.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">pytorch_bridge.py</span></div>
+                <pre><code><span class="kw">import</span> torch
+<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># PyTorch → RMath</span>
+t = torch.<span class="fn">tensor</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>], [<span class="num">3.0</span>, <span class="num">4.0</span>]])
+rm_arr = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_torch</span>(t)
+
+<span class="cm"># Process in Rust (fast)</span>
+result = rm_arr.<span class="fn">sigmoid</span>().<span class="fn">tanh</span>()
+
+<span class="cm"># RMath → PyTorch</span>
+back = result.<span class="fn">to_torch</span>()
+<span class="kw">print</span>(<span class="fn">type</span>(back))  <span class="cm"># &lt;class 'torch.Tensor'&gt;</span></code></pre>
+            </div>
+        </section>
+
+        <section id="jax">
+            <h2>JAX</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>Array.from_jax(jax_arr)</code></td><td>JAX → RMath</td><td class="desc">Import a JAX DeviceArray.</td></tr>
+                        <tr><td><code>arr.to_jax()</code></td><td>RMath → JAX</td><td class="desc">Export to a JAX array via <code>jnp.asarray</code>.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">jax_bridge.py</span></div>
+                <pre><code><span class="kw">import</span> jax.numpy <span class="kw">as</span> jnp
+<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># JAX → RMath</span>
+jax_arr = jnp.<span class="fn">ones</span>((<span class="num">3</span>, <span class="num">3</span>))
+rm_arr = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_jax</span>(jax_arr)
+
+<span class="cm"># RMath → JAX</span>
+back = rm_arr.<span class="fn">to_jax</span>()
+<span class="kw">print</span>(<span class="fn">type</span>(back))  <span class="cm"># jaxlib.xla_extension.ArrayImpl</span></code></pre>
+            </div>
+        </section>
+
+        <section id="pandas">
+            <h2>pandas</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>Array.from_dataframe(df)</code></td><td>DataFrame → RMath</td><td class="desc">Import a pandas DataFrame (numeric columns only).</td></tr>
+                        <tr><td><code>arr.to_dataframe(columns=None)</code></td><td>RMath → DataFrame</td><td class="desc">Export to a DataFrame. Optionally name columns.</td></tr>
+                        <tr><td><code>arr.to_series(name=None)</code></td><td>RMath → Series</td><td class="desc">Export a 1-D array to a pandas Series.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">pandas_bridge.py</span></div>
+                <pre><code><span class="kw">import</span> pandas <span class="kw">as</span> pd
+<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># Create data in Rust, export to pandas</span>
+data = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>], [<span class="num">5</span>, <span class="num">6</span>]])
+df = data.<span class="fn">to_dataframe</span>(columns=[<span class="str">"x"</span>, <span class="str">"y"</span>])
+<span class="kw">print</span>(df)
+<span class="cm">#    x    y</span>
+<span class="cm"># 0  1.0  2.0</span>
+<span class="cm"># 1  3.0  4.0</span>
+<span class="cm"># 2  5.0  6.0</span>
+
+<span class="cm"># pandas → RMath</span>
+back = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_dataframe</span>(df)</code></pre>
+            </div>
+        </section>
+
+        <section id="sklearn">
+            <h2>Scikit-Learn</h2>
+            <p>
+                Because RMath implements <code>__array__</code>, any scikit-learn estimator
+                that accepts array-like inputs will work with <code>rm.Array</code> directly.
+                No <code>.to_numpy()</code> call needed.
+            </p>
+
+            <div class="api-section">
+                <div class="api-section-title">Validation Helpers</div>
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>arr.sklearn_shape()</code></td><td>(n_samples, n_features)</td><td class="desc">Returns shape as sklearn convention tuple.</td></tr>
+                        <tr><td><code>arr.validate_sklearn()</code></td><td>None</td><td class="desc">Raises if not 2-D, or contains NaN/Inf.</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">sklearn_bridge.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<span class="kw">from</span> sklearn.linear_model <span class="kw">import</span> LinearRegression
+
+<span class="cm"># Generate data entirely in Rust</span>
+X = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">1</span>)
+Y = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">1</span>)
+
+<span class="cm"># Pass directly to sklearn — no conversion needed</span>
+model = LinearRegression()
+model.<span class="fn">fit</span>(X, Y)
+
+<span class="kw">print</span>(<span class="str">"R² Score:"</span>, model.<span class="fn">score</span>(X, Y))
+
+<span class="cm"># Validate before feeding to stricter estimators</span>
+X.<span class="fn">validate_sklearn</span>()  <span class="cm"># raises ValueError if NaN/Inf/non-2D</span></code></pre>
+            </div>
+        </section>
+
+        <section id="perf">
+            <h2>Transfer Performance</h2>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Bridge</th><th>Mechanism</th><th>Cost</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>to_numpy()</code></td><td>Contiguous buffer → NumPy ndarray</td><td class="desc">Single memcpy</td></tr>
+                        <tr><td><code>from_numpy()</code></td><td>NumPy ndarray → flat Vec</td><td class="desc">Single memcpy</td></tr>
+                        <tr><td><code>to_torch()</code></td><td>Routes via <code>to_numpy()</code></td><td class="desc">Single memcpy + torch.from_numpy</td></tr>
+                        <tr><td><code>to_jax()</code></td><td>Routes via <code>to_numpy()</code></td><td class="desc">Single memcpy + jnp.asarray</td></tr>
+                        <tr><td><code>__array__</code></td><td>Auto-called by any NumPy-compatible lib</td><td class="desc">Single memcpy (implicit)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="callout">
+                <strong>Why not Python lists?</strong> Before v0.1.4, <code>to_torch()</code> and <code>to_jax()</code>
+                converted data to a Python list first — requiring N individual float object allocations.
+                The current implementation routes through NumPy's contiguous buffer, reducing overhead from
+                O(N) Python object allocations to a single memcpy.
+            </div>
+        </section>
+
+        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
+    </main>
+</div>
+<script src="script.js"></script>
+</body>
+</html>
