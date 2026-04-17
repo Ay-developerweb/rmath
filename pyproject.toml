@@ -9,7 +9,7 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = "MIT"
 authors = [
-    { name = "Ay-developer", email = "ay.developerweb@gmail.com" }
+    { name = "Ay-developer", email = "ayomideadediran45@gmail.com" }
 ]
 keywords = ["numerical", "math", "rust", "numpy", "performance", "parallel", "linear-algebra"]
 classifiers = [
