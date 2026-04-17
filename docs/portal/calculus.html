@@ -76,6 +76,25 @@ y = x * x + x * <span class="num">3.0</span>
                     <tr><td><code>integrate_simpson(f, a, b, n)</code></td><td class="desc">Simpson's rule on a callable f over [a, b] with n intervals</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">integration.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<span class="kw">import</span> math
+
+<span class="cm"># Integrate sin(x) from 0 to pi (exact area = 2.0)</span>
+<span class="kw">def</span> <span class="fn">f</span>(x):
+    <span class="kw">return</span> math.<span class="fn">sin</span>(x)
+
+area = <span class="num">rm</span>.calculus.<span class="fn">integrate_simpson</span>(f, <span class="num">0.0</span>, math.pi, <span class="num">1000</span>)
+<span class="kw">print</span>(area)  <span class="cm"># ≈ 2.0</span>
+
+<span class="cm"># Integrate sampled data (Trapezoidal)</span>
+x = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">0.0</span>, <span class="num">1.0</span>, <span class="num">2.0</span>, <span class="num">3.0</span>])
+y = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">0.0</span>, <span class="num">1.0</span>, <span class="num">4.0</span>, <span class="num">9.0</span>])  <span class="cm"># y = x²</span>
+area_trapz = <span class="num">rm</span>.calculus.<span class="fn">integrate_trapezoidal</span>(x, y)
+<span class="kw">print</span>(area_trapz)  <span class="cm"># 9.5 (exact is 9.0, limited by only 4 points)</span></code></pre>
+            </div>
         </section>
 
         <section id="rootfinding">

@@ -25,6 +25,20 @@
             <div class="badge">Extension</div>
             <h1>rmath.<span class="gradient-text">geometry</span></h1>
             <p class="hero-sub">Distance metrics, 3D rotations via quaternions, and computational geometry algorithms. All vector operations are parallelized.</p>
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">example.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+v1 = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>])
+v2 = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>])
+
+<span class="cm"># Distance and similarity</span>
+dist = <span class="num">rm</span>.geometry.<span class="fn">euclidean_distance</span>(v1, v2)
+sim = <span class="num">rm</span>.geometry.<span class="fn">cosine_similarity</span>(v1, v2)
+
+<span class="cm"># 3D Vector cross product</span>
+cross = <span class="num">rm</span>.geometry.<span class="fn">cross_product</span>(v1, v2)</code></pre>
+            </div>
         </section>
 
         <section id="quaternion">
@@ -37,6 +51,20 @@
                 <tr><td><code>.rotate_vector(v)</code></td><td class="returns">Vector</td><td class="desc">Apply rotation to a 3D vector</td></tr>
                 <tr><td><code>q1 * q2</code></td><td class="returns">Quaternion</td><td class="desc">Hamilton product (rotation composition)</td></tr>
             </tbody></table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">quaternion.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># Create a 90-degree rotation around the Z-axis</span>
+import math
+half_angle = math.pi / <span class="num">4</span>  <span class="cm"># 45 degrees in rad</span>
+q = <span class="num">rm</span>.geometry.<span class="fn">Quaternion</span>(math.<span class="fn">cos</span>(half_angle), <span class="num">0</span>, <span class="num">0</span>, math.<span class="fn">sin</span>(half_angle))
+
+v = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1.0</span>, <span class="num">0.0</span>, <span class="num">0.0</span>])
+rotated_v = q.<span class="fn">rotate_vector</span>(v)
+<span class="kw">print</span>(rotated_v.to_list())  <span class="cm"># ≈ [0.0, 1.0, 0.0]</span></code></pre>
+            </div>
         </section>
 
         <section id="distances">
@@ -51,6 +79,18 @@
                     <tr><td><code>angle_between(v1, v2)</code></td><td class="returns">float</td><td class="desc">Angle in radians</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">distances.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+a = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">0.0</span>, <span class="num">3.0</span>])
+b = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">4.0</span>, <span class="num">0.0</span>])
+
+<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">euclidean_distance</span>(a, b))  <span class="cm"># 5.0  (3-4-5 triangle)</span>
+<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">manhattan_distance</span>(a, b))  <span class="cm"># 7.0  (|0-4| + |3-0|)</span>
+<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">cosine_similarity</span>(a, b))   <span class="cm"># 0.0  (orthogonal)</span></code></pre>
+            </div>
         </section>
 
         <section id="vector-ops">
@@ -67,6 +107,18 @@
                 <tr><td><code>is_point_in_polygon(x, y, poly_x, poly_y)</code></td><td class="returns">bool</td><td class="desc">Ray-casting point-in-polygon test</td></tr>
                 <tr><td><code>convex_hull(points_x, points_y)</code></td><td class="returns">(list, list)</td><td class="desc">Convex hull of 2D points</td></tr>
             </tbody></table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">computational.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># A simple square polygon</span>
+poly_x = [<span class="num">0.0</span>, <span class="num">2.0</span>, <span class="num">2.0</span>, <span class="num">0.0</span>]
+poly_y = [<span class="num">0.0</span>, <span class="num">0.0</span>, <span class="num">2.0</span>, <span class="num">2.0</span>]
+
+<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">is_point_in_polygon</span>(<span class="num">1.0</span>, <span class="num">1.0</span>, poly_x, poly_y)) <span class="cm"># True</span>
+<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">is_point_in_polygon</span>(<span class="num">3.0</span>, <span class="num">3.0</span>, poly_x, poly_y)) <span class="cm"># False</span></code></pre>
+            </div>
         </section>
         <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
     </main>

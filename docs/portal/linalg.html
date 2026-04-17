@@ -72,6 +72,44 @@ U, S, Vt = <span class="num">rm</span>.linalg.<span class="fn">svd</span>(A)</co
                     <tr><td><code>covariance(A)</code></td><td class="returns">Array</td><td class="desc">Covariance matrix of columns</td></tr>
                 </tbody></table>
             </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">solvers.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+A = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">4</span>, <span class="num">7</span>], [<span class="num">2</span>, <span class="num">6</span>]])
+b = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>], [<span class="num">2</span>]])
+
+<span class="cm"># Solve Ax = b</span>
+x = <span class="num">rm</span>.linalg.<span class="fn">solve</span>(A, b)
+<span class="kw">print</span>(x)  <span class="cm"># solution vector</span>
+
+<span class="cm"># Determinant and inverse</span>
+<span class="kw">print</span>(<span class="num">rm</span>.linalg.<span class="fn">det</span>(A))   <span class="cm"># 10.0</span>
+A_inv = <span class="num">rm</span>.linalg.<span class="fn">inv</span>(A)
+<span class="kw">print</span>(A @ A_inv)          <span class="cm"># ≈ identity matrix</span></code></pre>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">decompositions.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+A = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>]])
+
+<span class="cm"># QR decomposition</span>
+Q, R = <span class="num">rm</span>.linalg.<span class="fn">qr</span>(A)
+<span class="kw">print</span>(Q @ R)  <span class="cm"># ≈ A (reconstruction)</span>
+
+<span class="cm"># SVD: A = U · diag(S) · Vt</span>
+U, S, Vt = <span class="num">rm</span>.linalg.<span class="fn">svd</span>(A)
+<span class="kw">print</span>(S)  <span class="cm"># singular values as Vector</span>
+
+<span class="cm"># Symmetric eigenvalue decomposition</span>
+sym = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">2</span>, <span class="num">1</span>], [<span class="num">1</span>, <span class="num">3</span>]])
+vals, vecs = <span class="num">rm</span>.linalg.<span class="fn">eigh</span>(sym)
+<span class="kw">print</span>(vals)   <span class="cm"># eigenvalues</span>
+<span class="kw">print</span>(vecs)   <span class="cm"># eigenvectors (columns)</span></code></pre>
+            </div>
         </section>
         <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
     </main>

@@ -35,14 +35,18 @@
             </p>
             <div class="code-window">
                 <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">example.py</span></div>
-                <pre><code><span class="kw">import</span> rmath.vector <span class="kw">as</span> <span class="num">rv</span>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
 
-v = <span class="num">rv</span>.<span class="fn">Vector</span>.linspace(<span class="num">0</span>, <span class="num">10</span>, <span class="num">1_000_000</span>)
+v = <span class="num">rm</span>.<span class="fn">Vector</span>.linspace(<span class="num">0</span>, <span class="num">10</span>, <span class="num">1_000_000</span>)
 result = v.<span class="fn">sin</span>().<span class="fn">exp</span>().<span class="fn">sum</span>()   <span class="cm"># chained, parallel</span>
 
-<span class="cm"># Operators</span>
-v2 = v + <span class="num">5.0</span>
-dot = v @ v2                   <span class="cm"># dot product</span></code></pre>
+<span class="cm"># Operators work with float and Vector</span>
+v2 = v + <span class="num">5.0</span>           <span class="cm"># broadcast scalar</span>
+dot = v @ v2             <span class="cm"># dot product → float</span>
+
+<span class="cm"># Filtering and sorting</span>
+large = v.<span class="fn">filter_gt</span>(<span class="num">8.0</span>)  <span class="cm"># keep only values > 8.0</span>
+sorted_v = v.<span class="fn">sort</span>()       <span class="cm"># parallel unstable sort</span></code></pre>
             </div>
         </section>
 
@@ -57,6 +61,27 @@ dot = v @ v2                   <span class="cm"># dot product</span></code></pre
                     <tr><td><code>Vector.sum_range(start, stop, step)</code></td><td class="desc">Sum of range without allocating a vector</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">constructors.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># From a Python list</span>
+v = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1.0</span>, <span class="num">2.0</span>, <span class="num">3.0</span>, <span class="num">4.0</span>, <span class="num">5.0</span>])
+<span class="kw">print</span>(v)  <span class="cm"># Vector([1, 2, 3, 4, 5], len=5)</span>
+
+<span class="cm"># Range (like Python range, but for floats)</span>
+r = <span class="num">rm</span>.<span class="fn">Vector</span>.range(<span class="num">0</span>, <span class="num">20</span>)
+<span class="kw">print</span>(r)  <span class="cm"># Vector([0, 1, ..., 19], len=20)</span>
+
+<span class="cm"># Linspace</span>
+l = <span class="num">rm</span>.<span class="fn">Vector</span>.linspace(<span class="num">0</span>, <span class="num">1</span>, <span class="num">5</span>)
+<span class="kw">print</span>(l)  <span class="cm"># Vector([0, 0.25, 0.5, 0.75, 1], len=5)</span>
+
+<span class="cm"># Sum without allocating</span>
+total = <span class="num">rm</span>.<span class="fn">Vector</span>.sum_range(<span class="num">1</span>, <span class="num">1_000_001</span>)
+<span class="kw">print</span>(total)  <span class="cm"># 500000500000.0 — 6,076× faster than Python</span></code></pre>
+            </div>
         </section>
 
         <section id="operators">
@@ -129,6 +154,19 @@ dot = v @ v2                   <span class="cm"># dot product</span></code></pre
                     <tr><td><code>.all()</code></td><td class="returns">bool</td><td class="desc">True if all elements are nonzero</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">reductions.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+v = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">2.0</span>, <span class="num">4.0</span>, <span class="num">4.0</span>, <span class="num">4.0</span>, <span class="num">5.0</span>, <span class="num">5.0</span>, <span class="num">7.0</span>, <span class="num">9.0</span>])
+
+<span class="kw">print</span>(v.<span class="fn">sum</span>())       <span class="cm"># 40.0</span>
+<span class="kw">print</span>(v.<span class="fn">mean</span>())      <span class="cm"># 5.0</span>
+<span class="kw">print</span>(v.<span class="fn">std_dev</span>())   <span class="cm"># 2.0</span>
+<span class="kw">print</span>(v.<span class="fn">min</span>())       <span class="cm"># 2.0</span>
+<span class="kw">print</span>(v.<span class="fn">max</span>())       <span class="cm"># 9.0</span></code></pre>
+            </div>
         </section>
 
         <section id="filtering">
@@ -150,6 +188,27 @@ dot = v @ v2                   <span class="cm"># dot product</span></code></pre
                     <tr><td><code>.is_prime()</code></td><td class="returns">list[bool]</td><td class="desc">Primality check per element</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">filtering.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+v = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1</span>, <span class="num">5</span>, <span class="num">3</span>, <span class="num">8</span>, <span class="num">2</span>, <span class="num">9</span>, <span class="num">4</span>])
+
+<span class="cm"># Keep only values above 4</span>
+large = v.<span class="fn">filter_gt</span>(<span class="num">4.0</span>)
+<span class="kw">print</span>(large.to_list())  <span class="cm"># [5.0, 8.0, 9.0]</span>
+
+<span class="cm"># Boolean mask → filter pipeline</span>
+mask = v.<span class="fn">gt_mask</span>(<span class="num">3.0</span>)
+<span class="kw">print</span>(mask.to_list())   <span class="cm"># [0.0, 1.0, 0.0, 1.0, 0.0, 1.0, 1.0]</span>
+result = v.<span class="fn">filter_by_mask</span>(mask)
+<span class="kw">print</span>(result.to_list()) <span class="cm"># [5.0, 8.0, 9.0, 4.0]</span>
+
+<span class="cm"># Primality check</span>
+nums = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>, <span class="num">7</span>])
+<span class="kw">print</span>(nums.<span class="fn">is_prime</span>())  <span class="cm"># [True, True, False, True, False, True]</span></code></pre>
+            </div>
         </section>
 
         <section id="sorting">
@@ -164,6 +223,19 @@ dot = v @ v2                   <span class="cm"># dot product</span></code></pre
                     <tr><td><code>.unique()</code></td><td class="returns">Vector</td><td class="desc">Sorted unique elements</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">sorting.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+v = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">3.0</span>, <span class="num">1.0</span>, <span class="num">4.0</span>, <span class="num">1.0</span>, <span class="num">5.0</span>])
+
+<span class="kw">print</span>(v.<span class="fn">sort</span>().to_list())       <span class="cm"># [1.0, 1.0, 3.0, 4.0, 5.0]</span>
+<span class="kw">print</span>(v.<span class="fn">sort_desc</span>().to_list())  <span class="cm"># [5.0, 4.0, 3.0, 1.0, 1.0]</span>
+<span class="kw">print</span>(v.<span class="fn">argsort</span>())             <span class="cm"># [1, 3, 0, 2, 4]</span>
+<span class="kw">print</span>(v.<span class="fn">unique</span>().to_list())    <span class="cm"># [1.0, 3.0, 4.0, 5.0]</span>
+<span class="kw">print</span>(v.<span class="fn">reverse</span>().to_list())   <span class="cm"># [5.0, 1.0, 4.0, 1.0, 3.0]</span></code></pre>
+            </div>
         </section>
 
         <section id="cumulative">
@@ -173,6 +245,17 @@ dot = v @ v2                   <span class="cm"># dot product</span></code></pre
                 <tr><td><code>.cumprod()</code></td><td class="returns">Vector</td><td class="desc">Running product</td></tr>
                 <tr><td><code>.diff()</code></td><td class="returns">Vector</td><td class="desc">First differences (length n-1)</td></tr>
             </tbody></table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">cumulative.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+v = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>])
+
+<span class="kw">print</span>(v.<span class="fn">cumsum</span>().to_list())   <span class="cm"># [1, 3, 6, 10, 15]</span>
+<span class="kw">print</span>(v.<span class="fn">cumprod</span>().to_list())  <span class="cm"># [1, 2, 6, 24, 120]</span>
+<span class="kw">print</span>(v.<span class="fn">diff</span>().to_list())     <span class="cm"># [1, 1, 1, 1]  (n-1 elements)</span></code></pre>
+            </div>
         </section>
 
         <section id="shaping">
@@ -187,6 +270,29 @@ dot = v @ v2                   <span class="cm"># dot product</span></code></pre
                 <tr><td><code>.len()</code></td><td class="returns">int</td><td class="desc">Number of elements</td></tr>
                 <tr><td><code>.is_empty()</code></td><td class="returns">bool</td><td class="desc">True if length is 0</td></tr>
             </tbody></table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">shaping.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+v = <span class="num">rm</span>.<span class="fn">Vector</span>.range(<span class="num">1</span>, <span class="num">11</span>)  <span class="cm"># [1, 2, ..., 10]</span>
+
+<span class="kw">print</span>(v.<span class="fn">head</span>(<span class="num">3</span>).to_list())  <span class="cm"># [1.0, 2.0, 3.0]</span>
+<span class="kw">print</span>(v.<span class="fn">tail</span>(<span class="num">3</span>).to_list())  <span class="cm"># [8.0, 9.0, 10.0]</span>
+
+<span class="cm"># Split into chunks of 3</span>
+chunks = v.<span class="fn">chunks</span>(<span class="num">3</span>)
+<span class="kw">for</span> c <span class="kw">in</span> chunks:
+    <span class="kw">print</span>(c.to_list())
+<span class="cm"># [1.0, 2.0, 3.0]</span>
+<span class="cm"># [4.0, 5.0, 6.0]</span>
+<span class="cm"># [7.0, 8.0, 9.0]</span>
+<span class="cm"># [10.0]</span>
+
+<span class="cm"># Build up vectors</span>
+v2 = v.<span class="fn">append</span>(<span class="num">11.0</span>)
+<span class="kw">print</span>(v2.<span class="fn">len</span>())  <span class="cm"># 11</span></code></pre>
+            </div>
         </section>
 
         <section id="complex">
@@ -197,6 +303,23 @@ dot = v @ v2                   <span class="cm"># dot product</span></code></pre
                 <tr><td><code>.to_mags()</code></td><td class="returns">Vector</td><td class="desc">Magnitude of each complex element</td></tr>
                 <tr><td><code>.to_phases()</code></td><td class="returns">Vector</td><td class="desc">Phase angle of each element</td></tr>
             </tbody></table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">complex.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># Used by signal.fft() — represents frequency domain</span>
+cv = <span class="num">rm</span>.vector.<span class="fn">ComplexVector</span>(
+    [<span class="num">1.0</span>, <span class="num">0.0</span>, <span class="num">-1.0</span>],   <span class="cm"># real parts</span>
+    [<span class="num">0.0</span>, <span class="num">1.0</span>, <span class="num">0.0</span>]     <span class="cm"># imaginary parts</span>
+)
+
+mags = cv.<span class="fn">to_mags</span>()
+<span class="kw">print</span>(mags.to_list())    <span class="cm"># [1.0, 1.0, 1.0]</span>
+
+phases = cv.<span class="fn">to_phases</span>()
+<span class="kw">print</span>(phases.to_list())  <span class="cm"># [0.0, 1.5707.., 3.1415..]</span></code></pre>
+            </div>
         </section>
 
         <section id="functional">

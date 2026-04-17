@@ -32,9 +32,9 @@
             <div class="badge">Core Module</div>
             <h1>rmath.<span class="gradient-text">array</span></h1>
             <p class="hero-sub">
-                N-dimensional array engine. Row-major <code>Vec&lt;Vec&lt;f64&gt;&gt;</code> backed,
-                with all element-wise operations parallelized via Rayon. Supports automatic
-                storage tiering: inline (stack), heap, and memory-mapped files.
+                N-dimensional array engine. Flat contiguous <code>Vec&lt;f64&gt;</code> storage
+                with a separate shape vector. All element-wise operations parallelized via Rayon
+                when N &ge; 8,192. Supports 1-D, 2-D, and arbitrary N-D shapes.
             </p>
             <div class="code-window">
                 <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">example.py</span></div>
@@ -55,14 +55,45 @@ avg = a.<span class="fn">mean</span>()     <span class="cm"># global reduction</
                 <table class="api-table">
                     <thead><tr><th>Signature</th><th>Description</th></tr></thead>
                     <tbody>
-                        <tr><td><code>Array(data)</code></td><td class="desc">Create from nested lists, a Vector, or a scalar. <code>rm.Array([[1,2],[3,4]])</code></td></tr>
-                        <tr><td><code>Array.zeros(*shape)</code></td><td class="desc">Array of zeros. <code>rm.Array.zeros(3, 4)</code></td></tr>
+                        <tr><td><code>Array(data)</code></td><td class="desc">Create from nested lists, a Vector, or a scalar.</td></tr>
+                        <tr><td><code>Array.zeros(*shape)</code></td><td class="desc">Array of zeros. Any dimensionality.</td></tr>
                         <tr><td><code>Array.ones(*shape)</code></td><td class="desc">Array of ones.</td></tr>
                         <tr><td><code>Array.eye(n)</code></td><td class="desc">Identity matrix of size n × n.</td></tr>
-                        <tr><td><code>Array.full(*args, value)</code></td><td class="desc">Filled array. <code>rm.Array.full(3, 4, 2.5)</code></td></tr>
+                        <tr><td><code>Array.full(*args, value)</code></td><td class="desc">Filled array. Last arg is the fill value.</td></tr>
+                        <tr><td><code>Array.randn(*shape)</code></td><td class="desc">Standard normal random values.</td></tr>
+                        <tr><td><code>Array.rand_uniform(*shape)</code></td><td class="desc">Uniform random values in [0, 1).</td></tr>
+                        <tr><td><code>Array.arange(start, stop, step)</code></td><td class="desc">Range of values (1-D).</td></tr>
+                        <tr><td><code>Array.linspace(start, stop, num)</code></td><td class="desc">Evenly spaced values (1-D).</td></tr>
                         <tr><td><code>Array.from_flat(data, shape)</code></td><td class="desc">Create from a flat list and a shape tuple.</td></tr>
+                        <tr><td><code>Array.from_numpy(np_arr)</code></td><td class="desc">Import from NumPy ndarray.</td></tr>
+                        <tr><td><code>Array.from_torch(tensor)</code></td><td class="desc">Import from PyTorch CPU tensor.</td></tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">constructors.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># From nested lists</span>
+a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>], [<span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>]])
+<span class="kw">print</span>(a)
+<span class="cm"># Array([</span>
+<span class="cm">#        [ 1.0000,  2.0000,  3.0000],</span>
+<span class="cm">#        [ 4.0000,  5.0000,  6.0000]])</span>
+
+<span class="cm"># N-dimensional constructors</span>
+mat  = <span class="num">rm</span>.<span class="fn">Array</span>.zeros(<span class="num">3</span>, <span class="num">4</span>)           <span class="cm"># 2-D: shape [3, 4]</span>
+vol  = <span class="num">rm</span>.<span class="fn">Array</span>.ones(<span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>)        <span class="cm"># 3-D: shape [2, 3, 4]</span>
+batch = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">16</span>, <span class="num">3</span>, <span class="num">256</span>, <span class="num">256</span>) <span class="cm"># 4-D: shape [16, 3, 256, 256]</span>
+
+<span class="cm"># Identity and filled</span>
+I = <span class="num">rm</span>.<span class="fn">Array</span>.eye(<span class="num">3</span>)                 <span class="cm"># 3×3 identity</span>
+f = <span class="num">rm</span>.<span class="fn">Array</span>.full(<span class="num">2</span>, <span class="num">3</span>, <span class="num">7.0</span>)       <span class="cm"># 2×3 filled with 7.0</span>
+
+<span class="cm"># Ranges</span>
+r = <span class="num">rm</span>.<span class="fn">Array</span>.arange(<span class="num">0</span>, <span class="num">10</span>, <span class="num">2</span>)        <span class="cm"># [0, 2, 4, 6, 8]</span>
+l = <span class="num">rm</span>.<span class="fn">Array</span>.linspace(<span class="num">0</span>, <span class="num">1</span>, <span class="num">5</span>)      <span class="cm"># [0.0, 0.25, 0.5, 0.75, 1.0]</span></code></pre>
             </div>
         </section>
 
@@ -87,6 +118,29 @@ avg = a.<span class="fn">mean</span>()     <span class="cm"># global reduction</
                         <tr><td><code>.reshape(rows, cols)</code></td><td class="returns">Array</td><td class="desc">Reshape (raises ValueError if sizes don't match)</td></tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">shape_access.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>], [<span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>]])
+
+<span class="kw">print</span>(a.shape)       <span class="cm"># [2, 3]</span>
+<span class="kw">print</span>(a.<span class="fn">size</span>())       <span class="cm"># 6</span>
+<span class="kw">print</span>(a.<span class="fn">nrows</span>())      <span class="cm"># 2</span>
+<span class="kw">print</span>(a.<span class="fn">ncols</span>())      <span class="cm"># 3</span>
+<span class="kw">print</span>(a.<span class="fn">get</span>(<span class="num">0</span>, <span class="num">2</span>))    <span class="cm"># 3.0</span>
+<span class="kw">print</span>(a.<span class="fn">row</span>(<span class="num">1</span>))       <span class="cm"># [4.0, 5.0, 6.0]</span>
+<span class="kw">print</span>(a.<span class="fn">col</span>(<span class="num">0</span>))       <span class="cm"># [1.0, 4.0]</span>
+
+<span class="cm"># Reshape (no data copy)</span>
+flat = a.<span class="fn">reshape</span>([<span class="num">6</span>])       <span class="cm"># shape [6]</span>
+mat  = a.<span class="fn">reshape</span>([<span class="num">3</span>, <span class="num">2</span>])    <span class="cm"># shape [3, 2]</span>
+
+<span class="cm"># Transpose</span>
+t = a.<span class="fn">transpose</span>()
+<span class="kw">print</span>(t.shape)  <span class="cm"># [3, 2]</span></code></pre>
             </div>
         </section>
 
@@ -145,6 +199,21 @@ avg = a.<span class="fn">mean</span>()     <span class="cm"># global reduction</
                         <tr><td><code>-a</code></td><td colspan="3">Unary negation</td></tr>
                     </tbody>
                 </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">operators.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>]])
+b = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">5</span>, <span class="num">6</span>], [<span class="num">7</span>, <span class="num">8</span>]])
+
+c = a + b       <span class="cm"># [[6, 8], [10, 12]]</span>
+d = a * <span class="num">2.0</span>     <span class="cm"># [[2, 4], [6, 8]]  — scalar broadcast</span>
+e = a @ b       <span class="cm"># matrix multiply → [[19, 22], [43, 50]]</span>
+
+<span class="cm"># Chain operations</span>
+result = a.<span class="fn">sin</span>().<span class="fn">exp</span>().<span class="fn">clamp</span>(<span class="num">0.0</span>, <span class="num">1.0</span>)</code></pre>
             </div>
         </section>
 
@@ -208,6 +277,24 @@ avg = a.<span class="fn">mean</span>()     <span class="cm"># global reduction</
                     <tr><td><code>.correlation_matrix()</code></td><td class="desc">Pearson correlation</td></tr>
                 </tbody></table>
             </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">reductions.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>],
+              [<span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>]])
+
+<span class="cm"># Global reductions</span>
+<span class="kw">print</span>(a.<span class="fn">sum</span>())       <span class="cm"># 21.0</span>
+<span class="kw">print</span>(a.<span class="fn">mean</span>())      <span class="cm"># 3.5</span>
+<span class="kw">print</span>(a.<span class="fn">min</span>())       <span class="cm"># 1.0</span>
+<span class="kw">print</span>(a.<span class="fn">max</span>())       <span class="cm"># 6.0</span>
+
+<span class="cm"># Per-axis reductions</span>
+<span class="kw">print</span>(a.<span class="fn">row_sums</span>())   <span class="cm"># [6.0, 15.0]  — sum each row</span>
+<span class="kw">print</span>(a.<span class="fn">col_means</span>())  <span class="cm"># [2.5, 3.5, 4.5]  — mean each col</span></code></pre>
+            </div>
         </section>
 
         <section id="ml">
@@ -229,6 +316,24 @@ avg = a.<span class="fn">mean</span>()     <span class="cm"># global reduction</
                     <tr><td><code>.z_normalize()</code></td><td class="desc">Global z-score</td></tr>
                     <tr><td><code>.col_z_normalize()</code></td><td class="desc">Per-column z-score (StandardScaler)</td></tr>
                 </tbody></table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">ml_example.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># Simulated features (100 samples, 4 features)</span>
+X = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">4</span>)
+
+<span class="cm"># StandardScaler equivalent</span>
+X_norm = X.<span class="fn">col_z_normalize</span>()
+<span class="kw">print</span>(X_norm.<span class="fn">col_means</span>())    <span class="cm"># ≈ [0, 0, 0, 0]</span>
+<span class="kw">print</span>(X_norm.<span class="fn">col_std_dev</span>())  <span class="cm"># ≈ [1, 1, 1, 1]</span>
+
+<span class="cm"># Activations</span>
+logits = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>, <span class="num">3.0</span>]])
+<span class="kw">print</span>(logits.<span class="fn">softmax</span>())  <span class="cm"># [[0.09, 0.24, 0.67]]</span>
+<span class="kw">print</span>(logits.<span class="fn">sigmoid</span>())  <span class="cm"># [[0.73, 0.88, 0.95]]</span></code></pre>
             </div>
         </section>
 
@@ -267,6 +372,86 @@ det = <span class="num">ra</span>.<span class="fn">det</span>(I)</code></pre>
                     <tr><td><code>sum</code> · <code>mean</code> · <code>min</code> · <code>max</code> · <code>variance</code> · <code>std_dev</code></td></tr>
                     <tr><td><code>norm_fro</code> · <code>norm_l1</code> · <code>norm_inf</code></td></tr>
                 </tbody></table>
+            </div>
+        </section>
+
+        <section id="conversion">
+            <h2>Vector ↔ Array Conversion</h2>
+            <p>Move data freely between <code>Vector</code> (1-D) and <code>Array</code> (N-D) without leaving Rust.</p>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>Array(vector)</code></td><td>Vector → Array</td><td class="desc">Wrap a Vector as a 1-D Array</td></tr>
+                        <tr><td><code>arr.into_vector()</code></td><td>Array → Vector</td><td class="desc">Flatten a 1-D or 2-D Array into a Vector</td></tr>
+                        <tr><td><code>arr.to_flat_list()</code></td><td>Array → list</td><td class="desc">Flat Python list from any dimension</td></tr>
+                        <tr><td><code>arr.reshape([n])</code></td><td>N-D → 1-D</td><td class="desc">Reshape to 1-D without copy</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">vector_array.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># ── Vector → Array ──</span>
+v = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>])
+a = <span class="num">rm</span>.<span class="fn">Array</span>(v)              <span class="cm"># 1-D Array, shape [6]</span>
+mat = a.<span class="fn">reshape</span>([<span class="num">2</span>, <span class="num">3</span>])    <span class="cm"># reshape into 2×3 matrix</span>
+<span class="kw">print</span>(mat)
+<span class="cm"># Array([</span>
+<span class="cm">#        [ 1.0000,  2.0000,  3.0000],</span>
+<span class="cm">#        [ 4.0000,  5.0000,  6.0000]])</span>
+
+<span class="cm"># ── Array → Vector ──</span>
+back = mat.<span class="fn">into_vector</span>()
+<span class="kw">print</span>(back)  <span class="cm"># Vector([1, 2, 3, 4, 5, 6], len=6)</span>
+
+<span class="cm"># ── Use Vector tools on Array data ──</span>
+data = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">10</span>)
+flat = data.<span class="fn">into_vector</span>()
+
+<span class="cm"># Now you get Vector's unique features</span>
+sorted_data = flat.<span class="fn">sort</span>()
+top_10 = flat.<span class="fn">sort_desc</span>().<span class="fn">head</span>(<span class="num">10</span>)
+outliers = flat.<span class="fn">filter_gt</span>(<span class="num">2.0</span>)  <span class="cm"># elements > 2 std devs</span>
+
+<span class="cm"># ── Move back to Array for matrix ops ──</span>
+clean = <span class="num">rm</span>.<span class="fn">Array</span>(sorted_data).<span class="fn">reshape</span>([<span class="num">100</span>, <span class="num">10</span>])</code></pre>
+            </div>
+        </section>
+
+        <section id="interop-section">
+            <h2>Interop</h2>
+            <p>See the full <a href="interop.html">Interop page</a> for NumPy, PyTorch, JAX, pandas, and scikit-learn bridges.</p>
+            <div class="api-section">
+                <table class="api-table">
+                    <thead><tr><th>Method</th><th>Description</th></tr></thead>
+                    <tbody>
+                        <tr><td><code>.to_numpy()</code></td><td class="desc">Export to NumPy ndarray (single memcpy)</td></tr>
+                        <tr><td><code>.to_torch()</code></td><td class="desc">Export to PyTorch tensor (via NumPy)</td></tr>
+                        <tr><td><code>.to_jax()</code></td><td class="desc">Export to JAX array (via NumPy)</td></tr>
+                        <tr><td><code>.to_dataframe(columns=None)</code></td><td class="desc">Export to pandas DataFrame</td></tr>
+                        <tr><td><code>.into_vector()</code></td><td class="desc">Convert to 1-D Vector (max 2-D input)</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">interop_example.py</span></div>
+                <pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
+<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># NumPy → RMath → NumPy roundtrip</span>
+np_arr = np.<span class="fn">array</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>], [<span class="num">3.0</span>, <span class="num">4.0</span>]])
+rm_arr = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_numpy</span>(np_arr)
+back   = rm_arr.<span class="fn">to_numpy</span>()
+<span class="kw">assert</span> np.<span class="fn">allclose</span>(np_arr, back)  <span class="cm"># True</span>
+
+<span class="cm"># Works directly with sklearn (no manual conversion)</span>
+<span class="kw">from</span> sklearn.linear_model <span class="kw">import</span> LinearRegression
+model = LinearRegression()
+model.<span class="fn">fit</span>(<span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">50</span>, <span class="num">1</span>), <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">50</span>, <span class="num">1</span>))</code></pre>
             </div>
         </section>
 

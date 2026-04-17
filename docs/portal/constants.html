@@ -70,6 +70,21 @@ circumference = <span class="num">2</span> * <span class="num">rc</span>.PI * ra
                     <tr><td><code>NAN</code></td><td class="desc">Not-a-Number</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">precision.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<span class="kw">import</span> rmath.constants <span class="kw">as</span> <span class="num">rc</span>
+
+<span class="cm"># Safe division using epsilon</span>
+<span class="kw">def</span> <span class="fn">safe_divide</span>(a, b):
+    <span class="kw">return</span> a / (b + <span class="num">rc</span>.EPSILON_F64)
+
+<span class="cm"># Handling NaNs and Infinities</span>
+vec = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1.0</span>, <span class="num">rc</span>.INF, <span class="num">rc</span>.NAN])
+<span class="kw">print</span>(vec.<span class="fn">isinf</span>())  <span class="cm"># [False, True, False]</span>
+<span class="kw">print</span>(vec.<span class="fn">isnan</span>())  <span class="cm"># [False, False, True]</span></code></pre>
+            </div>
         </section>
         <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
     </main>

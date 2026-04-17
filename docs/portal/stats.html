@@ -56,6 +56,23 @@ t, p = <span class="num">rm</span>.stats.<span class="fn">t_test_independent</sp
                     <tr><td><code>describe(data)</code></td><td class="returns">dict</td><td class="desc">Full summary: count, mean, variance, std, skewness, kurtosis</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">descriptive.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+data = [<span class="num">2.4</span>, <span class="num">3.1</span>, <span class="num">2.8</span>, <span class="num">3.5</span>, <span class="num">2.9</span>, <span class="num">3.2</span>]
+
+<span class="kw">print</span>(<span class="num">rm</span>.stats.<span class="fn">mean</span>(data))      <span class="cm"># 2.983</span>
+<span class="kw">print</span>(<span class="num">rm</span>.stats.<span class="fn">median</span>(data))    <span class="cm"># 2.95</span>
+<span class="kw">print</span>(<span class="num">rm</span>.stats.<span class="fn">std_dev</span>(data))   <span class="cm"># 0.377</span>
+
+<span class="cm"># Full summary in one call</span>
+report = <span class="num">rm</span>.stats.<span class="fn">describe</span>(data)
+<span class="kw">print</span>(report)
+<span class="cm"># {'count': 6, 'mean': 2.98, 'variance': 0.14,</span>
+<span class="cm">#  'std': 0.37, 'skewness': 0.04, 'kurtosis': -1.28}</span></code></pre>
+            </div>
         </section>
 
         <section id="inferential">
@@ -70,6 +87,26 @@ t, p = <span class="num">rm</span>.stats.<span class="fn">t_test_independent</sp
                     <tr><td><code>anova_oneway(groups)</code></td><td class="returns">(F, df_between, df_within)</td><td class="desc">One-way ANOVA across groups</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">inferential.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+control = [<span class="num">2.1</span>, <span class="num">2.5</span>, <span class="num">2.3</span>, <span class="num">2.4</span>, <span class="num">2.2</span>]
+treatment = [<span class="num">3.1</span>, <span class="num">3.5</span>, <span class="num">3.3</span>, <span class="num">3.4</span>, <span class="num">3.2</span>]
+
+<span class="cm"># Welch's T-test</span>
+t_stat, p_val = <span class="num">rm</span>.stats.<span class="fn">t_test_independent</span>(control, treatment)
+<span class="kw">print</span>(<span class="str">f"t={t_stat:.3f}, p={p_val:.4f}"</span>)
+
+<span class="cm"># Correlation</span>
+r = <span class="num">rm</span>.stats.<span class="fn">correlation</span>(control, treatment)
+<span class="kw">print</span>(<span class="str">f"Pearson r = {r:.3f}"</span>)
+
+<span class="cm"># Spearman rank correlation</span>
+rho = <span class="num">rm</span>.stats.<span class="fn">spearman_correlation</span>(control, treatment)
+<span class="kw">print</span>(<span class="str">f"Spearman ρ = {rho:.3f}"</span>)</code></pre>
+            </div>
         </section>
 
         <section id="regression">
@@ -80,6 +117,18 @@ t, p = <span class="num">rm</span>.stats.<span class="fn">t_test_independent</sp
                     <tr><td><code>linear_regression(x, y)</code></td><td class="returns">dict</td><td class="desc">Returns <code>{'slope', 'intercept', 'r_squared'}</code></td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">regression.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+x = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>]
+y = [<span class="num">2.1</span>, <span class="num">3.9</span>, <span class="num">6.2</span>, <span class="num">7.8</span>, <span class="num">10.1</span>]
+
+result = <span class="num">rm</span>.stats.<span class="fn">linear_regression</span>(x, y)
+<span class="kw">print</span>(result)
+<span class="cm"># {'slope': 1.99, 'intercept': 0.02, 'r_squared': 0.998}</span></code></pre>
+            </div>
         </section>
 
         <section id="distributions">
@@ -111,6 +160,21 @@ t, p = <span class="num">rm</span>.stats.<span class="fn">t_test_independent</sp
                 <table class="api-table"><tbody>
                     <tr><td><code>.pdf(x)</code> · <code>.cdf(x)</code> · <code>.ppf(x)</code></td></tr>
                 </tbody></table>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">distributions.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># Standard normal distribution</span>
+normal = <span class="num">rm</span>.stats.<span class="fn">Normal</span>(<span class="num">0.0</span>, <span class="num">1.0</span>)
+<span class="kw">print</span>(normal.<span class="fn">pdf</span>(<span class="num">0.0</span>))   <span class="cm"># 0.3989 (peak of the bell curve)</span>
+<span class="kw">print</span>(normal.<span class="fn">cdf</span>(<span class="num">0.0</span>))   <span class="cm"># 0.5    (50% of area)</span>
+<span class="kw">print</span>(normal.<span class="fn">ppf</span>(<span class="num">0.975</span>)) <span class="cm"># 1.96   (95% confidence interval)</span>
+
+<span class="cm"># Poisson distribution (mean = 5 events/hour)</span>
+pois = <span class="num">rm</span>.stats.<span class="fn">Poisson</span>(<span class="num">5.0</span>)
+<span class="kw">print</span>(pois.<span class="fn">pmf</span>(<span class="num">3</span>))  <span class="cm"># P(X=3) = 0.1404</span></code></pre>
             </div>
         </section>
 

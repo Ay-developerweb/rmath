@@ -47,6 +47,40 @@ magnitudes = spectrum.<span class="fn">to_mags</span>()</code></pre>
                     <tr><td><code>convolve(signal, kernel, mode)</code></td><td class="returns">Vector</td><td class="desc">Convolution. <code>mode</code>: <code>"full"</code> (default), <code>"same"</code>, or <code>"valid"</code>.</td></tr>
                 </tbody>
             </table></div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">transforms.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+<span class="cm"># 1. Generate a noisy signal</span>
+t = <span class="num">rm</span>.<span class="fn">Vector</span>.linspace(<span class="num">0</span>, <span class="num">10</span>, <span class="num">500</span>)
+clean = t.<span class="fn">mul_scalar</span>(<span class="num">2.0</span>).<span class="fn">sin</span>()  <span class="cm"># 2Hz sine wave</span>
+noise = <span class="num">rm</span>.<span class="fn">Vector</span>.randn(<span class="num">500</span>).<span class="fn">mul_scalar</span>(<span class="num">0.5</span>)
+signal = clean + noise
+
+<span class="cm"># 2. To frequency domain</span>
+spectrum = <span class="num">rm</span>.signal.<span class="fn">fft</span>(signal)
+mags = spectrum.<span class="fn">to_mags</span>()
+<span class="kw">print</span>(mags.<span class="fn">max</span>())  <span class="cm"># peak at the 2Hz bin</span>
+
+<span class="cm"># 3. Low-pass filter (zero out high frequencies)</span>
+<span class="cm"># ... apply mask to spectrum ...</span>
+
+<span class="cm"># 4. Back to time domain</span>
+filtered_signal = <span class="num">rm</span>.signal.<span class="fn">ifft</span>(spectrum)</code></pre>
+            </div>
+
+            <div class="code-window">
+                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">convolution.py</span></div>
+                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+
+signal = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>])
+kernel = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">0.5</span>, <span class="num">1.0</span>, <span class="num">0.5</span>])
+
+<span class="cm"># 'valid' mode: only where kernel fully overlaps</span>
+smoothed = <span class="num">rm</span>.signal.<span class="fn">convolve</span>(signal, kernel, mode=<span class="str">"valid"</span>)
+<span class="kw">print</span>(smoothed.to_list())  <span class="cm"># [4.0, 6.0, 8.0]</span></code></pre>
+            </div>
         </section>
         <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
     </main>
