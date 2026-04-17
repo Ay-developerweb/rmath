@@ -47,8 +47,8 @@ impl Tensor {
         let mut arr = Tensor::extract_array_from_any(&data)?;
         if let Some(kw) = kwargs {
             if let Ok(Some(dt)) = kw.get_item("dtype") {
-                if let Ok(dt_str) = dt.extract::<&str>() {
-                    arr = arr.apply_dtype(Some(dt_str))?;
+                if let Ok(dt_str) = dt.extract::<String>() {
+                    arr = arr.apply_dtype(Some(&dt_str))?;
                 }
             }
         }
@@ -418,7 +418,7 @@ impl Tensor {
         let mut arr = Array::zeros_internal(&shape);
         if let Some(kw) = kwargs {
             if let Ok(Some(dt)) = kw.get_item("dtype") {
-                arr = arr.apply_dtype(Some(dt.extract::<&str>()?))?;
+                arr = arr.apply_dtype(Some(&dt.extract::<String>()?))?;
             }
         }
         Ok(Tensor::from_array(arr, requires_grad))
@@ -430,7 +430,7 @@ impl Tensor {
         let mut arr = Array::ones_internal(&shape);
         if let Some(kw) = kwargs {
             if let Ok(Some(dt)) = kw.get_item("dtype") {
-                arr = arr.apply_dtype(Some(dt.extract::<&str>()?))?;
+                arr = arr.apply_dtype(Some(&dt.extract::<String>()?))?;
             }
         }
         Ok(Tensor::from_array(arr, requires_grad))
@@ -442,7 +442,7 @@ impl Tensor {
         let mut arr = Array::randn(shape);
         if let Some(kw) = kwargs {
             if let Ok(Some(dt)) = kw.get_item("dtype") {
-                arr = arr.apply_dtype(Some(dt.extract::<&str>()?))?;
+                arr = arr.apply_dtype(Some(&dt.extract::<String>()?))?;
             }
         }
         Ok(Tensor::from_array(arr, requires_grad))

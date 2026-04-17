@@ -309,7 +309,7 @@ impl Array {
             let mut out = Self::from_flat(d, vec![v.len_internal()]);
             if let Some(kw) = kwargs {
                 if let Ok(Some(dt)) = kw.get_item("dtype") {
-                    if let Ok(dt_str) = dt.extract::<&str>() { out = out.apply_dtype(Some(dt_str))?; }
+                    if let Ok(dt_str) = dt.extract::<String>() { out = out.apply_dtype(Some(&dt_str))?; }
                 }
             }
             return Ok(out);
@@ -321,7 +321,7 @@ impl Array {
                 let mut out = Self::from_flat(vec![], vec![0, 0]);
                 if let Some(kw) = kwargs {
                     if let Ok(Some(dt)) = kw.get_item("dtype") {
-                        if let Ok(dt_str) = dt.extract::<&str>() { out = out.apply_dtype(Some(dt_str))?; }
+                        if let Ok(dt_str) = dt.extract::<String>() { out = out.apply_dtype(Some(&dt_str))?; }
                     }
                 }
                 return Ok(out);
@@ -354,7 +354,7 @@ impl Array {
                         let mut out = Self::from_flat(flat, vec![n_rows, n_cols]);
                         if let Some(kw) = kwargs {
                             if let Ok(Some(dt)) = kw.get_item("dtype") {
-                                out = out.apply_dtype(Some(dt.extract::<&str>()?))?;
+                                out = out.apply_dtype(Some(&dt.extract::<String>()?))?;
                             }
                         }
                         return Ok(out);
@@ -388,7 +388,7 @@ impl Array {
         let mut out = Self::from_flat(flat_data, shape);
         if let Some(kw) = kwargs {
             if let Ok(Some(dt)) = kw.get_item("dtype") {
-                out = out.apply_dtype(Some(dt.extract::<&str>()?))?;
+                out = out.apply_dtype(Some(&dt.extract::<String>()?))?;
             }
         }
         Ok(out)
@@ -402,7 +402,7 @@ impl Array {
         let mut arr = Self::zeros_internal(&shape);
         if let Some(kw) = kwargs {
             if let Ok(Some(dt)) = kw.get_item("dtype") {
-                arr = arr.apply_dtype(Some(dt.extract::<&str>()?))?;
+                arr = arr.apply_dtype(Some(&dt.extract::<String>()?))?;
             }
         }
         Ok(arr)
@@ -415,7 +415,7 @@ impl Array {
         let mut arr = Self::ones_internal(&shape);
         if let Some(kw) = kwargs {
             if let Ok(Some(dt)) = kw.get_item("dtype") {
-                arr = arr.apply_dtype(Some(dt.extract::<&str>()?))?;
+                arr = arr.apply_dtype(Some(&dt.extract::<String>()?))?;
             }
         }
         Ok(arr)
