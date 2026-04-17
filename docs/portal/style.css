@@ -27,6 +27,26 @@
     --ease: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+[data-theme="light"] {
+    --bg-main: #f8fafc;
+    --bg-surface: #ffffff;
+    --bg-card: rgba(255, 255, 255, 0.9);
+    --bg-sidebar: rgba(248, 250, 252, 0.95);
+    --bg-code: #f1f5f9;
+
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-dim: rgba(79, 70, 229, 0.08);
+    --accent-border: rgba(79, 70, 229, 0.2);
+    --cyan: #0891b2;
+
+    --text: #334155;
+    --text-dim: #64748b;
+    --text-heading: #0f172a;
+
+    --border: rgba(203, 213, 225, 0.8);
+}
+
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 html { scroll-behavior: smooth; }
@@ -92,6 +112,25 @@ a:hover { color: var(--accent-hover); }
     color: var(--text-dim);
     margin-left: 4px;
     font-weight: 400;
+}
+
+.theme-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-dim);
+    font-size: 1.1rem;
+    cursor: pointer;
+    padding: 4px;
+    border-radius: 6px;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.theme-toggle:hover {
+    background: var(--accent-dim);
+    color: var(--accent);
 }
 
 /* Search */

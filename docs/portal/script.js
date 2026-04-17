@@ -4,6 +4,30 @@ document.addEventListener('DOMContentLoaded', () => {
     const sidebar = document.getElementById('sidebar');
     const searchInput = document.getElementById('moduleSearch');
 
+    // 0. Theme Toggle
+    const currentTheme = localStorage.getItem('rmath-theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', currentTheme);
+
+    const themeBtn = document.createElement('button');
+    themeBtn.className = 'theme-toggle';
+    themeBtn.innerHTML = currentTheme === 'light' ? '🌙' : '☀️';
+    themeBtn.setAttribute('aria-label', 'Toggle theme');
+    
+    themeBtn.addEventListener('click', (e) => {
+        e.preventDefault();
+        const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+        const newTheme = isLight ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-theme', newTheme);
+        localStorage.setItem('rmath-theme', newTheme);
+        themeBtn.innerHTML = newTheme === 'light' ? '🌙' : '☀️';
+    });
+
+    const brand = document.querySelector('.sidebar-brand');
+    if (brand) {
+        brand.style.justifyContent = 'space-between';
+        brand.appendChild(themeBtn);
+    }
+
     // 1. Mobile Menu
     const toggle = document.createElement('button');
     toggle.className = 'menu-toggle';
