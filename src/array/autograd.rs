@@ -18,6 +18,7 @@ pub enum OpType {
     Tanh,
     Neg,
     Abs,
+    Mean,
     None, // For leaf nodes
 }
 
@@ -28,8 +29,20 @@ pub struct GraphNode {
 }
 
 /// Tensor wraps rmath::Array with Autograd capabilities.
-/// Shared state (RwLock) ensures updates are reflected across all clones.
-#[pyclass(module = "rmath")]
+/// 
+/// `Tensor` supports automatic differentiation by tracking operations 
+/// and building a dynamic computation graph. This allows for seamless 
+/// gradient computation for deep learning and optimization.
+///
+/// Examples:
+///     >>> import rmath.array as ra
+///     >>> x = ra.Tensor([1.0, 2.0], requires_grad=True)
+///     >>> y = x * 2 + 5
+///     >>> z = y.sum()
+///     >>> z.backward()
+///     >>> x.grad
+///     Array([2.0, 2.0])
+#[pyclass(module = "rmath.array")]
 #[derive(Clone)]
 pub struct Tensor {
     pub data_ptr: Arc<RwLock<Array>>,
@@ -83,6 +96,12 @@ impl Tensor {
         self.grad.lock().unwrap().clone()
     }
 
+    #[setter]
+    pub fn set_grad(&self, grad: Option<Array>) {
+        let mut g = self.grad.lock().unwrap();
+        *g = grad;
+    }
+
     /// Zero the gradient
     pub fn zero_grad(&self) {
         let mut g = self.grad.lock().unwrap();
@@ -128,7 +147,7 @@ impl Tensor {
         let mut visited = std::collections::HashSet::new();
         
         fn walk(tensor: &Tensor, topo: &mut Vec<Tensor>, visited: &mut std::collections::HashSet<usize>) {
-            let ptr = tensor as *const Tensor as usize;
+            let ptr = Arc::as_ptr(&tensor.data_ptr) as usize;
             if visited.contains(&ptr) { return; }
             visited.insert(ptr);
             
@@ -144,7 +163,14 @@ impl Tensor {
         topo
     }
 
-    /// Iterative backward implementation using topological sort
+    /// Compute gradients using backpropagation.
+    ///
+    /// This will traverse the computation graph from this tensor back to the leaves,
+    /// accumulating gradients in each tensor that has `requires_grad=True`.
+    ///
+    /// Example:
+    ///     >>> loss = (model(x) - y).pow(2).mean()
+    ///     >>> loss.backward()
     pub fn backward(&self) {
         if !self.requires_grad { return; }
         
@@ -358,7 +384,7 @@ impl Tensor {
         let res_data = Array::from_flat(vec![total / n], vec![1]);
         let mut res = Tensor::from_array(res_data, self.requires_grad);
         if res.requires_grad {
-            res.node = Some(Arc::new(GraphNode { op: OpType::Sum, inputs: vec![self.clone()] }));
+            res.node = Some(Arc::new(GraphNode { op: OpType::Mean, inputs: vec![self.clone()] }));
         }
         res
     }
@@ -401,6 +427,7 @@ impl Tensor {
                 OpType::Tanh => "Tanh",
                 OpType::Neg => "Neg",
                 OpType::Abs => "Abs",
+                OpType::Mean => "Mean",
                 OpType::None => "None",
             },
             None => "None",
@@ -512,25 +539,31 @@ impl Tensor {
                 }
             }
             OpType::Div => {
-                // Pure Rust backward — no Python::with_gil needed
-                // d/da (a/b) = 1/b,  d/db (a/b) = -a/b²
-                if node.inputs[0].requires_grad {
-                    let b_data = node.inputs[1].data_ptr.read().unwrap();
-                    let ig = grad.div_array_elementwise(&b_data).unwrap();
-                    drop(b_data);
-                    node.inputs[0].accumulate_grad(&ig);
+                let a = &node.inputs[0];
+                let b = &node.inputs[1];
+                
+                let mut a_grad_lock = a.grad.lock().unwrap();
+                let mut b_grad_lock = b.grad.lock().unwrap();
+                
+                // Ensure buffers exist if needed
+                if a.requires_grad && a_grad_lock.is_none() {
+                    let shape = a.data_ptr.read().unwrap().shape.clone();
+                    *a_grad_lock = Some(Array::zeros_internal(&shape));
                 }
-                if node.inputs[1].requires_grad {
-                    let a_data = node.inputs[0].data_ptr.read().unwrap();
-                    let b_data = node.inputs[1].data_ptr.read().unwrap();
-                    // -a / b²  =  -a * b^{-2}
-                    let b_sq = b_data.mul_array_elementwise(&b_data).unwrap();
-                    let a_neg = a_data.map_elements(|x| -x);
-                    drop(a_data); drop(b_data);
-                    let num = grad.mul_array_elementwise(&a_neg).unwrap();
-                    let ig = num.div_array_elementwise(&b_sq).unwrap();
-                    node.inputs[1].accumulate_grad(&ig);
+                if b.requires_grad && b_grad_lock.is_none() {
+                    let shape = b.data_ptr.read().unwrap().shape.clone();
+                    *b_grad_lock = Some(Array::zeros_internal(&shape));
                 }
+                
+                let a_data = a.data_ptr.read().unwrap();
+                let b_data = b.data_ptr.read().unwrap();
+
+                // Get direct mutable access to the gradient buffers
+                let da_acc = a_grad_lock.as_mut().map(|g| g.storage_slice_mut());
+                let db_acc = b_grad_lock.as_mut().map(|g| g.storage_slice_mut());
+                
+                // Execute zero-allocation fused kernel
+                a_data.div_backward_fused(&b_data, &grad, da_acc, db_acc);
             }
             OpType::MatMul => {
                 let a = &node.inputs[0];
@@ -572,6 +605,16 @@ impl Tensor {
                 let input = &node.inputs[0];
                 if input.requires_grad {
                     let grad_val = grad.data()[0];
+                    let shape = input.data_ptr.read().unwrap().shape.clone();
+                    let ig = Array::full_internal(&shape, grad_val);
+                    input.accumulate_grad(&ig);
+                }
+            }
+            OpType::Mean => {
+                let input = &node.inputs[0];
+                if input.requires_grad {
+                    let n = input.data_ptr.read().unwrap().len() as f64;
+                    let grad_val = grad.data()[0] / n;
                     let shape = input.data_ptr.read().unwrap().shape.clone();
                     let ig = Array::full_internal(&shape, grad_val);
                     input.accumulate_grad(&ig);
@@ -631,9 +674,10 @@ impl Tensor {
 
     fn accumulate_grad(&self, grad: &Array) {
         let mut g = self.grad.lock().unwrap();
-        *g = Some(match g.as_ref() {
-            Some(existing) => existing.add_array(grad).unwrap(),
-            None => grad.clone(),
-        });
+        if let Some(existing) = g.as_mut() {
+            existing.add_assign_array(grad).unwrap();
+        } else {
+            *g = Some(grad.clone());
+        }
     }
 }

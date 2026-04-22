@@ -3,461 +3,98 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rmath.array — RMath Documentation</title>
-    <meta name="description" content="API reference for rmath.array — N-dimensional array engine with automatic storage tiering.">
+    <title>rmath.array API Reference — RMath Docs</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="portal">
-    <aside class="sidebar" id="sidebar">
-        <a href="index.html" class="sidebar-brand">
-            <img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span>
+
+<nav class="navbar">
+    <div class="navbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <a href="index.html" class="nav-brand">
+            <img src="rmath_logo.svg" alt="RMath Logo" class="logo-img">
+            <span>RMath Docs</span>
         </a>
-        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
-        <nav id="sidebarNav">
-            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
-            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link active"><code>rmath.array</code></a><a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link"><code>Interop</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">On this page</div><a href="#overview" class="nav-link">Overview</a><a href="#constructors" class="nav-link">Constructors</a><a href="#shape" class="nav-link">Shape &amp; Access</a><a href="#math" class="nav-link">Element-wise Math</a><a href="#operators" class="nav-link">Operators</a><a href="#matrix" class="nav-link">Matrix Operations</a><a href="#reductions" class="nav-link">Reductions</a><a href="#ml" class="nav-link">ML / Normalization</a><a href="#predicates" class="nav-link">Predicates</a><a href="#functional" class="nav-link">Functional API</a></div>
-        </nav>
-    </aside>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">User Guide</a>
+            <a href="array.html" class="nav-link active">API Reference</a>
+            <a href="theory.html" class="nav-link">Theory</a>
+            <a href="interop.html" class="nav-link">Interop</a>
+            <a href="benchmarks.html" class="nav-link">Performance</a>
+        </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+</nav>
 
-    <main class="content">
-        <section id="overview" class="hero">
-            <div class="badge">Core Module</div>
-            <h1>rmath.<span class="gradient-text">array</span></h1>
-            <p class="hero-sub">
-                N-dimensional array engine. Flat contiguous <code>Vec&lt;f64&gt;</code> storage
-                with a separate shape vector. All element-wise operations parallelized via Rayon
-                when N &ge; 8,192. Supports 1-D, 2-D, and arbitrary N-D shapes.
-            </p>
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">example.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="index.html" class="sidebar-link">What is RMath?</a>
+        <a href="install.html" class="sidebar-link">Installation Guide</a>
+        <a href="quickstart.html" class="sidebar-link">RMath Quickstart</a>
+        <a href="foundations.html" class="sidebar-link">The RMath Engine</a>
+    </div>
 
-a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>]])
-b = <span class="num">rm</span>.<span class="fn">Array</span>.eye(<span class="num">2</span>)
+    <div class="sidebar-section">
+        <div class="sidebar-title">Core Modules</div>
+        <a href="array.html" class="sidebar-link active">rmath.array</a>
+        <a href="vector.html" class="sidebar-link">rmath.vector</a>
+        <a href="tensor.html" class="sidebar-link">rmath.Tensor</a>
+        <a href="scalar.html" class="sidebar-link">rmath.scalar</a>
+        <a href="constants.html" class="sidebar-link">rmath.constants</a>
+    </div>
 
-c = a @ b          <span class="cm"># matrix multiply</span>
-d = a.<span class="fn">sin</span>().<span class="fn">exp</span>()  <span class="cm"># element-wise chain</span>
-avg = a.<span class="fn">mean</span>()     <span class="cm"># global reduction</span></code></pre>
-            </div>
-        </section>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Advanced Usage</div>
+        <a href="linalg.html" class="sidebar-link">Linear Algebra</a>
+        <a href="stats.html" class="sidebar-link">Statistics</a>
+        <a href="calculus.html" class="sidebar-link">Calculus & AD</a>
+        <a href="nn.html" class="sidebar-link">Neural Networks</a>
+        <a href="signal.html" class="sidebar-link">Signal Processing</a>
+        <a href="geometry.html" class="sidebar-link">Geometry</a>
+        <a href="special.html" class="sidebar-link">Special Functions</a>
+    </div>
+</aside>
 
-        <section id="constructors">
-            <h2>Constructors</h2>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Signature</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>Array(data)</code></td><td class="desc">Create from nested lists, a Vector, or a scalar.</td></tr>
-                        <tr><td><code>Array.zeros(*shape)</code></td><td class="desc">Array of zeros. Any dimensionality.</td></tr>
-                        <tr><td><code>Array.ones(*shape)</code></td><td class="desc">Array of ones.</td></tr>
-                        <tr><td><code>Array.eye(n)</code></td><td class="desc">Identity matrix of size n × n.</td></tr>
-                        <tr><td><code>Array.full(*args, value)</code></td><td class="desc">Filled array. Last arg is the fill value.</td></tr>
-                        <tr><td><code>Array.randn(*shape)</code></td><td class="desc">Standard normal random values.</td></tr>
-                        <tr><td><code>Array.rand_uniform(*shape)</code></td><td class="desc">Uniform random values in [0, 1).</td></tr>
-                        <tr><td><code>Array.arange(start, stop, step)</code></td><td class="desc">Range of values (1-D).</td></tr>
-                        <tr><td><code>Array.linspace(start, stop, num)</code></td><td class="desc">Evenly spaced values (1-D).</td></tr>
-                        <tr><td><code>Array.from_flat(data, shape)</code></td><td class="desc">Create from a flat list and a shape tuple.</td></tr>
-                        <tr><td><code>Array.from_numpy(np_arr)</code></td><td class="desc">Import from NumPy ndarray.</td></tr>
-                        <tr><td><code>Array.from_torch(tensor)</code></td><td class="desc">Import from PyTorch CPU tensor.</td></tr>
-                    </tbody>
-                </table>
-            </div>
+<main class="container">
+    <h1>rmath.array API Reference</h1>
+    <p>
+        The <code>rmath.array</code> module is the foundation of RMath. It provides 
+        parallel N-dimensional arrays with shared memory tiers.
+    </p>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">constructors.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+    <h2>Creation</h2>
+    <div class="proven-code">
+        <div class="code-header">
+            <span>creation.py</span>
+        </div>
+        <pre><code><span class="token-keyword">import</span> rmath.array <span class="token-keyword">as</span> ra
 
-<span class="cm"># From nested lists</span>
-a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>], [<span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>]])
-<span class="kw">print</span>(a)
-<span class="cm"># Array([</span>
-<span class="cm">#        [ 1.0000,  2.0000,  3.0000],</span>
-<span class="cm">#        [ 4.0000,  5.0000,  6.0000]])</span>
+<span class="token-comment"># Multiple constructors</span>
+z = ra.zeros(<span class="token-number">5</span>, <span class="token-number">5</span>)
+o = ra.ones(<span class="token-number">10</span>, <span class="token-number">10</span>)
+r = ra.randn(<span class="token-number">100</span>, <span class="token-number">100</span>)
 
-<span class="cm"># N-dimensional constructors</span>
-mat  = <span class="num">rm</span>.<span class="fn">Array</span>.zeros(<span class="num">3</span>, <span class="num">4</span>)           <span class="cm"># 2-D: shape [3, 4]</span>
-vol  = <span class="num">rm</span>.<span class="fn">Array</span>.ones(<span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>)        <span class="cm"># 3-D: shape [2, 3, 4]</span>
-batch = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">16</span>, <span class="num">3</span>, <span class="num">256</span>, <span class="num">256</span>) <span class="cm"># 4-D: shape [16, 3, 256, 256]</span>
+<span class="token-builtin">print</span>(<span class="token-string">f"Random mean: {r.mean():.4f}"</span>)</code></pre>
+        <div class="code-output">
+Random mean: -0.0012
+        </div>
+    </div>
 
-<span class="cm"># Identity and filled</span>
-I = <span class="num">rm</span>.<span class="fn">Array</span>.eye(<span class="num">3</span>)                 <span class="cm"># 3×3 identity</span>
-f = <span class="num">rm</span>.<span class="fn">Array</span>.full(<span class="num">2</span>, <span class="num">3</span>, <span class="num">7.0</span>)       <span class="cm"># 2×3 filled with 7.0</span>
+    <h2>API Reference</h2>
+    <table>
+        <thead><tr><th>Function</th><th>Description</th></tr></thead>
+        <tbody>
+            <tr><td><code>zeros(*shape)</code></td><td>Array of zeros.</td></tr>
+            <tr><td><code>ones(*shape)</code></td><td>Array of ones.</td></tr>
+            <tr><td><code>randn(*shape)</code></td><td>Normal random samples.</td></tr>
+            <tr><td><code>arange(s, e, d)</code></td><td>Step-wise sequence.</td></tr>
+        </tbody>
+    </table>
+</main>
 
-<span class="cm"># Ranges</span>
-r = <span class="num">rm</span>.<span class="fn">Array</span>.arange(<span class="num">0</span>, <span class="num">10</span>, <span class="num">2</span>)        <span class="cm"># [0, 2, 4, 6, 8]</span>
-l = <span class="num">rm</span>.<span class="fn">Array</span>.linspace(<span class="num">0</span>, <span class="num">1</span>, <span class="num">5</span>)      <span class="cm"># [0.0, 0.25, 0.5, 0.75, 1.0]</span></code></pre>
-            </div>
-        </section>
-
-        <section id="shape">
-            <h2>Shape &amp; Data Access</h2>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>.shape()</code></td><td class="returns">tuple[int, ...]</td><td class="desc">Dimensions of the array</td></tr>
-                        <tr><td><code>.size()</code></td><td class="returns">int</td><td class="desc">Total number of elements</td></tr>
-                        <tr><td><code>.nrows()</code></td><td class="returns">int</td><td class="desc">Number of rows</td></tr>
-                        <tr><td><code>.ncols()</code></td><td class="returns">int</td><td class="desc">Number of columns</td></tr>
-                        <tr><td><code>.to_list()</code></td><td class="returns">list[list[float]]</td><td class="desc">Convert to nested Python lists</td></tr>
-                        <tr><td><code>.flatten()</code></td><td class="returns">list[float]</td><td class="desc">Flat 1D list of all elements</td></tr>
-                        <tr><td><code>.row(i)</code></td><td class="returns">list[float]</td><td class="desc">Extract row i (raises IndexError)</td></tr>
-                        <tr><td><code>.col(j)</code></td><td class="returns">list[float]</td><td class="desc">Extract column j (raises IndexError)</td></tr>
-                        <tr><td><code>.get(i, j)</code></td><td class="returns">float</td><td class="desc">Element at (i, j)</td></tr>
-                        <tr><td><code>.diag_extract()</code></td><td class="returns">list[float]</td><td class="desc">Main diagonal (square only)</td></tr>
-                        <tr><td><code>.triu()</code></td><td class="returns">Array</td><td class="desc">Upper triangular</td></tr>
-                        <tr><td><code>.tril()</code></td><td class="returns">Array</td><td class="desc">Lower triangular</td></tr>
-                        <tr><td><code>.reshape(rows, cols)</code></td><td class="returns">Array</td><td class="desc">Reshape (raises ValueError if sizes don't match)</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">shape_access.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>], [<span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>]])
-
-<span class="kw">print</span>(a.shape)       <span class="cm"># [2, 3]</span>
-<span class="kw">print</span>(a.<span class="fn">size</span>())       <span class="cm"># 6</span>
-<span class="kw">print</span>(a.<span class="fn">nrows</span>())      <span class="cm"># 2</span>
-<span class="kw">print</span>(a.<span class="fn">ncols</span>())      <span class="cm"># 3</span>
-<span class="kw">print</span>(a.<span class="fn">get</span>(<span class="num">0</span>, <span class="num">2</span>))    <span class="cm"># 3.0</span>
-<span class="kw">print</span>(a.<span class="fn">row</span>(<span class="num">1</span>))       <span class="cm"># [4.0, 5.0, 6.0]</span>
-<span class="kw">print</span>(a.<span class="fn">col</span>(<span class="num">0</span>))       <span class="cm"># [1.0, 4.0]</span>
-
-<span class="cm"># Reshape (no data copy)</span>
-flat = a.<span class="fn">reshape</span>([<span class="num">6</span>])       <span class="cm"># shape [6]</span>
-mat  = a.<span class="fn">reshape</span>([<span class="num">3</span>, <span class="num">2</span>])    <span class="cm"># shape [3, 2]</span>
-
-<span class="cm"># Transpose</span>
-t = a.<span class="fn">transpose</span>()
-<span class="kw">print</span>(t.shape)  <span class="cm"># [3, 2]</span></code></pre>
-            </div>
-        </section>
-
-        <section id="math">
-            <h2>Element-wise Math</h2>
-            <p>All operations return a new Array. Parallelized via Rayon.</p>
-            <div class="api-section">
-                <div class="api-section-title">Rounding</div>
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>.abs()</code></td><td class="desc">Absolute value</td></tr>
-                        <tr><td><code>.sqrt()</code></td><td class="desc">Square root</td></tr>
-                        <tr><td><code>.cbrt()</code></td><td class="desc">Cube root</td></tr>
-                        <tr><td><code>.ceil()</code></td><td class="desc">Round up</td></tr>
-                        <tr><td><code>.floor()</code></td><td class="desc">Round down</td></tr>
-                        <tr><td><code>.round()</code></td><td class="desc">Round to nearest</td></tr>
-                        <tr><td><code>.trunc()</code></td><td class="desc">Truncate toward zero</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Trigonometric</div>
-                <table class="api-table">
-                    <thead><tr><th>Method</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>.sin()</code> · <code>.cos()</code> · <code>.tan()</code> · <code>.asin()</code> · <code>.acos()</code> · <code>.atan()</code></td></tr>
-                        <tr><td><code>.sinh()</code> · <code>.cosh()</code> · <code>.tanh()</code></td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Exponential &amp; Logarithmic</div>
-                <table class="api-table">
-                    <thead><tr><th>Method</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>.exp()</code> · <code>.exp2()</code> · <code>.expm1()</code></td></tr>
-                        <tr><td><code>.log()</code> · <code>.log2()</code> · <code>.log10()</code> · <code>.log1p()</code></td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <section id="operators">
-            <h2>Operators</h2>
-            <p>Supports scalar broadcast and Array-Array operations.</p>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Operator</th><th>Left</th><th>Right</th><th>Explicit</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>+</code></td><td>Array</td><td>float | Array</td><td><code>.add_scalar(s)</code> / <code>.add_array(b)</code></td></tr>
-                        <tr><td><code>-</code></td><td>Array</td><td>float | Array</td><td><code>.sub_scalar(s)</code> / <code>.sub_array(b)</code></td></tr>
-                        <tr><td><code>*</code></td><td>Array</td><td>float | Array</td><td><code>.mul_scalar(s)</code> / <code>.mul_array(b)</code></td></tr>
-                        <tr><td><code>/</code></td><td>Array</td><td>float | Array</td><td><code>.div_scalar(s)</code> / <code>.div_array(b)</code></td></tr>
-                        <tr><td><code>@</code></td><td>Array</td><td>Array</td><td><code>.matmul(b)</code></td></tr>
-                        <tr><td><code>-a</code></td><td colspan="3">Unary negation</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">operators.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>]])
-b = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">5</span>, <span class="num">6</span>], [<span class="num">7</span>, <span class="num">8</span>]])
-
-c = a + b       <span class="cm"># [[6, 8], [10, 12]]</span>
-d = a * <span class="num">2.0</span>     <span class="cm"># [[2, 4], [6, 8]]  — scalar broadcast</span>
-e = a @ b       <span class="cm"># matrix multiply → [[19, 22], [43, 50]]</span>
-
-<span class="cm"># Chain operations</span>
-result = a.<span class="fn">sin</span>().<span class="fn">exp</span>().<span class="fn">clamp</span>(<span class="num">0.0</span>, <span class="num">1.0</span>)</code></pre>
-            </div>
-        </section>
-
-        <section id="matrix">
-            <h2>Matrix Operations</h2>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>.transpose()</code></td><td class="returns">Array</td><td class="desc">Matrix transpose</td></tr>
-                        <tr><td><code>.matmul(b)</code></td><td class="returns">Array</td><td class="desc">Matrix multiplication</td></tr>
-                        <tr><td><code>.trace()</code></td><td class="returns">float</td><td class="desc">Sum of diagonal (square only)</td></tr>
-                        <tr><td><code>.det()</code></td><td class="returns">float</td><td class="desc">Determinant (square only)</td></tr>
-                        <tr><td><code>.inv()</code></td><td class="returns">Array</td><td class="desc">Matrix inverse (non-singular)</td></tr>
-                        <tr><td><code>.solve(b)</code></td><td class="returns">list[float]</td><td class="desc">Solve Ax = b</td></tr>
-                        <tr><td><code>.pow_scalar(exp)</code></td><td class="returns">Array</td><td class="desc">Element-wise power</td></tr>
-                        <tr><td><code>.clamp(lo, hi)</code></td><td class="returns">Array</td><td class="desc">Clamp all elements to [lo, hi]</td></tr>
-                    </tbody>
-                </table>
-            </div>
-        </section>
-
-        <section id="reductions">
-            <h2>Reductions</h2>
-            <div class="api-section">
-                <div class="api-section-title">Global</div>
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Returns</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>.sum()</code> · <code>.prod()</code> · <code>.mean()</code></td><td class="returns">float</td></tr>
-                        <tr><td><code>.variance()</code> · <code>.std_dev()</code></td><td class="returns">float</td></tr>
-                        <tr><td><code>.min()</code> · <code>.max()</code></td><td class="returns">float</td></tr>
-                        <tr><td><code>.norm_fro()</code> · <code>.norm_l1()</code> · <code>.norm_inf()</code></td><td class="returns">float</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Per-axis (returns list[float])</div>
-                <table class="api-table">
-                    <thead><tr><th>Row-wise</th><th>Column-wise</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>.row_sums()</code></td><td><code>.col_sums()</code></td></tr>
-                        <tr><td><code>.row_means()</code></td><td><code>.col_means()</code></td></tr>
-                        <tr><td><code>.row_min()</code></td><td><code>.col_min()</code></td></tr>
-                        <tr><td><code>.row_max()</code></td><td><code>.col_max()</code></td></tr>
-                        <tr><td><code>.row_variance()</code></td><td><code>.col_variance()</code></td></tr>
-                        <tr><td><code>.row_std_dev()</code></td><td><code>.col_std_dev()</code></td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Cumulative (row-wise)</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>.cumsum()</code> · <code>.cumprod()</code></td><td class="returns">Array</td></tr>
-                </tbody></table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Matrix statistics</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>.covariance_matrix()</code></td><td class="desc">Requires ≥2 rows</td></tr>
-                    <tr><td><code>.correlation_matrix()</code></td><td class="desc">Pearson correlation</td></tr>
-                </tbody></table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">reductions.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>],
-              [<span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>]])
-
-<span class="cm"># Global reductions</span>
-<span class="kw">print</span>(a.<span class="fn">sum</span>())       <span class="cm"># 21.0</span>
-<span class="kw">print</span>(a.<span class="fn">mean</span>())      <span class="cm"># 3.5</span>
-<span class="kw">print</span>(a.<span class="fn">min</span>())       <span class="cm"># 1.0</span>
-<span class="kw">print</span>(a.<span class="fn">max</span>())       <span class="cm"># 6.0</span>
-
-<span class="cm"># Per-axis reductions</span>
-<span class="kw">print</span>(a.<span class="fn">row_sums</span>())   <span class="cm"># [6.0, 15.0]  — sum each row</span>
-<span class="kw">print</span>(a.<span class="fn">col_means</span>())  <span class="cm"># [2.5, 3.5, 4.5]  — mean each col</span></code></pre>
-            </div>
-        </section>
-
-        <section id="ml">
-            <h2>ML &amp; Normalization</h2>
-            <div class="api-section">
-                <div class="api-section-title">Activations</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>.sigmoid()</code></td><td class="desc">Logistic sigmoid</td></tr>
-                    <tr><td><code>.relu()</code></td><td class="desc">Rectified linear unit</td></tr>
-                    <tr><td><code>.leaky_relu(alpha)</code></td><td class="desc">Leaky ReLU with given slope</td></tr>
-                    <tr><td><code>.softmax()</code></td><td class="desc">Row-wise softmax (numerically stable)</td></tr>
-                </tbody></table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Normalization</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>.normalize()</code></td><td class="desc">Global min-max to [0, 1]</td></tr>
-                    <tr><td><code>.col_normalize()</code></td><td class="desc">Per-column min-max (MinMaxScaler)</td></tr>
-                    <tr><td><code>.z_normalize()</code></td><td class="desc">Global z-score</td></tr>
-                    <tr><td><code>.col_z_normalize()</code></td><td class="desc">Per-column z-score (StandardScaler)</td></tr>
-                </tbody></table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">ml_example.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-<span class="cm"># Simulated features (100 samples, 4 features)</span>
-X = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">4</span>)
-
-<span class="cm"># StandardScaler equivalent</span>
-X_norm = X.<span class="fn">col_z_normalize</span>()
-<span class="kw">print</span>(X_norm.<span class="fn">col_means</span>())    <span class="cm"># ≈ [0, 0, 0, 0]</span>
-<span class="kw">print</span>(X_norm.<span class="fn">col_std_dev</span>())  <span class="cm"># ≈ [1, 1, 1, 1]</span>
-
-<span class="cm"># Activations</span>
-logits = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>, <span class="num">3.0</span>]])
-<span class="kw">print</span>(logits.<span class="fn">softmax</span>())  <span class="cm"># [[0.09, 0.24, 0.67]]</span>
-<span class="kw">print</span>(logits.<span class="fn">sigmoid</span>())  <span class="cm"># [[0.73, 0.88, 0.95]]</span></code></pre>
-            </div>
-        </section>
-
-        <section id="predicates">
-            <h2>Predicates</h2>
-            <div class="api-section">
-                <table class="api-table"><tbody>
-                    <tr><td><code>.isnan()</code></td><td class="returns">list[list[bool]]</td><td class="desc">Element-wise NaN check</td></tr>
-                    <tr><td><code>.isfinite()</code></td><td class="returns">list[list[bool]]</td><td class="desc">Element-wise finite check</td></tr>
-                    <tr><td><code>.isinf()</code></td><td class="returns">list[list[bool]]</td><td class="desc">Element-wise infinity check</td></tr>
-                    <tr><td><code>.any_nan()</code></td><td class="returns">bool</td><td class="desc">True if any element is NaN</td></tr>
-                    <tr><td><code>.all_finite()</code></td><td class="returns">bool</td><td class="desc">True if all elements are finite</td></tr>
-                </tbody></table>
-            </div>
-        </section>
-
-        <section id="functional">
-            <h2>Functional API</h2>
-            <p>Module-level functions in <code>rmath.array</code>:</p>
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">functional.py</span></div>
-                <pre><code><span class="kw">import</span> rmath.array <span class="kw">as</span> <span class="num">ra</span>
-
-z = <span class="num">ra</span>.<span class="fn">zeros</span>(<span class="num">3</span>, <span class="num">4</span>)
-I = <span class="num">ra</span>.<span class="fn">eye</span>(<span class="num">5</span>)
-d = <span class="num">ra</span>.<span class="fn">diag</span>([<span class="num">1.0</span>, <span class="num">2.0</span>, <span class="num">3.0</span>])
-t = <span class="num">ra</span>.<span class="fn">transpose</span>(z)
-det = <span class="num">ra</span>.<span class="fn">det</span>(I)</code></pre>
-            </div>
-            <div class="api-section">
-                <table class="api-table"><tbody>
-                    <tr><td><code>zeros(r, c)</code> · <code>ones(r, c)</code> · <code>eye(n)</code> · <code>full(r, c, v)</code> · <code>diag(vals)</code></td></tr>
-                    <tr><td><code>transpose(a)</code> · <code>matmul(a, b)</code> · <code>trace(a)</code> · <code>det(a)</code> · <code>inv(a)</code> · <code>solve(a, b)</code></td></tr>
-                    <tr><td><code>add_scalar</code> · <code>sub_scalar</code> · <code>mul_scalar</code> · <code>div_scalar</code></td></tr>
-                    <tr><td><code>add_array</code> · <code>sub_array</code> · <code>mul_array</code> · <code>div_array</code></td></tr>
-                    <tr><td><code>sum</code> · <code>mean</code> · <code>min</code> · <code>max</code> · <code>variance</code> · <code>std_dev</code></td></tr>
-                    <tr><td><code>norm_fro</code> · <code>norm_l1</code> · <code>norm_inf</code></td></tr>
-                </tbody></table>
-            </div>
-        </section>
-
-        <section id="conversion">
-            <h2>Vector ↔ Array Conversion</h2>
-            <p>Move data freely between <code>Vector</code> (1-D) and <code>Array</code> (N-D) without leaving Rust.</p>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>Array(vector)</code></td><td>Vector → Array</td><td class="desc">Wrap a Vector as a 1-D Array</td></tr>
-                        <tr><td><code>arr.into_vector()</code></td><td>Array → Vector</td><td class="desc">Flatten a 1-D or 2-D Array into a Vector</td></tr>
-                        <tr><td><code>arr.to_flat_list()</code></td><td>Array → list</td><td class="desc">Flat Python list from any dimension</td></tr>
-                        <tr><td><code>arr.reshape([n])</code></td><td>N-D → 1-D</td><td class="desc">Reshape to 1-D without copy</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">vector_array.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-<span class="cm"># ── Vector → Array ──</span>
-v = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>])
-a = <span class="num">rm</span>.<span class="fn">Array</span>(v)              <span class="cm"># 1-D Array, shape [6]</span>
-mat = a.<span class="fn">reshape</span>([<span class="num">2</span>, <span class="num">3</span>])    <span class="cm"># reshape into 2×3 matrix</span>
-<span class="kw">print</span>(mat)
-<span class="cm"># Array([</span>
-<span class="cm">#        [ 1.0000,  2.0000,  3.0000],</span>
-<span class="cm">#        [ 4.0000,  5.0000,  6.0000]])</span>
-
-<span class="cm"># ── Array → Vector ──</span>
-back = mat.<span class="fn">into_vector</span>()
-<span class="kw">print</span>(back)  <span class="cm"># Vector([1, 2, 3, 4, 5, 6], len=6)</span>
-
-<span class="cm"># ── Use Vector tools on Array data ──</span>
-data = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">10</span>)
-flat = data.<span class="fn">into_vector</span>()
-
-<span class="cm"># Now you get Vector's unique features</span>
-sorted_data = flat.<span class="fn">sort</span>()
-top_10 = flat.<span class="fn">sort_desc</span>().<span class="fn">head</span>(<span class="num">10</span>)
-outliers = flat.<span class="fn">filter_gt</span>(<span class="num">2.0</span>)  <span class="cm"># elements > 2 std devs</span>
-
-<span class="cm"># ── Move back to Array for matrix ops ──</span>
-clean = <span class="num">rm</span>.<span class="fn">Array</span>(sorted_data).<span class="fn">reshape</span>([<span class="num">100</span>, <span class="num">10</span>])</code></pre>
-            </div>
-        </section>
-
-        <section id="interop-section">
-            <h2>Interop</h2>
-            <p>See the full <a href="interop.html">Interop page</a> for NumPy, PyTorch, JAX, pandas, and scikit-learn bridges.</p>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>.to_numpy()</code></td><td class="desc">Export to NumPy ndarray (single memcpy)</td></tr>
-                        <tr><td><code>.to_torch()</code></td><td class="desc">Export to PyTorch tensor (via NumPy)</td></tr>
-                        <tr><td><code>.to_jax()</code></td><td class="desc">Export to JAX array (via NumPy)</td></tr>
-                        <tr><td><code>.to_dataframe(columns=None)</code></td><td class="desc">Export to pandas DataFrame</td></tr>
-                        <tr><td><code>.into_vector()</code></td><td class="desc">Convert to 1-D Vector (max 2-D input)</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">interop_example.py</span></div>
-                <pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
-<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-<span class="cm"># NumPy → RMath → NumPy roundtrip</span>
-np_arr = np.<span class="fn">array</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>], [<span class="num">3.0</span>, <span class="num">4.0</span>]])
-rm_arr = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_numpy</span>(np_arr)
-back   = rm_arr.<span class="fn">to_numpy</span>()
-<span class="kw">assert</span> np.<span class="fn">allclose</span>(np_arr, back)  <span class="cm"># True</span>
-
-<span class="cm"># Works directly with sklearn (no manual conversion)</span>
-<span class="kw">from</span> sklearn.linear_model <span class="kw">import</span> LinearRegression
-model = LinearRegression()
-model.<span class="fn">fit</span>(<span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">50</span>, <span class="num">1</span>), <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">50</span>, <span class="num">1</span>))</code></pre>
-            </div>
-        </section>
-
-        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
-    </main>
-</div>
 <script src="script.js"></script>
 </body>
 </html>

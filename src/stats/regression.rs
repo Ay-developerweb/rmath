@@ -5,6 +5,7 @@ use std::collections::HashMap;
 /// Perform simple linear regression on two variables.
 ///
 /// Returns a dictionary containing the slope, intercept, and R-squared values.
+/// Calculates the best-fit line using the ordinary least squares (OLS) method.
 ///
 /// Examples:
 ///     >>> from rmath.stats import linear_regression

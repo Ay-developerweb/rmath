@@ -4,18 +4,26 @@ use std::collections::hash_map::DefaultHasher;
 use crate::scalar::core::Scalar;
 
 // ---------------------------------------------------------------------------
-// Complex number: re + im·i, backed by two f64 values (16 bytes on stack).
-//
-// Distinct from Scalar by design — users working purely in ℝ never pay the
-// branch-prediction or cognitive cost of complex arithmetic paths.
-//
-// Implements the full Python numeric protocol:
-//   - All arithmetic operators and their reflected forms
-//   - __abs__, __neg__, __pos__, __bool__
-//   - __hash__, __eq__, __ne__
-//   - __complex__ for Python builtin interop
-//   - Mathematical methods: log, sqrt, pow, sin, cos
-//   - Polar coordinate form: to_polar() / from_polar()
+/// A high-performance complex number (re + im·i) backed by Rust.
+///
+/// Distinct from `Scalar` by design — users working purely in ℝ never pay the
+/// branch-prediction or cognitive cost of complex arithmetic paths.
+///
+/// Implements the full Python numeric protocol:
+///   - All arithmetic operators and their reflected forms
+///   - __abs__, __neg__, __pos__, __bool__
+///   - __hash__, __eq__, __ne__
+///   - __complex__ for Python builtin interop
+///   - Mathematical methods: log, sqrt, pow, sin, cos
+///   - Polar coordinate form: to_polar() / from_polar()
+///
+/// # Examples
+/// ```python
+/// from rmath import Complex
+/// z = Complex(3.0, 4.0)
+/// print(z.abs())      # 5.0
+/// print(z.exp())      # Complex with Euler's identity
+/// ```
 // ---------------------------------------------------------------------------
 
 // ---------------------------------------------------------------------------
@@ -44,7 +52,26 @@ fn extract_complex(obj: &Bound<'_, PyAny>) -> PyResult<Complex> {
     )))
 }
 
-#[pyclass(module = "rmath")]
+/// A high-performance complex number (re + im·i) backed by Rust.
+///
+/// Distinct from `Scalar` by design — users working purely in ℝ never pay the
+/// branch-prediction or cognitive cost of complex arithmetic paths.
+///
+/// Implements the full Python numeric protocol:
+///   - All arithmetic operators and their reflected forms
+///   - __abs__, __neg__, __pos__, __bool__
+///   - __hash__, __eq__, __ne__
+///   - __complex__ for Python builtin interop
+///   - Mathematical methods: log, sqrt, pow, sin, cos
+///   - Polar coordinate form: to_polar() / from_polar()
+///
+/// # Examples
+/// ```python
+/// from rmath import Complex
+/// z = Complex(3.0, 4.0)
+/// print(z.abs())      # 5.0
+/// ```
+#[pyclass(module = "rmath.scalar")]
 #[derive(Debug, Clone, Copy)]
 pub struct Complex {
     #[pyo3(get, set)]

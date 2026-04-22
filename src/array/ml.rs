@@ -92,10 +92,16 @@ impl Array {
     /// Apply the Sigmoid activation function element-wise.
     ///
     /// σ(x) = 1 / (1 + e⁻ˣ)
+    ///
+    /// Example:
+    ///     >>> a = ra.Array([-1.0, 0.0, 1.0])
+    ///     >>> a.sigmoid()
+    ///     Array([0.2689, 0.5000, 0.7311])
     pub fn sigmoid(&self) -> Self {
         self.map_elements(|x| 1.0 / (1.0 + (-x).exp()))
     }
 
+    /// Derivative of the Sigmoid function.
     pub fn sigmoid_deriv(&self) -> Self {
         self.map_elements(|x| {
             let s = 1.0 / (1.0 + (-x).exp());
@@ -106,6 +112,12 @@ impl Array {
     /// Apply the Rectified Linear Unit (ReLU) activation function element-wise.
     ///
     /// f(x) = max(0, x)
+    ///
+    /// Examples:
+    ///     >>> import rmath.array as ra
+    ///     >>> a = ra.Array([-1.0, 0.0, 1.0])
+    ///     >>> a.relu()
+    ///     Array([0.0000, 0.0000, 1.0000])
     pub fn relu(&self) -> Self { self.map_elements(|x| x.max(0.0)) }
 
     /// Derivative of ReLU.
@@ -152,7 +164,14 @@ impl Array {
         self.map_elements(|x| (1.0 + x.exp()).ln())
     }
 
-    /// Softmax along axis=1 (row-wise, standard for classification)
+    /// Apply the Softmax function along the last dimension.
+    ///
+    /// This rescales elements such that they are in range [0, 1] and sum to 1.
+    ///
+    /// Example:
+    ///     >>> a = ra.Array([[1.0, 2.0, 3.0]])
+    ///     >>> a.softmax()
+    ///     Array([[0.0900, 0.2447, 0.6652]])
     pub fn softmax(&self) -> Self {
         let (r, c) = (self.nrows(), self.ncols());
         let d = self.data();
@@ -238,6 +257,12 @@ impl Array {
     ///
     /// Requires that this array contains log-probabilities (e.g., from `log_softmax`).
     /// Labels should be a list of integer class indices.
+    ///
+    /// Examples:
+    ///     >>> import rmath.array as ra
+    ///     >>> log_probs = ra.Array([[-0.1, -2.3, -4.5]])
+    ///     >>> log_probs.cross_entropy_loss([0])
+    ///     0.1
     pub fn cross_entropy_loss(&self, labels: Vec<usize>) -> PyResult<f64> {
         let r = self.nrows();
         if labels.len() != r {

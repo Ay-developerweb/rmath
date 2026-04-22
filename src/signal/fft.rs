@@ -67,6 +67,12 @@ pub fn fft(data_any: Bound<'_, PyAny>) -> PyResult<ComplexVector> {
 /// Compute the inverse Fast Fourier Transform (IFFT).
 ///
 /// Returns a real-valued `Vector` representing the time-domain signal.
+///
+/// Examples:
+///     >>> from rmath.signal import fft, ifft
+///     >>> sig = [1.0, 0.0, 1.0, 0.0]
+///     >>> ifft(fft(sig))
+///     Vector([1.0, 0.0, 1.0, 0.0])
 #[pyfunction]
 pub fn ifft(cv: &ComplexVector) -> PyResult<Vector> {
     let res = ifft_internal(cv.data.clone());
@@ -75,7 +81,11 @@ pub fn ifft(cv: &ComplexVector) -> PyResult<Vector> {
 
 /// Compute the FFT and return both magnitude and phase components.
 ///
-/// Returns a tuple of (Magnitudes, Phases).
+/// Returns a tuple of (Magnitudes, Phases) as real-valued Vectors.
+///
+/// Examples:
+///     >>> from rmath.signal import fft_styled
+///     >>> mags, phases = fft_styled([1, 0, 1, 0])
 #[pyfunction]
 pub fn fft_styled(data_any: Bound<'_, PyAny>) -> PyResult<(Vector, Vector)> {
     let cv = fft(data_any)?;
@@ -85,6 +95,13 @@ pub fn fft_styled(data_any: Bound<'_, PyAny>) -> PyResult<(Vector, Vector)> {
 /// Real-input FFT – returns ONLY magnitudes for the positive frequencies.
 ///
 /// For a signal of length N, returns magnitudes for the first floor(N/2) + 1 bins.
+/// This is the most common use case for power spectrum analysis.
+///
+/// Examples:
+///     >>> from rmath.signal import rfft
+///     >>> spectrum = rfft([1, 0, 1, 0, 1, 0, 1, 0])
+///     >>> len(spectrum)
+///     5
 #[pyfunction]
 pub fn rfft(data_any: Bound<'_, PyAny>) -> PyResult<Vector> {
     let cv = fft(data_any)?;

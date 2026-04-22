@@ -24,3 +24,12 @@ memmap2 = "0.9"
 safetensors = "0.4"
 rustfft = "6.1"
 once_cell = "1.18"
+sys-info = "0.9"
+
+[profile.release]
+opt-level = 3          # Maximum speed
+lto = "fat"            # Extensive Link Time Optimization
+codegen-units = 1      # Better optimizations (but slower build)
+panic = "abort"        # Reduce binary size/overhead
+strip = "symbols"      # Remove unnecessary symbols
+incremental = false    # Better for final production builds

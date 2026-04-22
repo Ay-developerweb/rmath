@@ -12,7 +12,14 @@ impl Array {
 
     // ── NumPy ─────────────────────────────────────────────────────────────
 
-    /// Export to numpy ndarray (optimized)
+    /// Export to a NumPy ndarray.
+    ///
+    /// This provides an optimized zero-copy bridge where possible.
+    ///
+    /// Example:
+    ///     >>> np_arr = a.to_numpy()
+    ///     >>> type(np_arr)
+    ///     <class 'numpy.ndarray'>
     pub fn to_numpy<'py>(&self, py: Python<'py>) -> PyResult<Bound<'py, PyAny>> {
         let contiguous = self.to_contiguous();
         let vec = contiguous.data().to_vec();

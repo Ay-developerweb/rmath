@@ -1,186 +1,87 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rmath.stats — RMath Documentation</title>
-    <meta name="description" content="API reference for rmath.stats — descriptive and inferential statistics.">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.stats — RMath Docs</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="portal">
-    <aside class="sidebar" id="sidebar">
-        <a href="index.html" class="sidebar-brand"><img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span></a>
-        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
-        <nav id="sidebarNav">
-            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
-            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link"><code>Interop</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link active"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">On this page</div><a href="#overview" class="nav-link">Overview</a><a href="#descriptive" class="nav-link">Descriptive</a><a href="#inferential" class="nav-link">Inferential</a><a href="#regression" class="nav-link">Regression</a><a href="#distributions" class="nav-link">Distributions</a></div>
-        </nav>
-    </aside>
-    <main class="content">
-        <section id="overview" class="hero">
-            <div class="badge">Math Module</div>
-            <h1>rmath.<span class="gradient-text">stats</span></h1>
-            <p class="hero-sub">Descriptive and inferential statistics. All functions accept <code>list[float]</code> or <code>rmath.Vector</code>. Uses Welford's algorithm for numerically stable single-pass computations.</p>
-            <div class="code-window"><div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">example.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
 
-data = [<span class="num">2.4</span>, <span class="num">3.1</span>, <span class="num">2.8</span>, <span class="num">3.5</span>, <span class="num">2.9</span>, <span class="num">3.2</span>]
-report = <span class="num">rm</span>.stats.<span class="fn">describe</span>(data)
-<span class="cm"># {'count': 6, 'mean': 2.98, 'variance': 0.14, ...}</span>
+<nav class="navbar">
+    <div class="navbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <a href="index.html" class="nav-brand">
+            <img src="rmath_logo.svg" alt="RMath Logo" class="logo-img">
+            <span>RMath Docs</span>
+        </a>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">User Guide</a>
+            <a href="array.html" class="nav-link active">API Reference</a>
+            <a href="theory.html" class="nav-link">Theory</a>
+            <a href="interop.html" class="nav-link">Interop</a>
+            <a href="benchmarks.html" class="nav-link">Performance</a>
+        </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+</nav>
 
-t, p = <span class="num">rm</span>.stats.<span class="fn">t_test_independent</span>(sample_a, sample_b)</code></pre>
-            </div>
-        </section>
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="index.html" class="sidebar-link">What is RMath?</a>
+        <a href="install.html" class="sidebar-link">Installation Guide</a>
+        <a href="quickstart.html" class="sidebar-link">RMath Quickstart</a>
+        <a href="foundations.html" class="sidebar-link">The RMath Engine</a>
+    </div>
 
-        <section id="descriptive">
-            <h2>Descriptive Statistics</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>sum(data)</code></td><td class="returns">float</td><td class="desc">Arithmetic sum</td></tr>
-                    <tr><td><code>mean(data)</code></td><td class="returns">float</td><td class="desc">Arithmetic mean (NaN for empty)</td></tr>
-                    <tr><td><code>median(data)</code></td><td class="returns">float</td><td class="desc">Median via O(N) selection</td></tr>
-                    <tr><td><code>mode(data)</code></td><td class="returns">float</td><td class="desc">Most frequent value</td></tr>
-                    <tr><td><code>variance(data)</code></td><td class="returns">float</td><td class="desc">Sample variance (ddof=1)</td></tr>
-                    <tr><td><code>std_dev(data)</code></td><td class="returns">float</td><td class="desc">Sample standard deviation</td></tr>
-                    <tr><td><code>skewness(data)</code></td><td class="returns">float</td><td class="desc">Fisher-Pearson skewness</td></tr>
-                    <tr><td><code>kurtosis(data)</code></td><td class="returns">float</td><td class="desc">Excess kurtosis (Fisher)</td></tr>
-                    <tr><td><code>iqr(data)</code></td><td class="returns">float</td><td class="desc">Interquartile range (Q3 − Q1)</td></tr>
-                    <tr><td><code>mad(data)</code></td><td class="returns">float</td><td class="desc">Median absolute deviation</td></tr>
-                    <tr><td><code>describe(data)</code></td><td class="returns">dict</td><td class="desc">Full summary: count, mean, variance, std, skewness, kurtosis</td></tr>
-                </tbody>
-            </table></div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Core Modules</div>
+        <a href="array.html" class="sidebar-link">rmath.array</a>
+        <a href="vector.html" class="sidebar-link">rmath.vector</a>
+        <a href="tensor.html" class="sidebar-link">rmath.Tensor</a>
+        <a href="scalar.html" class="sidebar-link">rmath.scalar</a>
+        <a href="constants.html" class="sidebar-link">rmath.constants</a>
+    </div>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">descriptive.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Advanced Usage</div>
+        <a href="linalg.html" class="sidebar-link">Linear Algebra</a>
+        <a href="stats.html" class="sidebar-link active">Statistics</a>
+        <a href="calculus.html" class="sidebar-link">Calculus & AD</a>
+        <a href="nn.html" class="sidebar-link">Neural Networks</a>
+        <a href="signal.html" class="sidebar-link">Signal Processing</a>
+        <a href="geometry.html" class="sidebar-link">Geometry</a>
+        <a href="special.html" class="sidebar-link">Special Functions</a>
+    </div>
+</aside>
 
-data = [<span class="num">2.4</span>, <span class="num">3.1</span>, <span class="num">2.8</span>, <span class="num">3.5</span>, <span class="num">2.9</span>, <span class="num">3.2</span>]
+<main class="container">
+    <h1>rmath.stats</h1>
+    <p>
+        Statistical distributions and summary kernels built for high-throughput data analysis.
+    </p>
 
-<span class="kw">print</span>(<span class="num">rm</span>.stats.<span class="fn">mean</span>(data))      <span class="cm"># 2.983</span>
-<span class="kw">print</span>(<span class="num">rm</span>.stats.<span class="fn">median</span>(data))    <span class="cm"># 2.95</span>
-<span class="kw">print</span>(<span class="num">rm</span>.stats.<span class="fn">std_dev</span>(data))   <span class="cm"># 0.377</span>
+    <h2>Proven: Welford's Variance</h2>
+    <div class="proven-code">
+        <div class="code-header">
+            <span>stats_verify.py</span>
+        </div>
+        <pre><code><span class="token-keyword">import</span> rmath.array <span class="token-keyword">as</span> ra
+<span class="token-keyword">import</span> rmath.stats <span class="token-keyword">as</span> st
 
-<span class="cm"># Full summary in one call</span>
-report = <span class="num">rm</span>.stats.<span class="fn">describe</span>(data)
-<span class="kw">print</span>(report)
-<span class="cm"># {'count': 6, 'mean': 2.98, 'variance': 0.14,</span>
-<span class="cm">#  'std': 0.37, 'skewness': 0.04, 'kurtosis': -1.28}</span></code></pre>
-            </div>
-        </section>
+data = ra.randn(<span class="token-number">1000000</span>)
+var = data.variance()
 
-        <section id="inferential">
-            <h2>Inferential Statistics</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>correlation(x, y)</code></td><td class="returns">float</td><td class="desc">Pearson correlation coefficient</td></tr>
-                    <tr><td><code>covariance(x, y)</code></td><td class="returns">float</td><td class="desc">Sample covariance</td></tr>
-                    <tr><td><code>spearman_correlation(x, y)</code></td><td class="returns">float</td><td class="desc">Spearman rank correlation</td></tr>
-                    <tr><td><code>t_test_independent(a, b)</code></td><td class="returns">(t_stat, p_value)</td><td class="desc">Welch's T-test for two samples</td></tr>
-                    <tr><td><code>anova_oneway(groups)</code></td><td class="returns">(F, df_between, df_within)</td><td class="desc">One-way ANOVA across groups</td></tr>
-                </tbody>
-            </table></div>
+<span class="token-builtin">print</span>(<span class="token-string">f"Variance (approx 1.0): {var:.6f}"</span>)</code></pre>
+        <div class="code-output">
+Variance (approx 1.0): 1.000124
+        </div>
+    </div>
+</main>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">inferential.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-control = [<span class="num">2.1</span>, <span class="num">2.5</span>, <span class="num">2.3</span>, <span class="num">2.4</span>, <span class="num">2.2</span>]
-treatment = [<span class="num">3.1</span>, <span class="num">3.5</span>, <span class="num">3.3</span>, <span class="num">3.4</span>, <span class="num">3.2</span>]
-
-<span class="cm"># Welch's T-test</span>
-t_stat, p_val = <span class="num">rm</span>.stats.<span class="fn">t_test_independent</span>(control, treatment)
-<span class="kw">print</span>(<span class="str">f"t={t_stat:.3f}, p={p_val:.4f}"</span>)
-
-<span class="cm"># Correlation</span>
-r = <span class="num">rm</span>.stats.<span class="fn">correlation</span>(control, treatment)
-<span class="kw">print</span>(<span class="str">f"Pearson r = {r:.3f}"</span>)
-
-<span class="cm"># Spearman rank correlation</span>
-rho = <span class="num">rm</span>.stats.<span class="fn">spearman_correlation</span>(control, treatment)
-<span class="kw">print</span>(<span class="str">f"Spearman ρ = {rho:.3f}"</span>)</code></pre>
-            </div>
-        </section>
-
-        <section id="regression">
-            <h2>Regression</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>linear_regression(x, y)</code></td><td class="returns">dict</td><td class="desc">Returns <code>{'slope', 'intercept', 'r_squared'}</code></td></tr>
-                </tbody>
-            </table></div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">regression.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-x = [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>]
-y = [<span class="num">2.1</span>, <span class="num">3.9</span>, <span class="num">6.2</span>, <span class="num">7.8</span>, <span class="num">10.1</span>]
-
-result = <span class="num">rm</span>.stats.<span class="fn">linear_regression</span>(x, y)
-<span class="kw">print</span>(result)
-<span class="cm"># {'slope': 1.99, 'intercept': 0.02, 'r_squared': 0.998}</span></code></pre>
-            </div>
-        </section>
-
-        <section id="distributions">
-            <h2>Distributions</h2>
-            <div class="api-section">
-                <div class="api-section-title">Normal(mu, sigma)</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>.pdf(x)</code></td><td class="desc">Probability density</td></tr>
-                    <tr><td><code>.cdf(x)</code></td><td class="desc">Cumulative distribution</td></tr>
-                    <tr><td><code>.ppf(x)</code></td><td class="desc">Percent-point function (inverse CDF)</td></tr>
-                    <tr><td><code>.mean()</code></td><td class="desc">Distribution mean</td></tr>
-                </tbody></table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">StudentT(location, scale, freedom)</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>.pdf(x)</code> · <code>.cdf(x)</code> · <code>.ppf(x)</code></td></tr>
-                </tbody></table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Poisson(lambda_)</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>.pmf(k)</code></td><td class="desc">Probability mass function</td></tr>
-                    <tr><td><code>.cdf(k)</code></td><td class="desc">Cumulative distribution</td></tr>
-                </tbody></table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Exponential(rate)</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>.pdf(x)</code> · <code>.cdf(x)</code> · <code>.ppf(x)</code></td></tr>
-                </tbody></table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">distributions.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-<span class="cm"># Standard normal distribution</span>
-normal = <span class="num">rm</span>.stats.<span class="fn">Normal</span>(<span class="num">0.0</span>, <span class="num">1.0</span>)
-<span class="kw">print</span>(normal.<span class="fn">pdf</span>(<span class="num">0.0</span>))   <span class="cm"># 0.3989 (peak of the bell curve)</span>
-<span class="kw">print</span>(normal.<span class="fn">cdf</span>(<span class="num">0.0</span>))   <span class="cm"># 0.5    (50% of area)</span>
-<span class="kw">print</span>(normal.<span class="fn">ppf</span>(<span class="num">0.975</span>)) <span class="cm"># 1.96   (95% confidence interval)</span>
-
-<span class="cm"># Poisson distribution (mean = 5 events/hour)</span>
-pois = <span class="num">rm</span>.stats.<span class="fn">Poisson</span>(<span class="num">5.0</span>)
-<span class="kw">print</span>(pois.<span class="fn">pmf</span>(<span class="num">3</span>))  <span class="cm"># P(X=3) = 0.1404</span></code></pre>
-            </div>
-        </section>
-
-        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
-    </main>
-</div>
 <script src="script.js"></script>
 </body>
 </html>

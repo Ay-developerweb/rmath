@@ -79,23 +79,47 @@ impl Dual {
 
     // --- Transcendental Operations ---
 
+    /// Sine of a dual number.
     /// Derivative: cos(u) * du/dx
+    ///
+    /// Examples:
+    ///     >>> from rmath.calculus import Dual
+    ///     >>> Dual(0.0, 1.0).sin()
+    ///     Dual(val=0.0, der=1.0)
     pub fn sin(&self) -> Dual {
         Dual { val: self.val.sin(), der: self.val.cos() * self.der }
     }
 
+    /// Cosine of a dual number.
     /// Derivative: -sin(u) * du/dx
+    ///
+    /// Examples:
+    ///     >>> from rmath.calculus import Dual
+    ///     >>> Dual(0.0, 1.0).cos()
+    ///     Dual(val=1.0, der=-0.0)
     pub fn cos(&self) -> Dual {
         Dual { val: self.val.cos(), der: -self.val.sin() * self.der }
     }
 
+    /// Natural exponential of a dual number.
     /// Derivative: exp(u) * du/dx
+    ///
+    /// Examples:
+    ///     >>> from rmath.calculus import Dual
+    ///     >>> Dual(1.0, 1.0).exp()
+    ///     Dual(val=2.71828..., der=2.71828...)
     pub fn exp(&self) -> Dual {
         let ev = self.val.exp();
         Dual { val: ev, der: ev * self.der }
     }
 
+    /// Natural logarithm of a dual number.
     /// Derivative: (1/u) * du/dx
+    ///
+    /// Examples:
+    ///     >>> from rmath.calculus import Dual
+    ///     >>> Dual(1.0, 1.0).log()
+    ///     Dual(val=0.0, der=1.0)
     pub fn log(&self) -> Dual {
         Dual { val: self.val.ln(), der: self.der / self.val }
     }

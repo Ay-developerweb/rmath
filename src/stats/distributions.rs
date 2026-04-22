@@ -3,8 +3,19 @@ use statrs::distribution::{Continuous, ContinuousCDF, Discrete, DiscreteCDF};
 use statrs::distribution::{Normal as SNormal, StudentsT as SStudentT, Poisson as SPoisson, Exp as SExp};
 use statrs::statistics::Distribution;
 
-/// Normal (Gaussian) distribution.
-#[pyclass(module = "rmath")]
+/// Normal (Gaussian) distribution: N(μ, σ).
+///
+/// The probability density function is given by:
+/// f(x) = (1 / (σ√(2π))) * exp(-0.5 * ((x - μ) / σ)²)
+///
+/// Examples:
+///     >>> from rmath.stats import Normal
+///     >>> dist = Normal(mu=0.0, sigma=1.0)
+///     >>> dist.pdf(0.0)
+///     0.3989...
+///     >>> dist.sample(5)
+///     Vector([0.1234, -0.5678, ...])
+#[pyclass(module = "rmath.stats")]
 pub struct Normal {
     inner: SNormal,
 }
@@ -21,14 +32,14 @@ impl Normal {
     }
     /// Probability density function at `x`.
     pub fn pdf(&self, x: f64) -> f64 { self.inner.pdf(x) }
-    /// Cumulative distribution function at `x`.
+    /// Cumulative distribution function at `x` (P(X <= x)).
     pub fn cdf(&self, x: f64) -> f64 { self.inner.cdf(x) }
     /// Percent point function (inverse CDF) at `x`.
     pub fn ppf(&self, x: f64) -> f64 { self.inner.inverse_cdf(x) }
     /// Theoretical mean of the distribution.
     pub fn mean(&self) -> f64 { self.inner.mean().unwrap_or(f64::NAN) }
     
-    /// Sample `n` values from the distribution.
+    /// Sample `n` values from the distribution into a high-performance Vector.
     pub fn sample(&self, n: usize) -> crate::vector::Vector {
         let mut rng = rand::thread_rng();
         let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
@@ -36,8 +47,17 @@ impl Normal {
     }
 }
 
-/// Student's T-distribution.
-#[pyclass(module = "rmath")]
+/// Student's T-distribution: t(ν).
+///
+/// Used for hypothesis testing when the sample size is small and the 
+/// population standard deviation is unknown.
+///
+/// Examples:
+///     >>> from rmath.stats import StudentT
+///     >>> dist = StudentT(location=0.0, scale=1.0, freedom=10.0)
+///     >>> dist.cdf(1.0)
+///     0.8206...
+#[pyclass(module = "rmath.stats")]
 pub struct StudentT {
     inner: SStudentT,
 }
@@ -55,6 +75,7 @@ impl StudentT {
     pub fn pdf(&self, x: f64) -> f64 { self.inner.pdf(x) }
     pub fn cdf(&self, x: f64) -> f64 { self.inner.cdf(x) }
     pub fn ppf(&self, x: f64) -> f64 { self.inner.inverse_cdf(x) }
+    /// Sample `n` values from the distribution into a high-performance Vector.
     pub fn sample(&self, n: usize) -> crate::vector::Vector {
         let mut rng = rand::thread_rng();
         let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
@@ -62,8 +83,17 @@ impl StudentT {
     }
 }
 
-/// Poisson distribution.
-#[pyclass(module = "rmath")]
+/// Poisson distribution: Pois(λ).
+///
+/// Models the number of events occurring in a fixed interval of time 
+/// or space.
+///
+/// Examples:
+///     >>> from rmath.stats import Poisson
+///     >>> dist = Poisson(lambda_=5.0)
+///     >>> dist.pmf(5)
+///     0.1754...
+#[pyclass(module = "rmath.stats")]
 pub struct Poisson {
     inner: SPoisson,
 }
@@ -82,6 +112,7 @@ impl Poisson {
     pub fn pmf(&self, k: u64) -> f64 { self.inner.pmf(k) }
     /// Cumulative distribution function at `k`.
     pub fn cdf(&self, k: f64) -> f64 { self.inner.cdf(k.floor() as u64) }
+    /// Sample `n` values from the distribution into a high-performance Vector.
     pub fn sample(&self, n: usize) -> crate::vector::Vector {
         let mut rng = rand::thread_rng();
         let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
@@ -89,8 +120,16 @@ impl Poisson {
     }
 }
 
-/// Exponential distribution.
-#[pyclass(module = "rmath")]
+/// Exponential distribution: Exp(λ).
+///
+/// Models the time between events in a Poisson point process.
+///
+/// Examples:
+///     >>> from rmath.stats import Exponential
+///     >>> dist = Exponential(rate=2.0)
+///     >>> dist.pdf(0.5)
+///     0.7357...
+#[pyclass(module = "rmath.stats")]
 pub struct Exponential {
     inner: SExp,
 }
@@ -108,6 +147,7 @@ impl Exponential {
     pub fn pdf(&self, x: f64) -> f64 { self.inner.pdf(x) }
     pub fn cdf(&self, x: f64) -> f64 { self.inner.cdf(x) }
     pub fn ppf(&self, x: f64) -> f64 { self.inner.inverse_cdf(x) }
+    /// Sample `n` values from the distribution into a high-performance Vector.
     pub fn sample(&self, n: usize) -> crate::vector::Vector {
         let mut rng = rand::thread_rng();
         let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();

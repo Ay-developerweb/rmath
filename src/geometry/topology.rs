@@ -36,6 +36,12 @@ use crate::array::core::Array;
 /// Returns:
 ///     If input is Array: Returns an Array of shape (M, 2)
 ///     If input is lists: Returns a tuple of (Hull-X, Hull-Y)
+///
+/// Examples:
+///     >>> from rmath.geometry import convex_hull
+///     >>> pts_x = [0, 1, 2, 1, 0]
+///     >>> pts_y = [0, 2, 0, 1, 0]
+///     >>> hx, hy = convex_hull(pts_x, pts_y)
 #[pyfunction]
 #[pyo3(signature = (arg1, arg2=None))]
 pub fn convex_hull<'py>(py: Python<'py>, arg1: Bound<'py, PyAny>, arg2: Option<Bound<'py, PyAny>>) -> PyResult<Bound<'py, PyAny>> {

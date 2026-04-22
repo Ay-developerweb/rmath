@@ -52,6 +52,16 @@ fn correlation_internal(vx: &Vector, vy: &Vector) -> PyResult<f64> {
 }
 
 /// Calculate the Pearson correlation matrix for an Array (rows = variables, cols = observations).
+///
+/// Returns a 2D Array where element (i, j) is the correlation coefficient 
+/// between variable i and variable j.
+///
+/// Examples:
+///     >>> import rmath.array as ra
+///     >>> from rmath.stats import correlation_matrix
+///     >>> a = ra.Array([[1, 2, 3], [1, 2, 2]])
+///     >>> correlation_matrix(a)
+///     Array([[1.0000, 0.8660], [0.8660, 1.0000]])
 #[pyfunction]
 pub fn correlation_matrix(py: Python<'_>, arr: &Array) -> PyResult<Array> {
     if arr.ndim() != 2 {
@@ -109,6 +119,13 @@ pub fn correlation_matrix(py: Python<'_>, arr: &Array) -> PyResult<Array> {
 }
 
 /// Calculate the sample covariance between two variables.
+///
+/// Multi-threaded implementation using the Rayon thread pool.
+///
+/// Examples:
+///     >>> from rmath.stats import covariance
+///     >>> covariance([1, 2, 3], [1, 2, 3])
+///     1.0
 #[pyfunction]
 pub fn covariance(x: Bound<'_, PyAny>, y: Bound<'_, PyAny>) -> PyResult<f64> {
     let vx: PyRef<Vector> = x.extract()?;
@@ -160,8 +177,13 @@ pub fn t_test_independent(a: Bound<'_, PyAny>, b: Bound<'_, PyAny>) -> PyResult<
 
 /// Calculate the Spearman rank correlation coefficient.
 ///
-/// This is a non-parametric measure of rank correlation (statistical dependence
-/// between the rankings of two variables).
+/// This is a non-parametric measure of rank correlation. It measures the 
+/// monotonic relationship between two variables.
+///
+/// Examples:
+///     >>> from rmath.stats import spearman_correlation
+///     >>> spearman_correlation([1, 2, 3, 4, 5], [5, 6, 7, 8, 7])
+///     0.9746...
 #[pyfunction]
 pub fn spearman_correlation(x: Bound<'_, PyAny>, y: Bound<'_, PyAny>) -> PyResult<f64> {
     let vx: PyRef<Vector> = x.extract()?;
@@ -194,6 +216,12 @@ pub fn spearman_correlation(x: Bound<'_, PyAny>, y: Bound<'_, PyAny>) -> PyResul
 /// Perform a One-Way analysis of variance (ANOVA).
 ///
 /// Returns a tuple of (F-Statistic, Degrees of Freedom Between, Degrees of Freedom Within).
+/// Used to determine whether there are any statistically significant 
+/// differences between the means of three or more independent groups.
+///
+/// Examples:
+///     >>> from rmath.stats import anova_oneway
+///     >>> f, dfb, dfw = anova_oneway([[1, 2, 3], [4, 5, 6], [1, 2, 1]])
 #[pyfunction]
 pub fn anova_oneway(groups: Vec<Bound<'_, PyAny>>) -> PyResult<(f64, f64, f64)> {
     let mut n_total = 0.0;

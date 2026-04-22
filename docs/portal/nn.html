@@ -1,133 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rmath.nn — RMath Documentation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.nn Reference — RMath Docs</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="portal">
-    <aside class="sidebar" id="sidebar">
-        <a href="index.html" class="sidebar-brand"><img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span></a>
-        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
-        <nav id="sidebarNav">
-            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
-            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link"><code>Interop</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link active"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
-        </nav>
-    </aside>
-    <main class="content">
-        <section id="overview" class="hero">
-            <div class="badge">Extension</div>
-            <h1>rmath.<span class="gradient-text">nn</span></h1>
-            <p class="hero-sub">Neural network building blocks: activation functions, loss functions, normalization layers, and pooling. All operate on <code>rmath.Array</code>.</p>
-        </section>
 
-        <section id="activations">
-            <h2>Activation Functions</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>relu(a)</code></td><td class="desc">Rectified linear unit: max(0, x)</td></tr>
-                    <tr><td><code>leaky_relu(a, alpha)</code></td><td class="desc">Leaky ReLU with slope alpha for negative inputs</td></tr>
-                    <tr><td><code>sigmoid(a)</code></td><td class="desc">Logistic sigmoid: 1 / (1 + e⁻ˣ)</td></tr>
-                    <tr><td><code>gelu(a)</code></td><td class="desc">Gaussian error linear unit</td></tr>
-                    <tr><td><code>softmax(a)</code></td><td class="desc">Row-wise softmax (numerically stable)</td></tr>
-                    <tr><td><code>hardswish(a)</code></td><td class="desc">Hard-swish activation</td></tr>
-                </tbody>
-            </table></div>
+<nav class="navbar">
+    <div class="navbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <a href="index.html" class="nav-brand">
+            <img src="rmath_logo.svg" alt="RMath Logo" class="logo-img">
+            <span>RMath Docs</span>
+        </a>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">User Guide</a>
+            <a href="array.html" class="nav-link">API Reference</a>
+            <a href="theory.html" class="nav-link">Theory</a>
+            <a href="interop.html" class="nav-link">Interop</a>
+            <a href="benchmarks.html" class="nav-link">Performance</a>
+        </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+</nav>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">activations.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="index.html" class="sidebar-link">What is RMath?</a>
+        <a href="install.html" class="sidebar-link">Installation Guide</a>
+        <a href="quickstart.html" class="sidebar-link">RMath Quickstart</a>
+        <a href="foundations.html" class="sidebar-link">The RMath Engine</a>
+    </div>
 
-x = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">-2.0</span>, <span class="num">0.0</span>, <span class="num">2.0</span>]])
+    <div class="sidebar-section">
+        <div class="sidebar-title">Core Modules</div>
+        <a href="array.html" class="sidebar-link">rmath.array</a>
+        <a href="vector.html" class="sidebar-link">rmath.vector</a>
+        <a href="tensor.html" class="sidebar-link">rmath.Tensor</a>
+        <a href="scalar.html" class="sidebar-link">rmath.scalar</a>
+        <a href="constants.html" class="sidebar-link">rmath.constants</a>
+    </div>
 
-<span class="kw">print</span>(<span class="num">rm</span>.nn.<span class="fn">relu</span>(x))         <span class="cm"># [[0.0, 0.0, 2.0]]</span>
-<span class="kw">print</span>(<span class="num">rm</span>.nn.<span class="fn">leaky_relu</span>(x, <span class="num">0.1</span>)) <span class="cm"># [[-0.2, 0.0, 2.0]]</span>
-<span class="kw">print</span>(<span class="num">rm</span>.nn.<span class="fn">sigmoid</span>(x))      <span class="cm"># [[0.119, 0.5, 0.880]]</span></code></pre>
-            </div>
-        </section>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Advanced Usage</div>
+        <a href="linalg.html" class="sidebar-link">Linear Algebra</a>
+        <a href="stats.html" class="sidebar-link">Statistics</a>
+        <a href="calculus.html" class="sidebar-link">Calculus & AD</a>
+        <a href="nn.html" class="sidebar-link active">Neural Networks</a>
+        <a href="signal.html" class="sidebar-link">Signal Processing</a>
+        <a href="geometry.html" class="sidebar-link">Geometry</a>
+        <a href="special.html" class="sidebar-link">Special Functions</a>
+    </div>
+</aside>
 
-        <section id="loss">
-            <h2>Loss Functions</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>mse_loss(a, target)</code></td><td class="returns">float</td><td class="desc">Mean squared error</td></tr>
-                    <tr><td><code>cross_entropy_loss(a, labels)</code></td><td class="returns">float</td><td class="desc">Cross-entropy loss. Labels are integer class indices.</td></tr>
-                </tbody>
-            </table></div>
+<main class="container">
+    <h1>rmath.nn (Neural Networks)</h1>
+    <p>
+        Industrial-grade primitives for building and training neural networks. 
+        Highly optimized for both inference speed and gradient precision.
+    </p>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">loss.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+    <h2>Proven: Activation Functions</h2>
+    <div class="proven-code">
+        <div class="code-header">
+            <span>activations.py</span>
+        </div>
+        <pre><code><span class="token-keyword">import</span> rmath.array <span class="token-keyword">as</span> ra
+<span class="token-keyword">import</span> rmath.nn <span class="token-keyword">as</span> nn
 
-preds = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1.5</span>, <span class="num">2.5</span>], [<span class="num">3.5</span>, <span class="num">4.5</span>]])
-targets = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>], [<span class="num">3.0</span>, <span class="num">4.0</span>]])
+<span class="token-comment"># Input array</span>
+a = ra.Array([-2.0, -1.0, 0.0, 1.0, 2.0])
 
-mse = <span class="num">rm</span>.nn.<span class="fn">mse_loss</span>(preds, targets)
-<span class="kw">print</span>(mse)  <span class="cm"># 0.25</span></code></pre>
-            </div>
-        </section>
+<span class="token-comment"># ReLU activation: max(0, x)</span>
+relu_out = nn.relu(a)
 
-        <section id="normalization">
-            <h2>Normalization &amp; Regularization</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>batch_norm(a, mu, sigma, gamma, beta)</code></td><td class="desc">Batch normalization. mu, sigma, gamma, beta are Vectors.</td></tr>
-                    <tr><td><code>layer_norm(a, eps)</code></td><td class="desc">Layer normalization with epsilon for numerical stability.</td></tr>
-                    <tr><td><code>dropout(a, p)</code></td><td class="desc">Random dropout with probability p.</td></tr>
-                </tbody>
-            </table></div>
+<span class="token-builtin">print</span>(<span class="token-string">f"ReLU: {relu_out}"</span>)</code></pre>
+        <div class="code-output">
+ReLU: Array([0.0000, 0.0000, 0.0000, 1.0000, 2.0000])
+        </div>
+    </div>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">norm.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+    <div class="callout">
+        <strong>Optimization:</strong> RMath activations are implemented as vectorized 
+        SIMD kernels, bypassing the GIL to ensure peak performance during training.
+    </div>
+</main>
 
-x = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">32</span>, <span class="num">128</span>)  <span class="cm"># batch_size=32, features=128</span>
-normed = <span class="num">rm</span>.nn.<span class="fn">layer_norm</span>(x, eps=<span class="num">1e-5</span>)
-
-<span class="cm"># During training, apply 20% dropout</span>
-dropped = <span class="num">rm</span>.nn.<span class="fn">dropout</span>(normed, p=<span class="num">0.2</span>)</code></pre>
-            </div>
-        </section>
-
-        <section id="pooling">
-            <h2>Pooling</h2>
-            <div class="api-section"><table class="api-table"><tbody>
-                <tr><td><code>max_pool2d(a, kernel_size)</code></td><td class="returns">Array</td><td class="desc">2D max pooling</td></tr>
-                <tr><td><code>avg_pool2d(a, kernel_size)</code></td><td class="returns">Array</td><td class="desc">2D average pooling</td></tr>
-            </tbody></table></div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">pooling.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-<span class="cm"># Simulating a 4x4 image or feature map</span>
-img = <span class="num">rm</span>.<span class="fn">Array</span>([
-    [<span class="num">1</span>, <span class="num">2</span>,  <span class="num">5</span>, <span class="num">6</span>],
-    [<span class="num">3</span>, <span class="num">4</span>,  <span class="num">7</span>, <span class="num">8</span>],
-    [<span class="num">9</span>, <span class="num">0</span>,  <span class="num">1</span>, <span class="num">2</span>],
-    [<span class="num">3</span>, <span class="num">4</span>,  <span class="num">5</span>, <span class="num">6</span>]
-])
-
-<span class="cm"># 2x2 Max Pooling reduces to 2x2</span>
-pooled = <span class="num">rm</span>.nn.<span class="fn">max_pool2d</span>(img, kernel_size=<span class="num">2</span>)
-<span class="kw">print</span>(pooled)
-<span class="cm"># Array([</span>
-<span class="cm">#        [ 4.0000,  8.0000],</span>
-<span class="cm">#        [ 9.0000,  6.0000]])</span></code></pre>
-            </div>
-        </section>
-        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
-    </main>
-</div>
 <script src="script.js"></script>
 </body>
 </html>

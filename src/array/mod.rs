@@ -18,6 +18,30 @@ pub use lazy::{LazyArray, MmapArray, ChunkIterator, MmapChunkIterator};
 use pyo3::prelude::*;
 
 pub fn register_array(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.setattr("__doc__", "rmath.array — high-performance N-dimensional array engine.
+
+This module provides the `Array` and `Tensor` classes, which are optimized 
+for massively parallel numerical computing, deep learning, and GB-scale 
+data processing.
+
+Key Features:
+    1. Parallel Core: Every element-wise operation (sin, exp, arithmetic) 
+       automatically uses the Rayon thread pool for data > 8,192 elements.
+    2. Tiered Storage:
+       - Inline: Small arrays (<32 elements) use zero-allocation stack storage.
+       - Heap: Shared memory via Arc-wrapped contiguous buffers.
+       - Mmap: Memory-mapped files for processing datasets larger than RAM.
+    3. Autograd Engine: The `Tensor` class provides a dynamic computational 
+       graph with automatic differentiation for building neural networks.
+    4. Interoperability: Zero-copy conversion to and from NumPy ndarrays.
+
+Examples:
+    >>> import rmath.array as ra
+    >>> a = ra.randn(1000, 1000)
+    >>> b = ra.ones(1000, 1000)
+    >>> c = (a * b).exp().sum()
+")?;
+
     let py = m.py();
 
     // Core Array class
@@ -46,6 +70,8 @@ pub fn register_array(m: &Bound<'_, PyModule>) -> PyResult<()> {
     m.add_function(wrap_pyfunction!(ops::array_range, m)?)?;
     m.add_function(wrap_pyfunction!(ops::zeros, m)?)?;
     m.add_function(wrap_pyfunction!(ops::ones, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::randn, m)?)?;
+    m.add_function(wrap_pyfunction!(ops::rand_uniform, m)?)?;
 
     Ok(())
 }

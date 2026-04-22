@@ -52,12 +52,29 @@ pub fn rust_gamma<'py>(data: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
 }
 
 /// Compute the natural logarithm of the Gamma function, ln|Γ(x)|.
+///
+/// Faster and more numerically stable than calling `ln(gamma(x))`.
+///
+/// Examples:
+///     >>> from rmath import special
+///     >>> special.ln_gamma(10.0)
+///     12.8018...
 #[pyfunction(name = "ln_gamma")]
 pub fn rust_ln_gamma<'py>(data: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     map_special(data, s_gamma_internal::ln_gamma)
 }
 
 /// Compute the Error function erf(x).
+///
+/// The Error function is defined as: 
+/// erf(x) = (2/√π) * ∫ exp(-t²) dt from 0 to x.
+///
+/// Examples:
+///     >>> from rmath import special
+///     >>> special.erf(0.0)
+///     0.0
+///     >>> special.erf(1.0)
+///     0.8427...
 #[pyfunction(name = "erf")]
 pub fn rust_erf<'py>(data: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
     map_special(data, s_erf_internal::erf)

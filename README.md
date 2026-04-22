@@ -416,6 +416,31 @@ Benchmarked on Windows (CPython 3.13, AMD64). Medians of 20 runs, 3 warmup.
 
 **Average speedup: 3.98x over PyTorch.**
 
+### Phase 3: Intelligence & Fusion (v0.1.4) 🚀
+
+The latest release introduces **Single-Pass Parallel Kernels** for optimizers and elementwise math.
+
+| Component | Operation | Gain vs Eager/PyTorch |
+|-----------|-----------|-----------------------|
+| **Adam** | `.step()` | **3.3x faster vs PyTorch** |
+| **SGD** | `.step()` (with momentum) | **2.0x faster vs PyTorch** |
+| **Linear Fusion** | `(x * 2 + 1) * 3` | **2.3x faster** |
+| **Fused Reduction** | `sum(sin(x))` | **1.2x faster** |
+
+#### Unified Lazy Engine (Loop Fusion)
+RMath now supports **deferred execution** for both memory-based and disk-based arrays. Chain your operations with `.lazy()` to execute them in a single parallel pass through memory.
+
+```python
+import rmath.array as ra
+
+# 1. In-Memory Loop Fusion (3 passes -> 1 pass)
+a = ra.randn(2000, 2000)
+result = a.lazy().mul(2.0).sin().exp().execute()
+
+# 2. Disk-Streaming Fusion (Math applied during load)
+result = ra.LazyArray.open("data.csv").sigmoid().add(1.0).load()
+```
+
 ### Numerical Accuracy
 
 | Algorithm | Module | Guarantee |

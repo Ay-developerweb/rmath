@@ -36,6 +36,13 @@ pub fn euclidean_distance(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) ->
 }
 
 /// Calculate the Manhattan distance (L1 norm) between two vectors.
+///
+/// Sum of the absolute differences of their coordinates.
+///
+/// Examples:
+///     >>> from rmath.geometry import manhattan_distance
+///     >>> manhattan_distance([0, 0], [3, 4])
+///     7.0
 #[pyfunction]
 pub fn manhattan_distance(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) -> PyResult<f64> {
     let v1 = extract_vector(&v1_any)?;
@@ -54,6 +61,13 @@ pub fn manhattan_distance(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) ->
 }
 
 /// Calculate the Minkowski distance (Lp norm) between two vectors.
+///
+/// Generalization of Euclidean (p=2) and Manhattan (p=1) distances.
+///
+/// Examples:
+///     >>> from rmath.geometry import minkowski_distance
+///     >>> minkowski_distance([0, 0], [3, 4], p=2)
+///     5.0
 #[pyfunction]
 pub fn minkowski_distance(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>, p: f64) -> PyResult<f64> {
     let v1 = extract_vector(&v1_any)?;
@@ -74,6 +88,14 @@ pub fn minkowski_distance(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>, p:
 /// Calculate the cosine similarity between two vectors.
 ///
 /// Returns a value in `[-1, 1]` representing the cosine of the angle between them.
+/// A value of 1.0 means the vectors point in the same direction.
+///
+/// Examples:
+///     >>> from rmath.geometry import cosine_similarity
+///     >>> cosine_similarity([1, 0], [1, 0])
+///     1.0
+///     >>> cosine_similarity([1, 0], [0, 1])
+///     0.0
 #[pyfunction]
 pub fn cosine_similarity(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) -> PyResult<f64> {
     let v1 = extract_vector(&v1_any)?;
@@ -144,6 +166,14 @@ pub fn angle_between(v1_any: Bound<'_, PyAny>, v2_any: Bound<'_, PyAny>) -> PyRe
 ///
 /// Returns:
 ///     M x N Array containing pairwise Euclidean distances.
+///
+/// Examples:
+///     >>> import rmath.array as ra
+///     >>> from rmath.geometry import cdist
+///     >>> a = ra.Array([[0, 0], [1, 1]])
+///     >>> b = ra.Array([[1, 0], [0, 1]])
+///     >>> cdist(a, b)
+///     Array([[1.0000, 1.0000], [1.0000, 1.0000]])
 #[pyfunction]
 pub fn cdist(py: Python<'_>, a: &Array, b: &Array) -> PyResult<Array> {
     if a.ndim() != 2 || b.ndim() != 2 {

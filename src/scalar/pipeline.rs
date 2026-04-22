@@ -68,7 +68,23 @@ enum Source {
 // `&self` and return a new LazyPipeline (one clone, but only of the Vec
 // descriptor — not the underlying data).
 // ---------------------------------------------------------------------------
-#[pyclass(module = "rmath")]
+/// A lazy, parallel evaluation pipeline for scalar operations.
+///
+/// The LazyPipeline is the primary engine for high-performance batch processing
+/// of scalar data. It captures a 'recipe' of operations and executes them in 
+/// a single parallel pass using Rayon.
+///
+/// Evaluation is deferred until a terminal operation (like `.to_tuple()`, 
+/// `.sum()`, or `.to_vector()`) is called. This allows for loop fusion 
+/// and SIMD optimizations.
+///
+/// # Examples
+/// ```python
+/// import rmath.scalar as rs
+/// pipe = rs.from_list([1.0, 2.0, 3.0])
+/// result = pipe.sin().cos().add(1.0).to_tuple()
+/// ```
+#[pyclass(module = "rmath.scalar")]
 #[derive(Clone, Debug)]
 pub struct LazyPipeline {
     source: Source,
@@ -470,7 +486,9 @@ impl LazyPipeline {
         }
     }
 
-    /// Minimum value.  Returns `NaN` for an empty pipeline.
+    /// Minimum value in the pipeline.
+    ///
+    /// Triggers immediate evaluation. Returns `inf` for an empty pipeline.
     pub fn min(&self) -> f64 {
         let n = self.source_len();
         if n == 0 { return f64::NAN; }
@@ -499,56 +517,73 @@ impl LazyPipeline {
     // cloning a Buffer pipeline is O(1).
     // -----------------------------------------------------------------------
 
-    /// Apply sine element-wise.
+    /// Apply sine element-wise to every element in the pipeline.
+    ///
+    /// Deferred execution.
     pub fn sin(&self) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::Map(Op::Sin));
         p
     }
 
-    /// Apply cosine element-wise.
+    /// Apply cosine element-wise to every element in the pipeline.
+    ///
+    /// Deferred execution.
     pub fn cos(&self) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::Map(Op::Cos));
         p
     }
 
-    /// Apply square root element-wise.
+    /// Apply square root element-wise to every element in the pipeline.
+    ///
+    /// Deferred execution. Note that domain errors (negative inputs) 
+    /// will result in `NaN` during evaluation.
     pub fn sqrt(&self) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::Map(Op::Sqrt));
         p
     }
 
-    /// Apply absolute value element-wise.
+    /// Apply absolute value element-wise to every element in the pipeline.
+    ///
+    /// Deferred execution.
     pub fn abs(&self) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::Map(Op::Abs));
         p
     }
 
-    /// Apply exponential element-wise.
+    /// Apply natural exponential (e^x) element-wise to every element in the pipeline.
+    ///
+    /// Deferred execution.
     pub fn exp(&self) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::Map(Op::Exp));
         p
     }
 
-    /// Add a scalar value to every element.
+    /// Add a scalar value to every element in the pipeline.
+    ///
+    /// Deferred execution.
     pub fn add(&self, val: f64) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::Map(Op::Add(val)));
         p
     }
 
-    /// Multiply every element by a scalar value.
+    /// Multiply every element in the pipeline by a scalar value.
+    ///
+    /// Deferred execution.
     pub fn mul(&self, val: f64) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::Map(Op::Mul(val)));
         p
     }
 
-    /// Subtract a scalar value from every element.
+    /// Subtract a scalar value from every element in the pipeline (x - val).
+    ///
+    /// Deferred execution.
     pub fn sub(&self, val: f64) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::Map(Op::Sub(val)));
@@ -570,6 +605,8 @@ impl LazyPipeline {
     }
 
     /// Keep only elements greater than `val`.
+    ///
+    /// Filtering happens during the parallel execution pass.
     pub fn filter_gt(&self, val: f64) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::FilterGreater(val));
@@ -577,13 +614,17 @@ impl LazyPipeline {
     }
 
     /// Keep only elements less than `val`.
+    ///
+    /// Filtering happens during the parallel execution pass.
     pub fn filter_lt(&self, val: f64) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::FilterLess(val));
         p
     }
 
-    /// Remove NaN and infinite values.
+    /// Remove NaN and infinite values from the pipeline.
+    ///
+    /// Elements that are not finite will be dropped during evaluation.
     pub fn filter_finite(&self) -> LazyPipeline {
         let mut p = self.clone();
         p.steps.push(PipelineStep::FilterFinite);

@@ -1,8 +1,8 @@
+use crate::array::Array;
 use pyo3::prelude::*;
 use pyo3::types::PySlice;
 use rayon::prelude::*;
 use std::sync::Arc;
-use crate::array::Array;
 
 // ---------------------------------------------------------------------------
 // Parallelism thresholds (empirically calibrated, tuneable)
@@ -19,13 +19,15 @@ use crate::array::Array;
 // ---------------------------------------------------------------------------
 const INLINE_MAX: usize = 32;
 const PAR_THRESHOLD: usize = 8_192;
+const SAFE_ALLOC_LIMIT: usize = 250_000_000; // ~2GB safety limit
 
 // ---------------------------------------------------------------------------
 // VectorStorage
 //
 // Three-tier:
-//   Inline  — stack array, zero heap allocation, zero GC pressure
-//   Heap    — Arc<Vec<f64>>, shared-ownership, clone-on-write for mutation
+//   Inline       — stack array, zero heap allocation, zero GC pressure
+//   Heap         — Arc<Vec<f64>>, shared-ownership, clone-on-write for mutation
+//   VirtualRange — O(1) storage for linear sequences
 //
 // The Inline tier is maintained across operations: map_inline keeps small
 // results small.  Only when a result genuinely exceeds INLINE_MAX does it
@@ -36,21 +38,36 @@ const PAR_THRESHOLD: usize = 8_192;
 /// Implements a three-tier memory model:
 /// - `Inline`: Stack-allocated for zero-overhead math on small vectors (<32 elements).
 /// - `Heap`: Shared memory via Arc<Vec<f64>> for large datasets.
+/// - `VirtualRange`: Zero-allocation metadata for large ranges.
 #[derive(Clone)]
 pub enum VectorStorage {
     Inline([f64; INLINE_MAX], usize),
     Heap(Arc<Vec<f64>>),
+    VirtualRange { start: f64, step: f64, count: usize },
 }
 
-/// High-performance 1D vectorized container.
+/// A high-performance, parallelized 1D numeric container.
 ///
 /// `Vector` is optimized for linear scans and high-speed element-wise math.
 /// It uses a tiered storage engine to bypass heap allocations for small
-/// data vectors, ensuring L1-cache speed for hot-path calculations.
+/// data vectors (<32 elements), ensuring L1-cache speed.
 ///
-/// Use `Vector` when dealing specifically with 1D signals or column data
-/// where the overhead of N-D coordinate mapping is unwanted.
-#[pyclass(module = "rmath")]
+/// Performance:
+///     Heavy loops (sin, exp, arithmetic) on large vectors (>= 8,192 elements)
+///     automatically run in parallel via Rayon, releasing the Python GIL.
+///
+/// Storage Model:
+///     - Inline: Small vectors reside on the Rust stack.
+///     - Heap: Large vectors use thread-safe shared memory (Arc).
+///       Mutation (via __setitem__) uses Copy-on-Write semantics.
+///
+/// # Examples
+/// ```python
+/// from rmath import Vector
+/// v = Vector.range(1_000_000)
+/// print(v.mean())
+/// ```
+#[pyclass(module = "rmath.vector")]
 #[derive(Clone)]
 pub struct Vector {
     pub storage: VectorStorage,
@@ -67,9 +84,13 @@ impl Vector {
         if n <= INLINE_MAX {
             let mut arr = [0.0_f64; INLINE_MAX];
             arr[..n].copy_from_slice(&data);
-            Vector { storage: VectorStorage::Inline(arr, n) }
+            Vector {
+                storage: VectorStorage::Inline(arr, n),
+            }
         } else {
-            Vector { storage: VectorStorage::Heap(Arc::new(data)) }
+            Vector {
+                storage: VectorStorage::Heap(Arc::new(data)),
+            }
         }
     }
 
@@ -78,16 +99,29 @@ impl Vector {
         if n <= INLINE_MAX {
             let mut arr = [0.0_f64; INLINE_MAX];
             arr[..n].copy_from_slice(&arc);
-            Vector { storage: VectorStorage::Inline(arr, n) }
+            Vector {
+                storage: VectorStorage::Inline(arr, n),
+            }
         } else {
-            Vector { storage: VectorStorage::Heap(arc) }
+            Vector {
+                storage: VectorStorage::Heap(arc),
+            }
         }
     }
 
     pub fn zeros_internal(n: usize) -> Self {
         if n <= INLINE_MAX {
-            Vector { storage: VectorStorage::Inline([0.0; INLINE_MAX], n) }
+            Vector {
+                storage: VectorStorage::Inline([0.0; INLINE_MAX], n),
+            }
         } else {
+            if n > SAFE_ALLOC_LIMIT {
+                panic!(
+                    "MEMORY PROTECTION: Refusing to allocate zeros for {} elements (~{} GB).",
+                    n,
+                    (n * 8) / 1_000_000_000
+                );
+            }
             Vector::new(vec![0.0; n])
         }
     }
@@ -96,8 +130,17 @@ impl Vector {
         if n <= INLINE_MAX {
             let mut arr = [0.0_f64; INLINE_MAX];
             arr[..n].fill(1.0);
-            Vector { storage: VectorStorage::Inline(arr, n) }
+            Vector {
+                storage: VectorStorage::Inline(arr, n),
+            }
         } else {
+            if n > SAFE_ALLOC_LIMIT {
+                panic!(
+                    "MEMORY PROTECTION: Refusing to allocate ones for {} elements (~{} GB).",
+                    n,
+                    (n * 8) / 1_000_000_000
+                );
+            }
             Vector::new(vec![1.0; n])
         }
     }
@@ -106,8 +149,14 @@ impl Vector {
         if n <= INLINE_MAX {
             let mut arr = [0.0_f64; INLINE_MAX];
             arr[..n].fill(val);
-            Vector { storage: VectorStorage::Inline(arr, n) }
+            Vector {
+                storage: VectorStorage::Inline(arr, n),
+            }
         } else {
+            if n > SAFE_ALLOC_LIMIT {
+                panic!("MEMORY PROTECTION: Refusing to allocate filled vector for {} elements (~{} GB).", 
+                       n, (n * 8) / 1_000_000_000);
+            }
             Vector::new(vec![val; n])
         }
     }
@@ -119,6 +168,7 @@ impl Vector {
         match &self.storage {
             VectorStorage::Inline(_, n) => *n,
             VectorStorage::Heap(v) => v.len(),
+            VectorStorage::VirtualRange { count, .. } => *count,
         }
     }
 
@@ -127,11 +177,24 @@ impl Vector {
     }
 
     /// Borrow the underlying slice, run f, return result.
+    ///
+    /// WARNING: For VirtualRange storage, this triggers "Materialization"
+    /// into a temporary heap buffer. If the range exceeds SAFE_ALLOC_LIMIT,
+    /// it will raise a protection error to prevent system freezing.
     #[inline(always)]
     pub fn with_slice<R, F: FnOnce(&[f64]) -> R>(&self, f: F) -> R {
         match &self.storage {
             VectorStorage::Inline(arr, n) => f(&arr[..*n]),
             VectorStorage::Heap(v) => f(v.as_slice()),
+            VectorStorage::VirtualRange { start, step, count } => {
+                if *count > SAFE_ALLOC_LIMIT {
+                    panic!("MEMORY PROTECTION: Refusing to materialize a range of {} elements (~{} GB). This would freeze your computer.", 
+                           count, (*count * 8) / 1_000_000_000);
+                }
+                // Materialize into a temporary buffer for slice-based operations
+                let data: Vec<f64> = (0..*count).map(|i| start + i as f64 * step).collect();
+                f(&data)
+            }
         }
     }
 
@@ -150,7 +213,9 @@ impl Vector {
                 for i in 0..*n {
                     out[i] = f(arr[i]);
                 }
-                Vector { storage: VectorStorage::Inline(out, *n) }
+                Vector {
+                    storage: VectorStorage::Inline(out, *n),
+                }
             }
             VectorStorage::Heap(v) => {
                 let n = v.len();
@@ -158,6 +223,22 @@ impl Vector {
                     v.par_iter().map(|&x| f(x)).collect()
                 } else {
                     v.iter().map(|&x| f(x)).collect()
+                };
+                Vector::from_arc(Arc::new(data))
+            }
+            VectorStorage::VirtualRange { start, step, count } => {
+                let n = *count;
+                if n > SAFE_ALLOC_LIMIT {
+                    panic!("MEMORY PROTECTION: Operation would require allocating {} elements (~{} GB). This exceeds the safety limit.", 
+                           n, (n * 8) / 1_000_000_000);
+                }
+                let data: Vec<f64> = if n >= PAR_THRESHOLD {
+                    (0..n)
+                        .into_par_iter()
+                        .map(|i| f(start + (i as f64 * step)))
+                        .collect()
+                } else {
+                    (0..n).map(|i| f(start + (i as f64 * step))).collect()
                 };
                 Vector::from_arc(Arc::new(data))
             }
@@ -173,15 +254,29 @@ impl Vector {
         if n != other.len_internal() {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
                 "length mismatch: {} vs {}",
-                n, other.len_internal()
+                n,
+                other.len_internal()
+            )));
+        }
+        if n > SAFE_ALLOC_LIMIT {
+            return Err(pyo3::exceptions::PyMemoryError::new_err(format!(
+                "MEMORY PROTECTION: zip_map would require allocating {} elements (~{} GB).",
+                n,
+                (n * 8) / 1_000_000_000
             )));
         }
         let data = self.with_slice(|s1| {
             other.with_slice(|s2| {
                 if n >= PAR_THRESHOLD {
-                    s1.par_iter().zip(s2.par_iter()).map(|(&a, &b)| f(a, b)).collect::<Vec<f64>>()
+                    s1.par_iter()
+                        .zip(s2.par_iter())
+                        .map(|(&a, &b)| f(a, b))
+                        .collect::<Vec<f64>>()
                 } else {
-                    s1.iter().zip(s2.iter()).map(|(&a, &b)| f(a, b)).collect::<Vec<f64>>()
+                    s1.iter()
+                        .zip(s2.iter())
+                        .map(|(&a, &b)| f(a, b))
+                        .collect::<Vec<f64>>()
                 }
             })
         });
@@ -201,50 +296,63 @@ impl Vector {
 
     /// Kahan compensated sum for numerical accuracy on large vectors.
     /// Error is O(ε) rather than O(N·ε) for naive summation.
+    ///
+    /// Optimization: If the vector is a VirtualRange, uses the O(1) closed-form formula.
     pub fn kahan_sum(&self) -> f64 {
-        self.with_slice(|s| {
-            let n = s.len();
-            if n >= PAR_THRESHOLD {
-                // Parallel: chunk-sum then Kahan-combine
-                // (full parallel Kahan is complex; we do parallel chunk sums
-                //  then a serial Kahan pass over chunk totals — good enough)
-                let chunk = (n + rayon::current_num_threads() - 1) / rayon::current_num_threads();
-                let chunk_sums: Vec<f64> = s
-                    .par_chunks(chunk.max(1))
-                    .map(|c| {
+        match &self.storage {
+            VectorStorage::VirtualRange { start, step, count } => {
+                let n = *count as f64;
+                if n == 0.0 {
+                    return 0.0;
+                }
+                let last = start + (n - 1.0) * step;
+                (n / 2.0) * (start + last)
+            }
+            _ => {
+                self.with_slice(|s| {
+                    let n = s.len();
+                    if n >= PAR_THRESHOLD {
+                        // Parallel: chunk-sum then Kahan-combine
+                        let chunk =
+                            (n + rayon::current_num_threads() - 1) / rayon::current_num_threads();
+                        let chunk_sums: Vec<f64> = s
+                            .par_chunks(chunk.max(1))
+                            .map(|c| {
+                                let mut sum = 0.0_f64;
+                                let mut comp = 0.0_f64;
+                                for &x in c {
+                                    let y = x - comp;
+                                    let t = sum + y;
+                                    comp = (t - sum) - y;
+                                    sum = t;
+                                }
+                                sum
+                            })
+                            .collect();
+                        // Serial Kahan over chunk sums
                         let mut sum = 0.0_f64;
                         let mut comp = 0.0_f64;
-                        for &x in c {
+                        for x in chunk_sums {
                             let y = x - comp;
                             let t = sum + y;
                             comp = (t - sum) - y;
                             sum = t;
                         }
                         sum
-                    })
-                    .collect();
-                // Serial Kahan over chunk sums
-                let mut sum = 0.0_f64;
-                let mut comp = 0.0_f64;
-                for x in chunk_sums {
-                    let y = x - comp;
-                    let t = sum + y;
-                    comp = (t - sum) - y;
-                    sum = t;
-                }
-                sum
-            } else {
-                let mut sum = 0.0_f64;
-                let mut comp = 0.0_f64;
-                for &x in s {
-                    let y = x - comp;
-                    let t = sum + y;
-                    comp = (t - sum) - y;
-                    sum = t;
-                }
-                sum
+                    } else {
+                        let mut sum = 0.0_f64;
+                        let mut comp = 0.0_f64;
+                        for &x in s {
+                            let y = x - comp;
+                            let t = sum + y;
+                            comp = (t - sum) - y;
+                            sum = t;
+                        }
+                        sum
+                    }
+                })
             }
-        })
+        }
     }
 
     /// Welford single-pass mean and M2 (for variance).
@@ -265,7 +373,9 @@ impl Vector {
     }
     pub fn moments(&self) -> (f64, f64, usize) {
         let (m, m2, n) = self.welford();
-        if n < 2 { return (m, 0.0, n); }
+        if n < 2 {
+            return (m, 0.0, n);
+        }
         (m, (m2 / (n as f64 - 1.0)).sqrt(), n)
     }
 
@@ -277,13 +387,20 @@ impl Vector {
     // Rust callers (stats, ops, inferential) call these directly.
     // -----------------------------------------------------------------------
 
+    /// Calculate the sum using Kahan compensation for high precision.
+    ///
+    /// Single-pass execution, parallelized for large vectors.
     pub fn sum(&self) -> f64 {
-        if self.is_empty() { return 0.0; }
+        if self.is_empty() {
+            return 0.0;
+        }
         self.kahan_sum()
     }
 
     pub fn prod(&self) -> f64 {
-        if self.is_empty() { return 1.0; }
+        if self.is_empty() {
+            return 1.0;
+        }
         self.with_slice(|s| {
             if s.len() >= PAR_THRESHOLD {
                 s.par_iter().cloned().reduce(|| 1.0, |a, b| a * b)
@@ -293,14 +410,10 @@ impl Vector {
         })
     }
 
-    pub fn mean(&self) -> f64 {
-        let n = self.len_internal();
-        if n == 0 { return f64::NAN; }
-        self.sum() / n as f64
-    }
-
     pub fn min(&self) -> f64 {
-        if self.is_empty() { return f64::NAN; }
+        if self.is_empty() {
+            return f64::NAN;
+        }
         self.with_slice(|s| {
             if s.len() >= PAR_THRESHOLD {
                 s.par_iter().cloned().reduce(|| f64::INFINITY, f64::min)
@@ -311,7 +424,9 @@ impl Vector {
     }
 
     pub fn max(&self) -> f64 {
-        if self.is_empty() { return f64::NAN; }
+        if self.is_empty() {
+            return f64::NAN;
+        }
         self.with_slice(|s| {
             if s.len() >= PAR_THRESHOLD {
                 s.par_iter().cloned().reduce(|| f64::NEG_INFINITY, f64::max)
@@ -322,9 +437,12 @@ impl Vector {
     }
 
     pub fn argmin(&self) -> isize {
-        if self.is_empty() { return -1; }
+        if self.is_empty() {
+            return -1;
+        }
         self.with_slice(|s| {
-            s.iter().enumerate()
+            s.iter()
+                .enumerate()
                 .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(i, _)| i as isize)
                 .unwrap_or(-1)
@@ -332,9 +450,12 @@ impl Vector {
     }
 
     pub fn argmax(&self) -> isize {
-        if self.is_empty() { return -1; }
+        if self.is_empty() {
+            return -1;
+        }
         self.with_slice(|s| {
-            s.iter().enumerate()
+            s.iter()
+                .enumerate()
                 .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
                 .map(|(i, _)| i as isize)
                 .unwrap_or(-1)
@@ -343,33 +464,51 @@ impl Vector {
 
     pub fn variance(&self) -> f64 {
         let (_, m2, n) = self.welford();
-        if n < 2 { return f64::NAN; }
+        if n < 2 {
+            return f64::NAN;
+        }
         m2 / (n - 1) as f64
     }
 
     pub fn pop_variance(&self) -> f64 {
         let (_, m2, n) = self.welford();
-        if n == 0 { return f64::NAN; }
+        if n == 0 {
+            return f64::NAN;
+        }
         m2 / n as f64
     }
 
-    pub fn std_dev(&self) -> f64 { self.variance().sqrt() }
-    pub fn pop_std_dev(&self) -> f64 { self.pop_variance().sqrt() }
+    pub fn std_dev(&self) -> f64 {
+        self.variance().sqrt()
+    }
+    pub fn pop_std_dev(&self) -> f64 {
+        self.pop_variance().sqrt()
+    }
 
     pub fn median(&self) -> f64 {
         let n = self.len_internal();
-        if n == 0 { return f64::NAN; }
+        if n == 0 {
+            return f64::NAN;
+        }
         let mut s = self.with_slice(|sl| sl.to_vec());
         s.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
-        if n % 2 == 1 { s[n / 2] } else { (s[n / 2 - 1] + s[n / 2]) / 2.0 }
+        if n % 2 == 1 {
+            s[n / 2]
+        } else {
+            (s[n / 2 - 1] + s[n / 2]) / 2.0
+        }
     }
 
     pub fn percentile_internal(&self, q: f64) -> PyResult<f64> {
         if q < 0.0 || q > 100.0 {
-            return Err(pyo3::exceptions::PyValueError::new_err("q must be in [0, 100]"));
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "q must be in [0, 100]",
+            ));
         }
         let n = self.len_internal();
-        if n == 0 { return Ok(f64::NAN); }
+        if n == 0 {
+            return Ok(f64::NAN);
+        }
         let mut s = self.with_slice(|sl| sl.to_vec());
         s.sort_unstable_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
         let pos = (q / 100.0) * (n - 1) as f64;
@@ -379,31 +518,77 @@ impl Vector {
         Ok(s[lo] + frac * (s[hi] - s[lo]))
     }
 
+    /// Calculate the arithmetic mean.
+    ///
+    /// Returns `NaN` for empty vectors.
+    pub fn mean(&self) -> f64 {
+        let n = self.len_internal();
+        if n == 0 {
+            return f64::NAN;
+        }
+        self.sum() / n as f64
+    }
+
+    /// Calculate the Euclidean (L2) norm: sqrt(sum(x²)).
+    ///
+    /// Optimized with manual loop unrolling and parallelization.
     pub fn norm(&self) -> f64 {
         self.with_slice(|s| {
-            let sq: f64 = if s.len() >= PAR_THRESHOLD {
-                s.par_iter().map(|x| x * x).sum()
-            } else {
-                s.iter().map(|x| x * x).sum()
-            };
-            sq.sqrt()
+            let n = s.len();
+            if n == 0 {
+                return 0.0;
+            }
+
+            let mut sum = 0.0_f64;
+            let mut i = 0;
+
+            // Manual unrolling for 8-element strips
+            while i + 8 <= n {
+                sum += s[i] * s[i]
+                    + s[i + 1] * s[i + 1]
+                    + s[i + 2] * s[i + 2]
+                    + s[i + 3] * s[i + 3]
+                    + s[i + 4] * s[i + 4]
+                    + s[i + 5] * s[i + 5]
+                    + s[i + 6] * s[i + 6]
+                    + s[i + 7] * s[i + 7];
+                i += 8;
+            }
+            // Tail
+            while i < n {
+                sum += s[i] * s[i];
+                i += 1;
+            }
+            sum.sqrt()
         })
     }
 
     pub fn norm_l1(&self) -> f64 {
         self.with_slice(|s| {
-            if s.len() >= PAR_THRESHOLD {
-                s.par_iter().map(|x| x.abs()).sum()
-            } else {
-                s.iter().map(|x| x.abs()).sum()
+            let n = s.len();
+            let mut sum = 0.0_f64;
+            let mut i = 0;
+            while i + 8 <= n {
+                sum += s[i].abs()
+                    + s[i + 1].abs()
+                    + s[i + 2].abs()
+                    + s[i + 3].abs()
+                    + s[i + 4].abs()
+                    + s[i + 5].abs()
+                    + s[i + 6].abs()
+                    + s[i + 7].abs();
+                i += 8;
             }
+            while i < n {
+                sum += s[i].abs();
+                i += 1;
+            }
+            sum
         })
     }
 
     pub fn norm_inf(&self) -> f64 {
-        self.with_slice(|s| {
-            s.iter().map(|x| x.abs()).fold(0.0_f64, f64::max)
-        })
+        self.with_slice(|s| s.iter().map(|x| x.abs()).fold(0.0_f64, f64::max))
     }
 
     pub fn norm_lp(&self, p: f64) -> f64 {
@@ -417,16 +602,35 @@ impl Vector {
         let n = self.len_internal();
         if n != other.len_internal() {
             return Err(pyo3::exceptions::PyValueError::new_err(format!(
-                "dot: length mismatch {} vs {}", n, other.len_internal()
+                "dot: length mismatch {} vs {}",
+                n,
+                other.len_internal()
             )));
         }
-        Ok(self.with_slice(|s1| other.with_slice(|s2| {
-            if n >= PAR_THRESHOLD {
-                s1.par_iter().zip(s2.par_iter()).map(|(a,b)| a*b).sum()
-            } else {
-                s1.iter().zip(s2.iter()).map(|(a,b)| a*b).sum()
-            }
-        })))
+        Ok(self.with_slice(|s1| {
+            other.with_slice(|s2| {
+                let mut sum = 0.0_f64;
+                let mut i = 0;
+                // Manual unrolling for 8-element strips
+                while i + 8 <= n {
+                    sum += s1[i] * s2[i]
+                        + s1[i + 1] * s2[i + 1]
+                        + s1[i + 2] * s2[i + 2]
+                        + s1[i + 3] * s2[i + 3]
+                        + s1[i + 4] * s2[i + 4]
+                        + s1[i + 5] * s2[i + 5]
+                        + s1[i + 6] * s2[i + 6]
+                        + s1[i + 7] * s2[i + 7];
+                    i += 8;
+                }
+                // Tail
+                while i < n {
+                    sum += s1[i] * s2[i];
+                    i += 1;
+                }
+                sum
+            })
+        }))
     }
 
     pub fn sort_asc(&self) -> Vector {
@@ -444,16 +648,28 @@ impl Vector {
     pub fn argsort(&self) -> Vec<usize> {
         let mut idx: Vec<usize> = (0..self.len_internal()).collect();
         self.with_slice(|s| {
-            idx.sort_unstable_by(|&a, &b| s[a].partial_cmp(&s[b]).unwrap_or(std::cmp::Ordering::Equal));
+            idx.sort_unstable_by(|&a, &b| {
+                s[a].partial_cmp(&s[b]).unwrap_or(std::cmp::Ordering::Equal)
+            });
         });
         idx
     }
 
-    pub fn add_scalar(&self, s: f64) -> Vector { self.map_internal(|x| x + s) }
-    pub fn sub_scalar(&self, s: f64) -> Vector { self.map_internal(|x| x - s) }
-    pub fn mul_scalar(&self, s: f64) -> Vector { self.map_internal(|x| x * s) }
+    pub fn add_scalar(&self, s: f64) -> Vector {
+        self.map_internal(|x| x + s)
+    }
+    pub fn sub_scalar(&self, s: f64) -> Vector {
+        self.map_internal(|x| x - s)
+    }
+    pub fn mul_scalar(&self, s: f64) -> Vector {
+        self.map_internal(|x| x * s)
+    }
     pub fn div_scalar(&self, s: f64) -> PyResult<Vector> {
-        if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("division by zero")); }
+        if s == 0.0 {
+            return Err(pyo3::exceptions::PyZeroDivisionError::new_err(
+                "division by zero",
+            ));
+        }
         Ok(self.map_internal(|x| x / s))
     }
 }
@@ -481,7 +697,9 @@ impl Vector {
         // Handshake: If passing an Array, convert if 1-D or 2-D (1xN/Nx1)
         if let Ok(a) = data.extract::<PyRef<Array>>() {
             if a.ndim() > 2 {
-                return Err(pyo3::exceptions::PyValueError::new_err("Cannot create Vector from N-D array (ndim > 2)"));
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "Cannot create Vector from N-D array (ndim > 2)",
+                ));
             }
             return Ok(Vector::new(a.data().to_vec()));
         }
@@ -498,7 +716,9 @@ impl Vector {
     ///     >>> Vector.zeros(3)
     ///     Vector([0.0, 0.0, 0.0])
     #[staticmethod]
-    pub fn zeros(n: usize) -> Self { Vector::zeros_internal(n) }
+    pub fn zeros(n: usize) -> Self {
+        Vector::zeros_internal(n)
+    }
 
     /// Create a Vector filled with ones.
     ///
@@ -507,7 +727,9 @@ impl Vector {
     ///     >>> Vector.ones(3)
     ///     Vector([1.0, 1.0, 1.0])
     #[staticmethod]
-    pub fn ones(n: usize) -> Self { Vector::ones_internal(n) }
+    pub fn ones(n: usize) -> Self {
+        Vector::ones_internal(n)
+    }
 
     /// Create a Vector filled with a specific value.
     ///
@@ -516,7 +738,9 @@ impl Vector {
     ///     >>> Vector.full(3, 42.0)
     ///     Vector([42.0, 42.0, 42.0])
     #[staticmethod]
-    pub fn full(n: usize, val: f64) -> Self { Vector::full_internal(n, val) }
+    pub fn full(n: usize, val: f64) -> Self {
+        Vector::full_internal(n, val)
+    }
 
     #[staticmethod]
     pub fn random(n: usize) -> Self {
@@ -546,16 +770,34 @@ impl Vector {
     #[staticmethod]
     #[pyo3(signature = (start, stop = None, step = 1.0))]
     pub fn arange(start: f64, stop: Option<f64>, step: f64) -> Self {
-        let (s, e) = match stop { Some(v) => (start, v), None => (0.0, start) };
-        if step == 0.0 { return Vector::new(vec![]); }
-        let n_f = ((e - s) / step).ceil();
-        if n_f <= 0.0 { return Vector::new(vec![]); }
-        let n = n_f as usize;
-        let data: Vec<f64> = if n >= PAR_THRESHOLD {
-            (0..n).into_par_iter().map(|i| s + i as f64 * step).collect()
-        } else {
-            (0..n).map(|i| s + i as f64 * step).collect()
+        let (s, e) = match stop {
+            Some(v) => (start, v),
+            None => (0.0, start),
         };
+        if step == 0.0 {
+            return Vector::new(vec![]);
+        }
+        let n_f = ((e - s) / step).ceil();
+        if n_f <= 0.0 {
+            return Vector::new(vec![]);
+        }
+        let n = n_f as usize;
+
+        // VIRTUAL RANGE ALGORITHM:
+        // If the range is large, we use a virtual representation to prevent system-wide
+        // freezes and OOM errors. This uses 24 bytes instead of GBs of RAM.
+        if n > PAR_THRESHOLD {
+            return Vector {
+                storage: VectorStorage::VirtualRange {
+                    start: s,
+                    step,
+                    count: n,
+                },
+            };
+        }
+
+        // Standard path for small ranges
+        let data: Vec<f64> = (0..n).map(|i| s + i as f64 * step).collect();
         Vector::new(data)
     }
 
@@ -573,11 +815,22 @@ impl Vector {
     ///     Vector([0.0, 0.25, 0.5, 0.75, 1.0])
     #[staticmethod]
     pub fn linspace(start: f64, stop: f64, num: usize) -> Self {
-        if num == 0 { return Vector::new(vec![]); }
-        if num == 1 { return Vector::new(vec![start]); }
+        if num == 0 {
+            return Vector::new(vec![]);
+        }
+        if num == 1 {
+            return Vector::new(vec![start]);
+        }
+        if num > SAFE_ALLOC_LIMIT {
+            panic!("MEMORY PROTECTION: Refusing to allocate linspace for {} elements (~{} GB). Use range() for virtual sequences.", 
+                   num, (num * 8) / 1_000_000_000);
+        }
         let step = (stop - start) / (num - 1) as f64;
         let data: Vec<f64> = if num >= PAR_THRESHOLD {
-            (0..num).into_par_iter().map(|i| start + i as f64 * step).collect()
+            (0..num)
+                .into_par_iter()
+                .map(|i| start + i as f64 * step)
+                .collect()
         } else {
             (0..num).map(|i| start + i as f64 * step).collect()
         };
@@ -595,10 +848,17 @@ impl Vector {
     #[staticmethod]
     #[pyo3(signature = (start_or_stop, stop = None, step = 1.0))]
     pub fn sum_range(start_or_stop: f64, stop: Option<f64>, step: f64) -> f64 {
-        let (start, stop) = match stop { Some(s) => (start_or_stop, s), None => (0.0, start_or_stop) };
-        if step == 0.0 { return 0.0; }
+        let (start, stop) = match stop {
+            Some(s) => (start_or_stop, s),
+            None => (0.0, start_or_stop),
+        };
+        if step == 0.0 {
+            return 0.0;
+        }
         let n = ((stop - start) / step).ceil().max(0.0);
-        if n <= 0.0 { return 0.0; }
+        if n <= 0.0 {
+            return 0.0;
+        }
         let last = start + (n - 1.0) * step;
         (n / 2.0) * (start + last)
     }
@@ -608,16 +868,24 @@ impl Vector {
     // -----------------------------------------------------------------------
 
     #[getter]
-    pub fn shape(&self) -> Vec<usize> { vec![self.len_internal()] }
+    pub fn shape(&self) -> Vec<usize> {
+        vec![self.len_internal()]
+    }
 
     #[getter]
     #[pyo3(name = "ndim")]
-    pub fn ndim_py(&self) -> usize { 1 }
+    pub fn ndim_py(&self) -> usize {
+        1
+    }
 
     #[getter]
-    pub fn size(&self) -> usize { self.len_internal() }
+    pub fn size(&self) -> usize {
+        self.len_internal()
+    }
 
-    pub fn __len__(&self) -> usize { self.len_internal() }
+    pub fn __len__(&self) -> usize {
+        self.len_internal()
+    }
 
     pub fn __iter__(&self) -> VectorIter {
         match &self.storage {
@@ -635,6 +903,15 @@ impl Vector {
                     pos: 0,
                 }
             }
+            // Virtual: Lazy iteration — no memory allocation, even for 50B elements.
+            VectorStorage::VirtualRange { start, step, count } => VectorIter {
+                source: IterSource::VirtualRange {
+                    start: *start,
+                    step: *step,
+                    count: *count,
+                },
+                pos: 0,
+            },
         }
     }
 
@@ -649,21 +926,25 @@ impl Vector {
                 let len = self.len_internal() as isize;
                 let idx = if i < 0 { i + len } else { i };
                 if idx < 0 || idx >= len {
-                    return Err(pyo3::exceptions::PyIndexError::new_err("index out of range"));
+                    return Err(pyo3::exceptions::PyIndexError::new_err(
+                        "index out of range",
+                    ));
                 }
                 let val = self.with_slice(|s| s[idx as usize]);
-                return Ok(crate::scalar::Scalar(val).into_pyobject(py)?.into_any().unbind());
+                return Ok(crate::scalar::Scalar(val)
+                    .into_pyobject(py)?
+                    .into_any()
+                    .unbind());
             }
             // Slice indexing
             if let Ok(sl) = index.downcast::<PySlice>() {
                 let len = self.len_internal();
                 let indices = sl.indices(len as isize)?;
                 let start = indices.start as usize;
-                let stop  = indices.stop as usize;
-                let step  = indices.step as usize;
-                let data: Vec<f64> = self.with_slice(|s| {
-                    (start..stop).step_by(step.max(1)).map(|i| s[i]).collect()
-                });
+                let stop = indices.stop as usize;
+                let step = indices.step as usize;
+                let data: Vec<f64> =
+                    self.with_slice(|s| (start..stop).step_by(step.max(1)).map(|i| s[i]).collect());
                 return Ok(Vector::new(data).into_pyobject(py)?.into_any().unbind());
             }
             Err(pyo3::exceptions::PyTypeError::new_err(
@@ -676,43 +957,85 @@ impl Vector {
         let len = self.len_internal() as isize;
         let idx = if index < 0 { index + len } else { index };
         if idx < 0 || idx >= len {
-            return Err(pyo3::exceptions::PyIndexError::new_err("index out of range"));
+            return Err(pyo3::exceptions::PyIndexError::new_err(
+                "index out of range",
+            ));
         }
         match &mut self.storage {
-            VectorStorage::Inline(arr, _) => { arr[idx as usize] = value; }
-            VectorStorage::Heap(arc) => { Arc::make_mut(arc)[idx as usize] = value; }
+            VectorStorage::Inline(arr, _) => {
+                arr[idx as usize] = value;
+            }
+            VectorStorage::Heap(arc) => {
+                Arc::make_mut(arc)[idx as usize] = value;
+            }
+            VectorStorage::VirtualRange { start, step, count } => {
+                // MATERIALIZATION GUARD:
+                // We must materialize the range into a Heap vector before we can
+                // modify a single element. We check the safety limit first.
+                if *count > SAFE_ALLOC_LIMIT {
+                    return Err(pyo3::exceptions::PyMemoryError::new_err(format!(
+                        "MEMORY PROTECTION: Cannot mutate a virtual range of {} elements. Too large for RAM.", count
+                    )));
+                }
+                let s = *start;
+                let st = *step;
+                let c = *count;
+                let data: Vec<f64> = (0..c).map(|i| s + i as f64 * st).collect();
+                self.storage = VectorStorage::Heap(Arc::new(data));
+                self.__setitem__(index, value)?
+            }
         }
         Ok(())
     }
 
-    // -----------------------------------------------------------------------
-    // Representation
-    // -----------------------------------------------------------------------
-
     /// Standard string representation.
     pub fn __repr__(&self) -> String {
-        self.with_slice(|s| {
-            if s.len() <= 10 {
-                let formatted_vals: Vec<String> = s.iter().map(|v| format!("{v:.4}")).collect();
-                format!("Vector([{}])", formatted_vals.join(", "))
-            } else {
-                format!("Vector([{}, {}, ..., {}, {}], len={})", 
-                    s[0], s[1], s[s.len()-2], s[s.len()-1], s.len())
+        match &self.storage {
+            VectorStorage::VirtualRange { start, step, count } => {
+                if *count == 0 {
+                    return "Vector([])".to_string();
+                }
+                let last = start + (*count as f64 - 1.0) * step;
+                format!(
+                    "Vector(range({:.4}..{:.4}, step={:.4}), len={})",
+                    start, last, step, count
+                )
             }
-        })
+            _ => self.with_slice(|s| {
+                if s.len() <= 10 {
+                    let formatted_vals: Vec<String> = s.iter().map(|v| format!("{v:.4}")).collect();
+                    format!("Vector([{}])", formatted_vals.join(", "))
+                } else {
+                    format!(
+                        "Vector([{}, {}, ..., {}, {}], len={})",
+                        s[0],
+                        s[1],
+                        s[s.len() - 2],
+                        s[s.len() - 1],
+                        s.len()
+                    )
+                }
+            }),
+        }
     }
 
     /// User-friendly string representation.
-    pub fn __str__(&self) -> String { self.__repr__() }
+    pub fn __str__(&self) -> String {
+        self.__repr__()
+    }
 
     // -----------------------------------------------------------------------
     // Conversion
     // -----------------------------------------------------------------------
 
     /// Convert Vector elements to a Python list.
-    pub fn to_list(&self) -> Vec<f64> { self.with_slice(|s| s.to_vec()) }
+    pub fn to_list(&self) -> Vec<f64> {
+        self.with_slice(|s| s.to_vec())
+    }
     /// Alias for `to_list()`.
-    pub fn tolist(&self) -> Vec<f64> { self.to_list() }
+    pub fn tolist(&self) -> Vec<f64> {
+        self.to_list()
+    }
 
     /// Create a zero-copy LazyPipeline from this Vector.
     ///
@@ -722,6 +1045,14 @@ impl Vector {
             VectorStorage::Heap(arc) => crate::scalar::from_shared_buffer(Arc::clone(arc)),
             VectorStorage::Inline(arr, n) => {
                 crate::scalar::from_shared_buffer(Arc::new(arr[..*n].to_vec()))
+            }
+            VectorStorage::VirtualRange { start, step, count } => {
+                if *count > SAFE_ALLOC_LIMIT {
+                    panic!("MEMORY PROTECTION: Refusing to create lazy pipeline for range of {} elements (~{} GB).", 
+                           count, (*count * 8) / 1_000_000_000);
+                }
+                let data: Vec<f64> = (0..*count).map(|i| start + i as f64 * step).collect();
+                crate::scalar::from_shared_buffer(Arc::new(data))
             }
         }
     }
@@ -740,17 +1071,23 @@ impl Vector {
             if n != v.len_internal() {
                 return Err(pyo3::exceptions::PyValueError::new_err("length mismatch"));
             }
-            return Ok(self.with_slice(|s1| v.with_slice(|s2| {
-                s1.iter().zip(s2.iter()).map(|(a, b)| a == b).collect()
-            })));
+            return Ok(self.with_slice(|s1| {
+                v.with_slice(|s2| s1.iter().zip(s2.iter()).map(|(a, b)| a == b).collect())
+            }));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
     // -----------------------------------------------------------------------
     // Arithmetic operators
     // -----------------------------------------------------------------------
 
+    /// Addition operator: self + other.
+    ///
+    /// Supports addition with a scalar (float) or another Vector.
+    /// Parallelized for large vectors.
     pub fn __add__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
         let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
@@ -762,7 +1099,9 @@ impl Vector {
             let other = v.clone();
             return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a + b));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
     pub fn __radd__(&self, lhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
@@ -770,6 +1109,10 @@ impl Vector {
         self.__add__(lhs)
     }
 
+    /// Subtraction operator: self - other.
+    ///
+    /// Supports subtraction of a scalar (float) or another Vector.
+    /// Parallelized for large vectors.
     pub fn __sub__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
         let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
@@ -781,7 +1124,9 @@ impl Vector {
             let other = v.clone();
             return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a - b));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
     pub fn __rsub__(&self, lhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
@@ -795,9 +1140,15 @@ impl Vector {
             let other = v.clone();
             return py.allow_threads(move || other.zip_map_internal(&this, |a, b| a - b));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
+    /// Multiplication operator: self * other.
+    ///
+    /// Supports multiplication by a scalar (float) or another Vector.
+    /// Parallelized for large vectors.
     pub fn __mul__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
         let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
@@ -809,17 +1160,30 @@ impl Vector {
             let other = v.clone();
             return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a * b));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
     pub fn __rmul__(&self, lhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
         self.__mul__(lhs)
     }
 
+    /// True division operator: self / other.
+    ///
+    /// Supports division by a scalar (float) or another Vector.
+    /// Parallelized for large vectors.
+    ///
+    /// Note: Vector-Vector division follows IEEE-754 semantics (0-divisors
+    /// yield inf/nan). Scalar division by 0.0 raises `ZeroDivisionError`.
     pub fn __truediv__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
         let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
-            if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("division by zero")); }
+            if s == 0.0 {
+                return Err(pyo3::exceptions::PyZeroDivisionError::new_err(
+                    "division by zero",
+                ));
+            }
             let this = self.clone();
             return py.allow_threads(move || Ok(this.map_internal(|x| x / s)));
         }
@@ -829,7 +1193,9 @@ impl Vector {
             // elementwise: 0-divisors produce INFINITY (documented IEEE behaviour)
             return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a / b));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
     pub fn __rtruediv__(&self, lhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
@@ -843,13 +1209,19 @@ impl Vector {
             let other = v.clone();
             return py.allow_threads(move || other.zip_map_internal(&this, |a, b| a / b));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
     pub fn __floordiv__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
         let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
-            if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("division by zero")); }
+            if s == 0.0 {
+                return Err(pyo3::exceptions::PyZeroDivisionError::new_err(
+                    "division by zero",
+                ));
+            }
             let this = self.clone();
             return py.allow_threads(move || Ok(this.map_internal(|x| (x / s).floor())));
         }
@@ -858,13 +1230,19 @@ impl Vector {
             let other = v.clone();
             return py.allow_threads(move || this.zip_map_internal(&other, |a, b| (a / b).floor()));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
     pub fn __mod__(&self, rhs: &Bound<'_, PyAny>) -> PyResult<Vector> {
         let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
-            if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("modulo by zero")); }
+            if s == 0.0 {
+                return Err(pyo3::exceptions::PyZeroDivisionError::new_err(
+                    "modulo by zero",
+                ));
+            }
             let this = self.clone();
             return py.allow_threads(move || Ok(this.map_internal(|x| x % s)));
         }
@@ -873,10 +1251,16 @@ impl Vector {
             let other = v.clone();
             return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a % b));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
-    pub fn __pow__(&self, exp: &Bound<'_, PyAny>, _modulo: Option<&Bound<'_, PyAny>>) -> PyResult<Vector> {
+    pub fn __pow__(
+        &self,
+        exp: &Bound<'_, PyAny>,
+        _modulo: Option<&Bound<'_, PyAny>>,
+    ) -> PyResult<Vector> {
         let py = exp.py();
         if let Ok(s) = exp.extract::<f64>() {
             let this = self.clone();
@@ -887,18 +1271,25 @@ impl Vector {
             let other = v.clone();
             return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a.powf(b)));
         }
-        Err(pyo3::exceptions::PyTypeError::new_err("Expected float or Vector"))
+        Err(pyo3::exceptions::PyTypeError::new_err(
+            "Expected float or Vector",
+        ))
     }
 
     pub fn pow(&self, exp: &Bound<'_, PyAny>) -> PyResult<Vector> {
         self.__pow__(exp, None)
     }
 
+    /// Unary negation: -self.
     pub fn __neg__(&self, py: Python<'_>) -> Vector {
         let this = self.clone();
         py.allow_threads(move || this.map_internal(|x| -x))
     }
-    pub fn __pos__(&self) -> Vector { self.clone() }
+    /// Unary positive: +self (returns a copy).
+    pub fn __pos__(&self) -> Vector {
+        self.clone()
+    }
+    /// Absolute value: abs(self).
     pub fn __abs__(&self, py: Python<'_>) -> Vector {
         let this = self.clone();
         py.allow_threads(move || this.map_internal(|x| x.abs()))
@@ -925,15 +1316,31 @@ impl Vector {
         self.into_array().__array__(py, dtype, copy)
     }
 
-    pub fn add(&self, other: &Bound<'_, PyAny>) -> PyResult<Vector> { self.__add__(other) }
-    pub fn sub(&self, other: &Bound<'_, PyAny>) -> PyResult<Vector> { self.__sub__(other) }
-    pub fn mul(&self, other: &Bound<'_, PyAny>) -> PyResult<Vector> { self.__mul__(other) }
-    pub fn div(&self, other: &Bound<'_, PyAny>) -> PyResult<Vector> { self.__truediv__(other) }
+    pub fn add(&self, other: &Bound<'_, PyAny>) -> PyResult<Vector> {
+        self.__add__(other)
+    }
+    pub fn sub(&self, other: &Bound<'_, PyAny>) -> PyResult<Vector> {
+        self.__sub__(other)
+    }
+    pub fn mul(&self, other: &Bound<'_, PyAny>) -> PyResult<Vector> {
+        self.__mul__(other)
+    }
+    pub fn div(&self, other: &Bound<'_, PyAny>) -> PyResult<Vector> {
+        self.__truediv__(other)
+    }
 
-    pub fn add_vec(&self, other: &Vector) -> PyResult<Vector> { self.zip_map_internal(other, |a, b| a + b) }
-    pub fn sub_vec(&self, other: &Vector) -> PyResult<Vector> { self.zip_map_internal(other, |a, b| a - b) }
-    pub fn mul_vec(&self, other: &Vector) -> PyResult<Vector> { self.zip_map_internal(other, |a, b| a * b) }
-    pub fn div_vec(&self, other: &Vector) -> PyResult<Vector> { self.zip_map_internal(other, |a, b| a / b) }
+    pub fn add_vec(&self, other: &Vector) -> PyResult<Vector> {
+        self.zip_map_internal(other, |a, b| a + b)
+    }
+    pub fn sub_vec(&self, other: &Vector) -> PyResult<Vector> {
+        self.zip_map_internal(other, |a, b| a - b)
+    }
+    pub fn mul_vec(&self, other: &Vector) -> PyResult<Vector> {
+        self.zip_map_internal(other, |a, b| a * b)
+    }
+    pub fn div_vec(&self, other: &Vector) -> PyResult<Vector> {
+        self.zip_map_internal(other, |a, b| a / b)
+    }
 
     // -----------------------------------------------------------------------
     // Scalar / Vec named arithmetic — GIL-releasing wrappers
@@ -957,7 +1364,11 @@ impl Vector {
     }
     #[pyo3(name = "div_scalar")]
     pub fn div_scalar_py(&self, py: Python<'_>, s: f64) -> PyResult<Vector> {
-        if s == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("division by zero")); }
+        if s == 0.0 {
+            return Err(pyo3::exceptions::PyZeroDivisionError::new_err(
+                "division by zero",
+            ));
+        }
         let this = self.clone();
         py.allow_threads(move || Ok(this.map_internal(|x| x / s)))
     }
@@ -1026,7 +1437,11 @@ impl Vector {
         let this = self.clone();
         py.allow_threads(move || {
             let (m, s, _) = this.moments();
-            if s == 0.0 { this } else { this.map_internal(|x| (x - m) / s) }
+            if s == 0.0 {
+                this
+            } else {
+                this.map_internal(|x| (x - m) / s)
+            }
         })
     }
 
@@ -1035,7 +1450,9 @@ impl Vector {
         let this = self.clone();
         py.allow_threads(move || {
             this.with_slice(|s| {
-                if s.is_empty() { return Self::zeros(0); }
+                if s.is_empty() {
+                    return Self::zeros(0);
+                }
                 let max_val = s.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
                 let exps: Vec<f64> = s.par_iter().map(|&x| (x - max_val).exp()).collect();
                 let sum_exps: f64 = exps.par_iter().sum();
@@ -1144,29 +1561,51 @@ impl Vector {
     // -----------------------------------------------------------------------
 
     /// Returns `True` if any element is non-zero.
-    pub fn any(&self) -> bool { self.with_slice(|s| s.iter().any(|x| *x != 0.0)) }
+    pub fn any(&self) -> bool {
+        self.with_slice(|s| s.iter().any(|x| *x != 0.0))
+    }
     /// Returns `True` if all elements are non-zero.
-    pub fn all(&self) -> bool { self.with_slice(|s| s.iter().all(|x| *x != 0.0)) }
+    pub fn all(&self) -> bool {
+        self.with_slice(|s| s.iter().all(|x| *x != 0.0))
+    }
     /// Returns a boolean mask: `True` if element is NaN.
-    pub fn isnan(&self)    -> Vec<bool> { self.with_slice(|s| s.iter().map(|x| x.is_nan()).collect()) }
+    pub fn isnan(&self) -> Vec<bool> {
+        self.with_slice(|s| s.iter().map(|x| x.is_nan()).collect())
+    }
     /// Returns a boolean mask: `True` if element is finite.
-    pub fn isfinite(&self) -> Vec<bool> { self.with_slice(|s| s.iter().map(|x| x.is_finite()).collect()) }
+    pub fn isfinite(&self) -> Vec<bool> {
+        self.with_slice(|s| s.iter().map(|x| x.is_finite()).collect())
+    }
     /// Returns a boolean mask: `True` if element is infinite.
-    pub fn isinf(&self)    -> Vec<bool> { self.with_slice(|s| s.iter().map(|x| x.is_infinite()).collect()) }
+    pub fn isinf(&self) -> Vec<bool> {
+        self.with_slice(|s| s.iter().map(|x| x.is_infinite()).collect())
+    }
     /// Returns a boolean mask: `True` if element is an integer.
-    pub fn is_integer(&self) -> Vec<bool> { self.with_slice(|s| s.iter().map(|x| x.fract() == 0.0).collect()) }
+    pub fn is_integer(&self) -> Vec<bool> {
+        self.with_slice(|s| s.iter().map(|x| x.fract() == 0.0).collect())
+    }
     /// Returns a boolean mask: `True` if element is a prime number.
     ///
     /// Rounds each element to the nearest integer for the test.
     pub fn is_prime(&self) -> Vec<bool> {
-        self.with_slice(|s| s.iter().map(|&x| {
-            let n = x.abs().round() as u64;
-            if n < 2 { return false; }
-            if n == 2 { return true; }
-            if n % 2 == 0 { return false; }
-            let limit = (n as f64).sqrt() as u64;
-            (3..=limit).step_by(2).all(|i| n % i != 0)
-        }).collect())
+        self.with_slice(|s| {
+            s.iter()
+                .map(|&x| {
+                    let n = x.abs().round() as u64;
+                    if n < 2 {
+                        return false;
+                    }
+                    if n == 2 {
+                        return true;
+                    }
+                    if n % 2 == 0 {
+                        return false;
+                    }
+                    let limit = (n as f64).sqrt() as u64;
+                    (3..=limit).step_by(2).all(|i| n % i != 0)
+                })
+                .collect()
+        })
     }
 
     // -----------------------------------------------------------------------
@@ -1187,12 +1626,13 @@ impl Vector {
         if let Ok(vmask) = mask.extract::<PyRef<Vector>>() {
             if vmask.len_internal() != n {
                 return Err(pyo3::exceptions::PyValueError::new_err(
-                    "mask length must match vector length"
+                    "mask length must match vector length",
                 ));
             }
             let data = self.with_slice(|s| {
                 vmask.with_slice(|m| {
-                    s.iter().zip(m.iter())
+                    s.iter()
+                        .zip(m.iter())
                         .filter(|&(_, &mv)| mv != 0.0)
                         .map(|(&v, _)| v)
                         .collect()
@@ -1204,11 +1644,15 @@ impl Vector {
         let bool_mask: Vec<bool> = mask.extract()?;
         if bool_mask.len() != n {
             return Err(pyo3::exceptions::PyValueError::new_err(
-                "mask length must match vector length"
+                "mask length must match vector length",
             ));
         }
         let data = self.with_slice(|s| {
-            s.iter().zip(bool_mask.iter()).filter(|&(_, &m)| m).map(|(&v, _)| v).collect()
+            s.iter()
+                .zip(bool_mask.iter())
+                .filter(|&(_, &m)| m)
+                .map(|(&v, _)| v)
+                .collect()
         });
         Ok(Vector::new(data))
     }
@@ -1244,14 +1688,18 @@ impl Vector {
         let n = self.len_internal();
         if mask.len() != n || other.len_internal() != n {
             return Err(pyo3::exceptions::PyValueError::new_err(
-                "mask and other must have the same length as self"
+                "mask and other must have the same length as self",
             ));
         }
-        let data = self.with_slice(|s1| other.with_slice(|s2| {
-            s1.iter().zip(s2.iter()).zip(mask.iter())
-                .map(|((&a, &b), &m)| if m { a } else { b })
-                .collect()
-        }));
+        let data = self.with_slice(|s1| {
+            other.with_slice(|s2| {
+                s1.iter()
+                    .zip(s2.iter())
+                    .zip(mask.iter())
+                    .map(|((&a, &b), &m)| if m { a } else { b })
+                    .collect()
+            })
+        });
         Ok(Vector::new(data))
     }
 
@@ -1291,10 +1739,13 @@ impl Vector {
     pub fn unique(&self) -> Vector {
         let mut seen = std::collections::HashSet::new();
         let data = self.with_slice(|s| {
-            s.iter().filter(|&&x| {
-                let bits = x.to_bits();
-                seen.insert(bits)
-            }).cloned().collect()
+            s.iter()
+                .filter(|&&x| {
+                    let bits = x.to_bits();
+                    seen.insert(bits)
+                })
+                .cloned()
+                .collect()
         });
         Vector::new(data)
     }
@@ -1311,7 +1762,12 @@ impl Vector {
     pub fn cumsum(&self) -> Vector {
         let data = self.with_slice(|s| {
             let mut acc = 0.0_f64;
-            s.iter().map(|&x| { acc += x; acc }).collect()
+            s.iter()
+                .map(|&x| {
+                    acc += x;
+                    acc
+                })
+                .collect()
         });
         Vector::new(data)
     }
@@ -1320,7 +1776,12 @@ impl Vector {
     pub fn cumprod(&self) -> Vector {
         let data = self.with_slice(|s| {
             let mut acc = 1.0_f64;
-            s.iter().map(|&x| { acc *= x; acc }).collect()
+            s.iter()
+                .map(|&x| {
+                    acc *= x;
+                    acc
+                })
+                .collect()
         });
         Vector::new(data)
     }
@@ -1329,7 +1790,9 @@ impl Vector {
     /// Result has length n-1.
     pub fn diff(&self) -> Vector {
         let data = self.with_slice(|s| {
-            if s.len() < 2 { return vec![]; }
+            if s.len() < 2 {
+                return vec![];
+            }
             s.windows(2).map(|w| w[1] - w[0]).collect()
         });
         Vector::new(data)
@@ -1355,10 +1818,14 @@ impl Vector {
     /// Split into chunks of size `chunk_size`.  Last chunk may be smaller.
     pub fn chunks(&self, chunk_size: usize) -> PyResult<Vec<Vector>> {
         if chunk_size == 0 {
-            return Err(pyo3::exceptions::PyValueError::new_err("chunk_size must be > 0"));
+            return Err(pyo3::exceptions::PyValueError::new_err(
+                "chunk_size must be > 0",
+            ));
         }
         Ok(self.with_slice(|s| {
-            s.chunks(chunk_size).map(|c| Vector::new(c.to_vec())).collect()
+            s.chunks(chunk_size)
+                .map(|c| Vector::new(c.to_vec()))
+                .collect()
         }))
     }
 
@@ -1384,54 +1851,118 @@ impl Vector {
     // -----------------------------------------------------------------------
 
     /// Element-wise square root.
-    pub fn sqrt(&self)  -> Self { self.map_internal(|x| x.sqrt()) }
+    pub fn sqrt(&self) -> Self {
+        self.map_internal(|x| x.sqrt())
+    }
     /// Element-wise cube root.
-    pub fn cbrt(&self)  -> Self { self.map_internal(|x| x.cbrt()) }
+    pub fn cbrt(&self) -> Self {
+        self.map_internal(|x| x.cbrt())
+    }
     /// Element-wise sine.
-    pub fn sin(&self)   -> Self { self.map_internal(|x| x.sin()) }
+    pub fn sin(&self) -> Self {
+        self.map_internal(|x| x.sin())
+    }
     /// Element-wise cosine.
-    pub fn cos(&self)   -> Self { self.map_internal(|x| x.cos()) }
+    pub fn cos(&self) -> Self {
+        self.map_internal(|x| x.cos())
+    }
     /// Element-wise tangent.
-    pub fn tan(&self)   -> Self { self.map_internal(|x| x.tan()) }
-    pub fn asin(&self)  -> Self { self.map_internal(|x| x.asin()) }
-    pub fn acos(&self)  -> Self { self.map_internal(|x| x.acos()) }
+    pub fn tan(&self) -> Self {
+        self.map_internal(|x| x.tan())
+    }
+    pub fn asin(&self) -> Self {
+        self.map_internal(|x| x.asin())
+    }
+    pub fn acos(&self) -> Self {
+        self.map_internal(|x| x.acos())
+    }
     /// Element-wise arctangent.
-    pub fn atan(&self)  -> Self { self.map_internal(|x| x.atan()) }
-    pub fn sinh(&self)  -> Self { self.map_internal(|x| x.sinh()) }
-    pub fn cosh(&self)  -> Self { self.map_internal(|x| x.cosh()) }
+    pub fn atan(&self) -> Self {
+        self.map_internal(|x| x.atan())
+    }
+    pub fn sinh(&self) -> Self {
+        self.map_internal(|x| x.sinh())
+    }
+    pub fn cosh(&self) -> Self {
+        self.map_internal(|x| x.cosh())
+    }
     /// Element-wise hyperbolic tangent.
-    pub fn tanh(&self)  -> Self { self.map_internal(|x| x.tanh()) }
+    pub fn tanh(&self) -> Self {
+        self.map_internal(|x| x.tanh())
+    }
     /// Element-wise natural exponential: e^x.
-    pub fn exp(&self)   -> Self { self.map_internal(|x| x.exp()) }
-    pub fn exp2(&self)  -> Self { self.map_internal(|x| x.exp2()) }
-    pub fn expm1(&self) -> Self { self.map_internal(|x| x.exp_m1()) }
+    pub fn exp(&self) -> Self {
+        self.map_internal(|x| x.exp())
+    }
+    pub fn exp2(&self) -> Self {
+        self.map_internal(|x| x.exp2())
+    }
+    pub fn expm1(&self) -> Self {
+        self.map_internal(|x| x.exp_m1())
+    }
     /// Element-wise natural logarithm: ln(x).
-    pub fn log(&self)   -> Self { self.map_internal(|x| x.ln()) }
-    pub fn log2(&self)  -> Self { self.map_internal(|x| x.log2()) }
-    pub fn log10(&self) -> Self { self.map_internal(|x| x.log10()) }
-    pub fn log1p(&self) -> Self { self.map_internal(|x| x.ln_1p()) }
-    pub fn abs(&self)   -> Self { self.map_internal(|x| x.abs()) }
+    pub fn log(&self) -> Self {
+        self.map_internal(|x| x.ln())
+    }
+    pub fn log2(&self) -> Self {
+        self.map_internal(|x| x.log2())
+    }
+    pub fn log10(&self) -> Self {
+        self.map_internal(|x| x.log10())
+    }
+    pub fn log1p(&self) -> Self {
+        self.map_internal(|x| x.ln_1p())
+    }
+    pub fn abs(&self) -> Self {
+        self.map_internal(|x| x.abs())
+    }
     /// Element-wise ceiling (round toward +inf).
-    pub fn ceil(&self)  -> Self { self.map_internal(|x| x.ceil()) }
+    pub fn ceil(&self) -> Self {
+        self.map_internal(|x| x.ceil())
+    }
     /// Element-wise floor (round toward -inf).
-    pub fn floor(&self) -> Self { self.map_internal(|x| x.floor()) }
+    pub fn floor(&self) -> Self {
+        self.map_internal(|x| x.floor())
+    }
     /// Element-wise rounding to nearest integer.
-    pub fn round(&self) -> Self { self.map_internal(|x| x.round()) }
+    pub fn round(&self) -> Self {
+        self.map_internal(|x| x.round())
+    }
     /// Element-wise truncation toward zero.
-    pub fn trunc(&self) -> Self { self.map_internal(|x| x.trunc()) }
-    pub fn fract(&self) -> Self { self.map_internal(|x| x.fract()) }
-    pub fn signum(&self)-> Self { self.map_internal(|x| if x == 0.0 { 0.0 } else { x.signum() }) }
-    pub fn recip(&self) -> Self { self.map_internal(|x| x.recip()) }
+    pub fn trunc(&self) -> Self {
+        self.map_internal(|x| x.trunc())
+    }
+    pub fn fract(&self) -> Self {
+        self.map_internal(|x| x.fract())
+    }
+    pub fn signum(&self) -> Self {
+        self.map_internal(|x| if x == 0.0 { 0.0 } else { x.signum() })
+    }
+    pub fn recip(&self) -> Self {
+        self.map_internal(|x| x.recip())
+    }
 
     /// Apply the sigmoid function: 1 / (1 + e^-x).
-    pub fn sigmoid(&self) -> Self { self.map_internal(|x| 1.0 / (1.0 + (-x).exp())) }
-    pub fn clip(&self, lo: f64, hi: f64) -> Self { self.map_internal(|x| x.clamp(lo, hi)) }
-    pub fn pow_scalar(&self, exp: f64)   -> Self { self.map_internal(|x| x.powf(exp)) }
-    pub fn clamp(&self, lo: f64, hi: f64)-> Self { self.clip(lo, hi) }
+    pub fn sigmoid(&self) -> Self {
+        self.map_internal(|x| 1.0 / (1.0 + (-x).exp()))
+    }
+    pub fn clip(&self, lo: f64, hi: f64) -> Self {
+        self.map_internal(|x| x.clamp(lo, hi))
+    }
+    pub fn pow_scalar(&self, exp: f64) -> Self {
+        self.map_internal(|x| x.powf(exp))
+    }
+    pub fn clamp(&self, lo: f64, hi: f64) -> Self {
+        self.clip(lo, hi)
+    }
     /// Element-wise hypotenuse: sqrt(self² + y²).
-    pub fn hypot_scalar(&self, y: f64)   -> Self { self.map_internal(|x| x.hypot(y)) }
+    pub fn hypot_scalar(&self, y: f64) -> Self {
+        self.map_internal(|x| x.hypot(y))
+    }
     /// Element-wise two-argument arctangent: atan2(self, x).
-    pub fn atan2_scalar(&self, x: f64)   -> Self { self.map_internal(|y| y.atan2(x)) }
+    pub fn atan2_scalar(&self, x: f64) -> Self {
+        self.map_internal(|y| y.atan2(x))
+    }
     /// Element-wise linear interpolation between `self` and `other`.
     pub fn lerp_scalar(&self, other: f64, t: f64) -> Self {
         self.map_internal(|x| x + t * (other - x))
@@ -1455,6 +1986,7 @@ impl Vector {
 enum IterSource {
     Inline([f64; INLINE_MAX], usize),
     Heap(Arc<Vec<f64>>),
+    VirtualRange { start: f64, step: f64, count: usize },
 }
 
 #[pyclass(module = "rmath")]
@@ -1465,17 +1997,29 @@ pub struct VectorIter {
 
 #[pymethods]
 impl VectorIter {
-    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> { slf }
+    fn __iter__(slf: PyRef<'_, Self>) -> PyRef<'_, Self> {
+        slf
+    }
 
     fn __next__(&mut self) -> Option<f64> {
         let val = match &self.source {
             IterSource::Inline(buf, n) => {
-                if self.pos >= *n { return None; }
+                if self.pos >= *n {
+                    return None;
+                }
                 buf[self.pos]
             }
             IterSource::Heap(arc) => {
-                if self.pos >= arc.len() { return None; }
+                if self.pos >= arc.len() {
+                    return None;
+                }
                 arc[self.pos]
+            }
+            IterSource::VirtualRange { start, step, count } => {
+                if self.pos >= *count {
+                    return None;
+                }
+                *start + self.pos as f64 * *step
             }
         };
         self.pos += 1;

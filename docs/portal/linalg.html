@@ -1,119 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rmath.linalg — RMath Documentation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.linalg — RMath Docs</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="portal">
-    <aside class="sidebar" id="sidebar">
-        <a href="index.html" class="sidebar-brand"><img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span></a>
-        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
-        <nav id="sidebarNav">
-            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
-            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link"><code>Interop</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link active"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
-        </nav>
-    </aside>
-    <main class="content">
-        <section id="overview" class="hero">
-            <div class="badge">Math Module</div>
-            <h1>rmath.<span class="gradient-text">linalg</span></h1>
-            <p class="hero-sub">Matrix decompositions and solvers powered by <a href="https://github.com/sarah-ek/faer-rs" target="_blank">faer</a>. All operations accept and return <code>rmath.Array</code>.</p>
-            <div class="code-window"><div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">example.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
 
-A = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">4</span>, <span class="num">7</span>], [<span class="num">2</span>, <span class="num">6</span>]])
-b = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>], [<span class="num">2</span>]])
-x = <span class="num">rm</span>.linalg.<span class="fn">solve</span>(A, b)
+<nav class="navbar">
+    <div class="navbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <a href="index.html" class="nav-brand">
+            <img src="rmath_logo.svg" alt="RMath Logo" class="logo-img">
+            <span>RMath Docs</span>
+        </a>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">User Guide</a>
+            <a href="array.html" class="nav-link active">API Reference</a>
+            <a href="theory.html" class="nav-link">Theory</a>
+            <a href="interop.html" class="nav-link">Interop</a>
+            <a href="benchmarks.html" class="nav-link">Performance</a>
+        </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+</nav>
 
-Q, R = <span class="num">rm</span>.linalg.<span class="fn">qr</span>(A)
-U, S, Vt = <span class="num">rm</span>.linalg.<span class="fn">svd</span>(A)</code></pre>
-            </div>
-        </section>
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="index.html" class="sidebar-link">What is RMath?</a>
+        <a href="install.html" class="sidebar-link">Installation Guide</a>
+        <a href="quickstart.html" class="sidebar-link">RMath Quickstart</a>
+        <a href="foundations.html" class="sidebar-link">The RMath Engine</a>
+    </div>
 
-        <section id="api">
-            <h2>API Reference</h2>
-            <div class="api-section">
-                <div class="api-section-title">Solvers</div>
-                <table class="api-table">
-                    <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>solve(A, B)</code></td><td class="returns">Array</td><td class="desc">Solve AX = B for X</td></tr>
-                        <tr><td><code>inv(A)</code></td><td class="returns">Array</td><td class="desc">Matrix inverse via partial pivoting</td></tr>
-                        <tr><td><code>pseudo_inv(A)</code></td><td class="returns">Array</td><td class="desc">Moore-Penrose pseudoinverse</td></tr>
-                        <tr><td><code>det(A)</code></td><td class="returns">float</td><td class="desc">Determinant of a square matrix</td></tr>
-                        <tr><td><code>rank(A)</code></td><td class="returns">int</td><td class="desc">Numerical rank</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Decompositions</div>
-                <table class="api-table">
-                    <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>qr(A)</code></td><td class="returns">(Q, R)</td><td class="desc">QR decomposition</td></tr>
-                        <tr><td><code>svd(A)</code></td><td class="returns">(U, S, Vt)</td><td class="desc">Singular value decomposition. S is a Vector.</td></tr>
-                        <tr><td><code>eigh(A)</code></td><td class="returns">(eigvecs, eigvals)</td><td class="desc">Eigenvalues and eigenvectors of symmetric matrix</td></tr>
-                        <tr><td><code>cholesky(A)</code></td><td class="returns">Array</td><td class="desc">Cholesky decomposition (positive definite)</td></tr>
-                    </tbody>
-                </table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Utilities</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>transpose(A)</code></td><td class="returns">Array</td><td class="desc">Matrix transpose</td></tr>
-                    <tr><td><code>gram_matrix(A)</code></td><td class="returns">Array</td><td class="desc">AᵀA (Gram matrix)</td></tr>
-                    <tr><td><code>covariance(A)</code></td><td class="returns">Array</td><td class="desc">Covariance matrix of columns</td></tr>
-                </tbody></table>
-            </div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Core Modules</div>
+        <a href="array.html" class="sidebar-link">rmath.array</a>
+        <a href="vector.html" class="sidebar-link">rmath.vector</a>
+        <a href="tensor.html" class="sidebar-link">rmath.Tensor</a>
+        <a href="scalar.html" class="sidebar-link">rmath.scalar</a>
+        <a href="constants.html" class="sidebar-link">rmath.constants</a>
+    </div>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">solvers.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Advanced Usage</div>
+        <a href="linalg.html" class="sidebar-link active">Linear Algebra</a>
+        <a href="stats.html" class="sidebar-link">Statistics</a>
+        <a href="calculus.html" class="sidebar-link">Calculus & AD</a>
+        <a href="nn.html" class="sidebar-link">Neural Networks</a>
+        <a href="signal.html" class="sidebar-link">Signal Processing</a>
+        <a href="geometry.html" class="sidebar-link">Geometry</a>
+        <a href="special.html" class="sidebar-link">Special Functions</a>
+    </div>
+</aside>
 
-A = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">4</span>, <span class="num">7</span>], [<span class="num">2</span>, <span class="num">6</span>]])
-b = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>], [<span class="num">2</span>]])
+<main class="container">
+    <h1>rmath.linalg</h1>
+    <p>
+        BLAS-accelerated linear algebra routines for matrix decomposition and equation solving.
+    </p>
 
-<span class="cm"># Solve Ax = b</span>
-x = <span class="num">rm</span>.linalg.<span class="fn">solve</span>(A, b)
-<span class="kw">print</span>(x)  <span class="cm"># solution vector</span>
+    <h2>Proven: Matrix Inverse</h2>
+    <div class="proven-code">
+        <div class="code-header">
+            <span>linalg_verify.py</span>
+        </div>
+        <pre><code><span class="token-keyword">import</span> rmath.array <span class="token-keyword">as</span> ra
+<span class="token-keyword">import</span> rmath.array.linalg <span class="token-keyword">as</span> la
 
-<span class="cm"># Determinant and inverse</span>
-<span class="kw">print</span>(<span class="num">rm</span>.linalg.<span class="fn">det</span>(A))   <span class="cm"># 10.0</span>
-A_inv = <span class="num">rm</span>.linalg.<span class="fn">inv</span>(A)
-<span class="kw">print</span>(A @ A_inv)          <span class="cm"># ≈ identity matrix</span></code></pre>
-            </div>
+A = ra.Array([[<span class="token-number">4.0</span>, <span class="token-number">7.0</span>], [<span class="token-number">2.0</span>, <span class="token-number">6.0</span>]])
+A_inv = la.inv(A)
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">decompositions.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<span class="token-comment"># Identity check</span>
+I = A @ A_inv
+<span class="token-builtin">print</span>(<span class="token-string">f"Identity Trace: {I.trace():.4f}"</span>)</code></pre>
+        <div class="code-output">
+Identity Trace: 2.0000
+        </div>
+    </div>
+</main>
 
-A = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>]])
-
-<span class="cm"># QR decomposition</span>
-Q, R = <span class="num">rm</span>.linalg.<span class="fn">qr</span>(A)
-<span class="kw">print</span>(Q @ R)  <span class="cm"># ≈ A (reconstruction)</span>
-
-<span class="cm"># SVD: A = U · diag(S) · Vt</span>
-U, S, Vt = <span class="num">rm</span>.linalg.<span class="fn">svd</span>(A)
-<span class="kw">print</span>(S)  <span class="cm"># singular values as Vector</span>
-
-<span class="cm"># Symmetric eigenvalue decomposition</span>
-sym = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">2</span>, <span class="num">1</span>], [<span class="num">1</span>, <span class="num">3</span>]])
-vals, vecs = <span class="num">rm</span>.linalg.<span class="fn">eigh</span>(sym)
-<span class="kw">print</span>(vals)   <span class="cm"># eigenvalues</span>
-<span class="kw">print</span>(vecs)   <span class="cm"># eigenvectors (columns)</span></code></pre>
-            </div>
-        </section>
-        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
-    </main>
-</div>
 <script src="script.js"></script>
 </body>
 </html>

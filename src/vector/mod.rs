@@ -23,6 +23,30 @@ use pyo3::prelude::*;
 ///               pow_scalar, clamp, add_vec, sub_vec, mul_vec, div_vec
 ///   Predicates: isnan, isfinite, isinf, is_integer, is_prime
 pub fn register_vector(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.setattr("__doc__", "rmath.vector — high-performance parallelized element-wise math.
+
+This module provides the `Vector` class and functional wrappers for performing 
+massively parallel mathematical operations on 1D numeric data. 
+
+Key Features:
+    1. Parallel Execution: Operations on large vectors (>8,192 elements) 
+       automatically use the Rayon thread pool, bypassing the Python GIL.
+       Thread safety is guaranteed via Rust's Send/Sync traits.
+       
+    2. Tiered Storage: 
+       - Inline: Small vectors (<32 elements) use zero-allocation stack storage.
+       - Heap: Large vectors use Arc<Vec<f64>> for efficient sharing and COW mutation.
+       
+    3. Loop Fusion: The `.lazy()` method allows bridging into `LazyPipeline` 
+       for complex chains, fusing multiple maps and filters into a single pass.
+
+Usage:
+    >>> import rmath.vector as rv
+    >>> v = rv.Vector([1, 2, 3])
+    >>> (v * 2.0).sum()
+    12.0
+")?;
+
     // --- Classes ---
     m.add_class::<Vector>()?;
     m.add_class::<VectorIter>()?;

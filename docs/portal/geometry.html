@@ -1,128 +1,89 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rmath.geometry — RMath Documentation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.geometry — RMath Docs</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="portal">
-    <aside class="sidebar" id="sidebar">
-        <a href="index.html" class="sidebar-brand"><img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span></a>
-        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
-        <nav id="sidebarNav">
-            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
-            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link"><code>Interop</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link active"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
-        </nav>
-    </aside>
-    <main class="content">
-        <section id="overview" class="hero">
-            <div class="badge">Extension</div>
-            <h1>rmath.<span class="gradient-text">geometry</span></h1>
-            <p class="hero-sub">Distance metrics, 3D rotations via quaternions, and computational geometry algorithms. All vector operations are parallelized.</p>
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">example.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
 
-v1 = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>])
-v2 = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>])
+<nav class="navbar">
+    <div class="navbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <a href="index.html" class="nav-brand">
+            <img src="rmath_logo.svg" alt="RMath Logo" class="logo-img">
+            <span>RMath Docs</span>
+        </a>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">User Guide</a>
+            <a href="array.html" class="nav-link active">API Reference</a>
+            <a href="theory.html" class="nav-link">Theory</a>
+            <a href="interop.html" class="nav-link">Interop</a>
+            <a href="benchmarks.html" class="nav-link">Performance</a>
+        </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+</nav>
 
-<span class="cm"># Distance and similarity</span>
-dist = <span class="num">rm</span>.geometry.<span class="fn">euclidean_distance</span>(v1, v2)
-sim = <span class="num">rm</span>.geometry.<span class="fn">cosine_similarity</span>(v1, v2)
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="index.html" class="sidebar-link">What is RMath?</a>
+        <a href="install.html" class="sidebar-link">Installation Guide</a>
+        <a href="quickstart.html" class="sidebar-link">RMath Quickstart</a>
+        <a href="foundations.html" class="sidebar-link">The RMath Engine</a>
+    </div>
 
-<span class="cm"># 3D Vector cross product</span>
-cross = <span class="num">rm</span>.geometry.<span class="fn">cross_product</span>(v1, v2)</code></pre>
-            </div>
-        </section>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Core Modules</div>
+        <a href="array.html" class="sidebar-link">rmath.array</a>
+        <a href="vector.html" class="sidebar-link">rmath.vector</a>
+        <a href="tensor.html" class="sidebar-link">rmath.Tensor</a>
+        <a href="scalar.html" class="sidebar-link">rmath.scalar</a>
+        <a href="constants.html" class="sidebar-link">rmath.constants</a>
+    </div>
 
-        <section id="quaternion">
-            <h2>Quaternion</h2>
-            <p>Unit quaternion for 3D rotations: <code>q = w + xi + yj + zk</code>.</p>
-            <div class="api-section"><table class="api-table"><tbody>
-                <tr><td><code>Quaternion(w, x, y, z)</code></td><td class="desc">Create a quaternion</td></tr>
-                <tr><td><code>.norm()</code></td><td class="returns">float</td><td class="desc">Quaternion magnitude</td></tr>
-                <tr><td><code>.normalize()</code></td><td class="returns">Quaternion</td><td class="desc">Unit quaternion</td></tr>
-                <tr><td><code>.rotate_vector(v)</code></td><td class="returns">Vector</td><td class="desc">Apply rotation to a 3D vector</td></tr>
-                <tr><td><code>q1 * q2</code></td><td class="returns">Quaternion</td><td class="desc">Hamilton product (rotation composition)</td></tr>
-            </tbody></table></div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Advanced Usage</div>
+        <a href="linalg.html" class="sidebar-link">Linear Algebra</a>
+        <a href="stats.html" class="sidebar-link">Statistics</a>
+        <a href="calculus.html" class="sidebar-link">Calculus & AD</a>
+        <a href="nn.html" class="sidebar-link">Neural Networks</a>
+        <a href="signal.html" class="sidebar-link">Signal Processing</a>
+        <a href="geometry.html" class="sidebar-link active">Geometry</a>
+        <a href="special.html" class="sidebar-link">Special Functions</a>
+    </div>
+</aside>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">quaternion.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<main class="container">
+    <h1>rmath.geometry</h1>
+    <p>
+        Computational geometry primitives and spatial transformations.
+    </p>
 
-<span class="cm"># Create a 90-degree rotation around the Z-axis</span>
-import math
-half_angle = math.pi / <span class="num">4</span>  <span class="cm"># 45 degrees in rad</span>
-q = <span class="num">rm</span>.geometry.<span class="fn">Quaternion</span>(math.<span class="fn">cos</span>(half_angle), <span class="num">0</span>, <span class="num">0</span>, math.<span class="fn">sin</span>(half_angle))
+    <h2>Proven: Quaternion Rotation</h2>
+    <div class="proven-code">
+        <div class="code-header">
+            <span>geometry_verify.py</span>
+        </div>
+        <pre><code><span class="token-keyword">import</span> rmath.geometry <span class="token-keyword">as</span> geo
+<span class="token-keyword">import</span> rmath.constants <span class="token-keyword">as</span> c
 
-v = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">1.0</span>, <span class="num">0.0</span>, <span class="num">0.0</span>])
-rotated_v = q.<span class="fn">rotate_vector</span>(v)
-<span class="kw">print</span>(rotated_v.to_list())  <span class="cm"># ≈ [0.0, 1.0, 0.0]</span></code></pre>
-            </div>
-        </section>
+<span class="token-comment"># Rotate 90 degrees around Z axis</span>
+q = geo.Quaternion.from_axis_angle([<span class="token-number">0</span>, <span class="token-number">0</span>, <span class="token-number">1</span>], c.pi / <span class="token-number">2</span>)
+p = geo.Point3(<span class="token-number">1.0</span>, <span class="token-number">0.0</span>, <span class="token-number">0.0</span>)
 
-        <section id="distances">
-            <h2>Distance Metrics</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Returns</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>euclidean_distance(v1, v2)</code></td><td class="returns">float</td><td class="desc">L2 distance</td></tr>
-                    <tr><td><code>manhattan_distance(v1, v2)</code></td><td class="returns">float</td><td class="desc">L1 distance</td></tr>
-                    <tr><td><code>minkowski_distance(v1, v2, p)</code></td><td class="returns">float</td><td class="desc">Lp distance</td></tr>
-                    <tr><td><code>cosine_similarity(v1, v2)</code></td><td class="returns">float</td><td class="desc">Cosine of angle between vectors</td></tr>
-                    <tr><td><code>angle_between(v1, v2)</code></td><td class="returns">float</td><td class="desc">Angle in radians</td></tr>
-                </tbody>
-            </table></div>
+rotated = q.rotate(p)
+<span class="token-builtin">print</span>(<span class="token-string">f"Rotated Point: {rotated}"</span>)</code></pre>
+        <div class="code-output">
+Rotated Point: Point3(0.0000, 1.0000, 0.0000)
+        </div>
+    </div>
+</main>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">distances.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-a = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">0.0</span>, <span class="num">3.0</span>])
-b = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">4.0</span>, <span class="num">0.0</span>])
-
-<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">euclidean_distance</span>(a, b))  <span class="cm"># 5.0  (3-4-5 triangle)</span>
-<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">manhattan_distance</span>(a, b))  <span class="cm"># 7.0  (|0-4| + |3-0|)</span>
-<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">cosine_similarity</span>(a, b))   <span class="cm"># 0.0  (orthogonal)</span></code></pre>
-            </div>
-        </section>
-
-        <section id="vector-ops">
-            <h2>Vector Operations</h2>
-            <div class="api-section"><table class="api-table"><tbody>
-                <tr><td><code>projection(v, target)</code></td><td class="returns">Vector</td><td class="desc">Project v onto target</td></tr>
-                <tr><td><code>cross_product(v1, v2)</code></td><td class="returns">Vector</td><td class="desc">3D cross product</td></tr>
-            </tbody></table></div>
-        </section>
-
-        <section id="computational">
-            <h2>Computational Geometry</h2>
-            <div class="api-section"><table class="api-table"><tbody>
-                <tr><td><code>is_point_in_polygon(x, y, poly_x, poly_y)</code></td><td class="returns">bool</td><td class="desc">Ray-casting point-in-polygon test</td></tr>
-                <tr><td><code>convex_hull(points_x, points_y)</code></td><td class="returns">(list, list)</td><td class="desc">Convex hull of 2D points</td></tr>
-            </tbody></table></div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">computational.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-<span class="cm"># A simple square polygon</span>
-poly_x = [<span class="num">0.0</span>, <span class="num">2.0</span>, <span class="num">2.0</span>, <span class="num">0.0</span>]
-poly_y = [<span class="num">0.0</span>, <span class="num">0.0</span>, <span class="num">2.0</span>, <span class="num">2.0</span>]
-
-<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">is_point_in_polygon</span>(<span class="num">1.0</span>, <span class="num">1.0</span>, poly_x, poly_y)) <span class="cm"># True</span>
-<span class="kw">print</span>(<span class="num">rm</span>.geometry.<span class="fn">is_point_in_polygon</span>(<span class="num">3.0</span>, <span class="num">3.0</span>, poly_x, poly_y)) <span class="cm"># False</span></code></pre>
-            </div>
-        </section>
-        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
-    </main>
-</div>
 <script src="script.js"></script>
 </body>
 </html>

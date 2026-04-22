@@ -3,11 +3,18 @@ use crate::vector::Vector;
 use num_complex::Complex64;
 use rayon::prelude::*;
 
-/// A specialized container for complex-valued (f64 + i*f64) vectors.
+/// A high-performance container for complex-valued signals (f64 + i*f64).
 ///
 /// `ComplexVector` provides optimized operations for Fourier-domain or
-/// analytical signal data where complex numbers are required.
-#[pyclass(module = "rmath")]
+/// analytical signal data where complex numbers are required. Elements
+/// are stored as contiguous 128-bit blocks (2x f64).
+///
+/// Examples:
+///     >>> from rmath.vector import ComplexVector
+///     >>> cv = ComplexVector([1, 2], [0, 1])
+///     >>> cv.to_mags()
+///     Vector([1.0, 2.2361])
+#[pyclass(module = "rmath.vector")]
 #[derive(Clone)]
 pub struct ComplexVector {
     pub data: Vec<Complex64>,

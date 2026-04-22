@@ -13,7 +13,13 @@ impl Array {
     // ── .rmath binary format ──────────────────────────────────────────────
     // Fastest: header + raw f64 LE bytes. No reprocessing on load.
 
-    /// Save to .rmath binary format
+    /// Save to .rmath binary format.
+    ///
+    /// This is the fastest persistence format for RMath, storing the raw 
+    /// memory buffer with a minimal header.
+    ///
+    /// Example:
+    ///     >>> a.save("data.rmath")
     pub fn save(&self, path: &str) -> PyResult<()> {
         let f = File::create(path).map_err(|e|
             pyo3::exceptions::PyIOError::new_err(format!("Cannot create {}: {}", path, e)))?;

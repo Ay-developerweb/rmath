@@ -9,17 +9,30 @@ use std::collections::hash_map::DefaultHasher;
 /// boolean coercion, and format — all resolved natively without
 /// Python object allocation in the hot path.
 ///
+/// Performance Philosophy:
+///     Rmath scalar operations are designed for high-throughput numeric workloads. 
+///     While Python's built-in `float` is highly optimized for general-purpose use, 
+///     `rmath.Scalar` allows for chaining operations that execute entirely in Rust.
+///
+/// NaN and Error Policy:
+///     Rmath distinguishes between *operators* and *named methods*:
+///     
+///     1. Operators (+, -, *, /, **) follow IEEE-754 semantics strictly. They 
+///        never raise exceptions for domain errors; they return `NaN` or `inf`.
+///        
+///     2. Named Methods (.sqrt(), .log(), .pow()) are stricter. Since they represent 
+///        a deliberate mathematical call, they raise `ValueError` for domain 
+///        errors to help catch bugs early.
+///
 /// # Examples
 /// ```python
 /// from rmath import scalar as sc
 /// x = sc.Scalar(3.14)
 /// y = sc.Scalar(2.0)
 /// print(x + y)          # Scalar(5.14)
-/// print(x > y)          # True
 /// print(float(x))       # 3.14
-/// print(f"{x:.2f}")     # 3.14
 /// ```
-#[pyclass(module = "rmath")]
+#[pyclass(module = "rmath.scalar")]
 #[derive(Debug, Clone, Copy)]
 pub struct Scalar(pub f64);
 

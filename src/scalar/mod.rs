@@ -17,6 +17,37 @@ use pyo3::prelude::*;
 ///   Functions: loop_range, from_list, zeros, linspace
 ///   Constants: pi, e, tau, inf, nan, sqrt2, ln2, ln10
 pub fn register_scalar(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.setattr("__doc__", "rmath.scalar — high-performance scalar math operations backed by Rust.
+
+This module provides Rust-accelerated scalar types and the LazyPipeline for loop fusion.
+By wrapping 64-bit IEEE-754 floats in a native Rust container, we enable math operations 
+that release the Python GIL and achieve significantly higher performance than pure Python 
+loops.
+
+Performance Philosophy:
+    Rmath scalar operations are designed for high-throughput numeric workloads. 
+    While Python's built-in `float` is highly optimized for general-purpose use, 
+    `rmath.Scalar` allows for chaining operations that execute entirely in Rust, 
+    avoiding the overhead of the Python interpreter for every intermediate step.
+
+NaN and Error Policy:
+    Rmath distinguishes between *operators* and *named methods*:
+    
+    1. Operators (+, -, *, /, **) follow IEEE-754 semantics strictly. They 
+       never raise exceptions for domain errors; they return `NaN` or `inf` to 
+       maintain interoperability with Python's numeric tower.
+       
+    2. Named Methods (.sqrt(), .log(), .pow()) are stricter. Since they represent 
+       a deliberate mathematical call, they raise `ValueError` for domain 
+       errors to help catch bugs early in the pipeline.
+
+Import style::
+
+    import rmath.scalar as rs
+    s = rs.Scalar(1.0)
+    result = s.sin().cos().exp()
+")?;
+
     // --- Classes ---
     m.add_class::<Scalar>()?;
     m.add_class::<Complex>()?;

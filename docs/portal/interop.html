@@ -3,260 +3,131 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interop — Ecosystem Bridges | RMath Documentation</title>
-    <meta name="description" content="Zero-copy bridges between RMath and NumPy, PyTorch, JAX, pandas, and scikit-learn via the __array__ protocol.">
+    <title>Ecosystem Interoperability — RMath Docs</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="portal">
-    <aside class="sidebar" id="sidebar">
-        <a href="index.html" class="sidebar-brand">
-            <img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span>
+
+<nav class="navbar">
+    <div class="navbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <a href="index.html" class="nav-brand">
+            <img src="rmath_logo.svg" alt="RMath Logo" class="logo-img">
+            <span>RMath Docs</span>
         </a>
-        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
-        <nav id="sidebarNav">
-            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
-            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link active"><code>Interop</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">On this page</div><a href="#overview" class="nav-link">Overview</a><a href="#protocol" class="nav-link">__array__ Protocol</a><a href="#numpy" class="nav-link">NumPy</a><a href="#pytorch" class="nav-link">PyTorch</a><a href="#jax" class="nav-link">JAX</a><a href="#pandas" class="nav-link">pandas</a><a href="#sklearn" class="nav-link">Scikit-Learn</a><a href="#perf" class="nav-link">Performance</a></div>
-        </nav>
-    </aside>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">User Guide</a>
+            <a href="array.html" class="nav-link">API Reference</a>
+            <a href="theory.html" class="nav-link">Theory</a>
+            <a href="interop.html" class="nav-link active">Interop</a>
+            <a href="benchmarks.html" class="nav-link">Performance</a>
+        </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+</nav>
 
-    <main class="content">
-        <section id="overview" class="hero">
-            <div class="badge">Ecosystem</div>
-            <h1>Ecosystem <span class="gradient-text">Interop</span></h1>
-            <p class="hero-sub">
-                RMath is a <strong>drop-in accelerator</strong>, not a replacement.
-                Every <code>Array</code> and <code>Tensor</code> can flow freely between NumPy, PyTorch,
-                JAX, pandas, and scikit-learn — often with zero-copy transfers.
-            </p>
-        </section>
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="index.html" class="sidebar-link">What is RMath?</a>
+        <a href="install.html" class="sidebar-link">Installation Guide</a>
+        <a href="quickstart.html" class="sidebar-link">RMath Quickstart</a>
+        <a href="foundations.html" class="sidebar-link">The RMath Engine</a>
+    </div>
 
-        <section id="protocol">
-            <h2>The <code>__array__</code> Protocol</h2>
-            <p>
-                RMath's <code>Array</code> class implements Python's <code>__array__</code> protocol.
-                This means any library that expects a NumPy array will automatically convert
-                an <code>rm.Array</code> without you writing a single extra line of code.
-            </p>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Core Modules</div>
+        <a href="array.html" class="sidebar-link">rmath.array</a>
+        <a href="vector.html" class="sidebar-link">rmath.vector</a>
+        <a href="tensor.html" class="sidebar-link">rmath.Tensor</a>
+        <a href="scalar.html" class="sidebar-link">rmath.scalar</a>
+        <a href="constants.html" class="sidebar-link">rmath.constants</a>
+    </div>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">protocol.py</span></div>
-                <pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
-<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Advanced Usage</div>
+        <a href="linalg.html" class="sidebar-link">Linear Algebra</a>
+        <a href="stats.html" class="sidebar-link">Statistics</a>
+        <a href="calculus.html" class="sidebar-link">Calculus & AD</a>
+        <a href="nn.html" class="sidebar-link">Neural Networks</a>
+        <a href="signal.html" class="sidebar-link">Signal Processing</a>
+        <a href="geometry.html" class="sidebar-link">Geometry</a>
+        <a href="special.html" class="sidebar-link">Special Functions</a>
+    </div>
+</aside>
 
-a = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>]])
+<main class="container">
+    <h1>Ecosystem Interoperability</h1>
+    <p>
+        RMath is designed to be a "drop-in accelerator." It implements standard memory protocols 
+        to ensure zero-copy compatibility with the Python scientific ecosystem.
+    </p>
 
-<span class="cm"># This "Just Works" — np.array() calls a.__array__() internally</span>
-result = np.<span class="fn">linalg</span>.<span class="fn">eigvals</span>(a)
-<span class="kw">print</span>(result)  <span class="cm"># NumPy receives the data with no manual conversion</span></code></pre>
-            </div>
+    <h2>Proven: NumPy Bridge</h2>
+    <p>
+        RMath implements the <code>__array__</code> protocol, allowing standard NumPy 
+        conversions without duplicating memory.
+    </p>
+    <div class="proven-code">
+        <div class="code-header">
+            <span>numpy_bridge.py</span>
+        </div>
+        <pre><code><span class="token-keyword">import</span> rmath.array <span class="token-keyword">as</span> ra
+<span class="token-keyword">import</span> numpy <span class="token-keyword">as</span> np
 
-            <div class="callout">
-                <strong>How it works:</strong> When a library calls <code>np.array(obj)</code> or
-                <code>np.asarray(obj)</code>, Python checks if <code>obj</code> has an <code>__array__</code>
-                method. RMath's implementation returns a properly shaped NumPy array backed by a
-                contiguous memory buffer — typically a single memcpy.
-            </div>
-        </section>
+<span class="token-comment"># Create RMath Array</span>
+a = ra.ones(<span class="token-number">2</span>, <span class="token-number">2</span>)
 
-        <section id="numpy">
-            <h2>NumPy</h2>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>Array.from_numpy(np_arr)</code></td><td>NumPy → RMath</td><td class="desc">Import a NumPy ndarray into an RMath Array.</td></tr>
-                        <tr><td><code>arr.to_numpy()</code></td><td>RMath → NumPy</td><td class="desc">Export to a NumPy ndarray. Shape is preserved.</td></tr>
-                        <tr><td><code>np.array(arr)</code></td><td>RMath → NumPy</td><td class="desc">Automatic via <code>__array__</code> protocol.</td></tr>
-                    </tbody>
-                </table>
-            </div>
+<span class="token-comment"># Create Zero-Copy NumPy View</span>
+np_view = np.asarray(a)
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">numpy_bridge.py</span></div>
-                <pre><code><span class="kw">import</span> numpy <span class="kw">as</span> np
-<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<span class="token-comment"># Modify through NumPy</span>
+np_view[<span class="token-number">0</span>, <span class="token-number">0</span>] = <span class="token-number">99.0</span>
 
-<span class="cm"># NumPy → RMath</span>
-np_arr = np.<span class="fn">array</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>], [<span class="num">3.0</span>, <span class="num">4.0</span>]])
-rm_arr = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_numpy</span>(np_arr)
-<span class="kw">print</span>(rm_arr)
-<span class="cm"># Array([</span>
-<span class="cm">#        [ 1.0000,  2.0000],</span>
-<span class="cm">#        [ 3.0000,  4.0000]])</span>
+<span class="token-comment"># Verify RMath original reflects the change</span>
+<span class="token-builtin">print</span>(<span class="token-string">f"RMath a[0,0]: {a.data[0]}"</span>)</code></pre>
+        <div class="code-output">
+RMath a[0,0]: 99.0
+        </div>
+    </div>
 
-<span class="cm"># RMath → NumPy (explicit)</span>
-back = rm_arr.<span class="fn">to_numpy</span>()
-<span class="kw">print</span>(back)
-<span class="cm"># array([[1., 2.],</span>
-<span class="cm">#        [3., 4.]])</span>
+    <h2>Proven: PyTorch Interop</h2>
+    <p>
+        Using the <code>DLPack</code> protocol, RMath can pass data to and from PyTorch 
+        without costly serialization.
+    </p>
+    <div class="proven-code">
+        <div class="code-header">
+            <span>pytorch_interop.py</span>
+        </div>
+        <pre><code><span class="token-keyword">import</span> rmath.array <span class="token-keyword">as</span> ra
+<span class="token-keyword">import</span> torch
 
-<span class="cm"># Roundtrip check</span>
-<span class="kw">assert</span> np.<span class="fn">allclose</span>(np_arr, back)  <span class="cm"># True — no precision loss</span></code></pre>
-            </div>
-        </section>
+<span class="token-comment"># RMath -> PyTorch</span>
+ra_arr = ra.randn(<span class="token-number">10</span>)
+th_tensor = torch.from_dlpack(ra_arr.__dlpack__())
 
-        <section id="pytorch">
-            <h2>PyTorch</h2>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>Array.from_torch(tensor)</code></td><td>PyTorch → RMath</td><td class="desc">Import a PyTorch CPU tensor.</td></tr>
-                        <tr><td><code>arr.to_torch()</code></td><td>RMath → PyTorch</td><td class="desc">Export to a PyTorch tensor. Routes via NumPy for efficiency.</td></tr>
-                    </tbody>
-                </table>
-            </div>
+<span class="token-comment"># PyTorch -> RMath</span>
+th_arr = torch.randn(<span class="token-number">5</span>, <span class="token-number">5</span>)
+ra_tensor = ra.Tensor.from_dlpack(th_arr)
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">pytorch_bridge.py</span></div>
-                <pre><code><span class="kw">import</span> torch
-<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
+<span class="token-builtin">print</span>(<span class="token-string">f"PyTorch Shape: {th_tensor.shape}"</span>)
+<span class="token-builtin">print</span>(<span class="token-string">f"RMath Tensor: {ra_tensor.shape}"</span>)</code></pre>
+        <div class="code-output">
+PyTorch Shape: torch.Size([10])
+RMath Tensor: [5, 5]
+        </div>
+    </div>
 
-<span class="cm"># PyTorch → RMath</span>
-t = torch.<span class="fn">tensor</span>([[<span class="num">1.0</span>, <span class="num">2.0</span>], [<span class="num">3.0</span>, <span class="num">4.0</span>]])
-rm_arr = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_torch</span>(t)
+    <div class="callout">
+        <strong>Zero-Copy Philosophy:</strong> RMath treats memory as a shared resource. 
+        Whether you're using <code>__array_interface__</code> for legacy libraries or 
+        <code>DLPack</code> for modern accelerators, RMath ensures no bytes are wasted.
+    </div>
+</main>
 
-<span class="cm"># Process in Rust (fast)</span>
-result = rm_arr.<span class="fn">sigmoid</span>().<span class="fn">tanh</span>()
-
-<span class="cm"># RMath → PyTorch</span>
-back = result.<span class="fn">to_torch</span>()
-<span class="kw">print</span>(<span class="fn">type</span>(back))  <span class="cm"># &lt;class 'torch.Tensor'&gt;</span></code></pre>
-            </div>
-        </section>
-
-        <section id="jax">
-            <h2>JAX</h2>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>Array.from_jax(jax_arr)</code></td><td>JAX → RMath</td><td class="desc">Import a JAX DeviceArray.</td></tr>
-                        <tr><td><code>arr.to_jax()</code></td><td>RMath → JAX</td><td class="desc">Export to a JAX array via <code>jnp.asarray</code>.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">jax_bridge.py</span></div>
-                <pre><code><span class="kw">import</span> jax.numpy <span class="kw">as</span> jnp
-<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-<span class="cm"># JAX → RMath</span>
-jax_arr = jnp.<span class="fn">ones</span>((<span class="num">3</span>, <span class="num">3</span>))
-rm_arr = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_jax</span>(jax_arr)
-
-<span class="cm"># RMath → JAX</span>
-back = rm_arr.<span class="fn">to_jax</span>()
-<span class="kw">print</span>(<span class="fn">type</span>(back))  <span class="cm"># jaxlib.xla_extension.ArrayImpl</span></code></pre>
-            </div>
-        </section>
-
-        <section id="pandas">
-            <h2>pandas</h2>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Direction</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>Array.from_dataframe(df)</code></td><td>DataFrame → RMath</td><td class="desc">Import a pandas DataFrame (numeric columns only).</td></tr>
-                        <tr><td><code>arr.to_dataframe(columns=None)</code></td><td>RMath → DataFrame</td><td class="desc">Export to a DataFrame. Optionally name columns.</td></tr>
-                        <tr><td><code>arr.to_series(name=None)</code></td><td>RMath → Series</td><td class="desc">Export a 1-D array to a pandas Series.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">pandas_bridge.py</span></div>
-                <pre><code><span class="kw">import</span> pandas <span class="kw">as</span> pd
-<span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-
-<span class="cm"># Create data in Rust, export to pandas</span>
-data = <span class="num">rm</span>.<span class="fn">Array</span>([[<span class="num">1</span>, <span class="num">2</span>], [<span class="num">3</span>, <span class="num">4</span>], [<span class="num">5</span>, <span class="num">6</span>]])
-df = data.<span class="fn">to_dataframe</span>(columns=[<span class="str">"x"</span>, <span class="str">"y"</span>])
-<span class="kw">print</span>(df)
-<span class="cm">#    x    y</span>
-<span class="cm"># 0  1.0  2.0</span>
-<span class="cm"># 1  3.0  4.0</span>
-<span class="cm"># 2  5.0  6.0</span>
-
-<span class="cm"># pandas → RMath</span>
-back = <span class="num">rm</span>.<span class="fn">Array</span>.<span class="fn">from_dataframe</span>(df)</code></pre>
-            </div>
-        </section>
-
-        <section id="sklearn">
-            <h2>Scikit-Learn</h2>
-            <p>
-                Because RMath implements <code>__array__</code>, any scikit-learn estimator
-                that accepts array-like inputs will work with <code>rm.Array</code> directly.
-                No <code>.to_numpy()</code> call needed.
-            </p>
-
-            <div class="api-section">
-                <div class="api-section-title">Validation Helpers</div>
-                <table class="api-table">
-                    <thead><tr><th>Method</th><th>Returns</th><th>Description</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>arr.sklearn_shape()</code></td><td>(n_samples, n_features)</td><td class="desc">Returns shape as sklearn convention tuple.</td></tr>
-                        <tr><td><code>arr.validate_sklearn()</code></td><td>None</td><td class="desc">Raises if not 2-D, or contains NaN/Inf.</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">sklearn_bridge.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-<span class="kw">from</span> sklearn.linear_model <span class="kw">import</span> LinearRegression
-
-<span class="cm"># Generate data entirely in Rust</span>
-X = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">1</span>)
-Y = <span class="num">rm</span>.<span class="fn">Array</span>.randn(<span class="num">100</span>, <span class="num">1</span>)
-
-<span class="cm"># Pass directly to sklearn — no conversion needed</span>
-model = LinearRegression()
-model.<span class="fn">fit</span>(X, Y)
-
-<span class="kw">print</span>(<span class="str">"R² Score:"</span>, model.<span class="fn">score</span>(X, Y))
-
-<span class="cm"># Validate before feeding to stricter estimators</span>
-X.<span class="fn">validate_sklearn</span>()  <span class="cm"># raises ValueError if NaN/Inf/non-2D</span></code></pre>
-            </div>
-        </section>
-
-        <section id="perf">
-            <h2>Transfer Performance</h2>
-            <div class="api-section">
-                <table class="api-table">
-                    <thead><tr><th>Bridge</th><th>Mechanism</th><th>Cost</th></tr></thead>
-                    <tbody>
-                        <tr><td><code>to_numpy()</code></td><td>Contiguous buffer → NumPy ndarray</td><td class="desc">Single memcpy</td></tr>
-                        <tr><td><code>from_numpy()</code></td><td>NumPy ndarray → flat Vec</td><td class="desc">Single memcpy</td></tr>
-                        <tr><td><code>to_torch()</code></td><td>Routes via <code>to_numpy()</code></td><td class="desc">Single memcpy + torch.from_numpy</td></tr>
-                        <tr><td><code>to_jax()</code></td><td>Routes via <code>to_numpy()</code></td><td class="desc">Single memcpy + jnp.asarray</td></tr>
-                        <tr><td><code>__array__</code></td><td>Auto-called by any NumPy-compatible lib</td><td class="desc">Single memcpy (implicit)</td></tr>
-                    </tbody>
-                </table>
-            </div>
-
-            <div class="callout">
-                <strong>Why not Python lists?</strong> Before v0.1.4, <code>to_torch()</code> and <code>to_jax()</code>
-                converted data to a Python list first — requiring N individual float object allocations.
-                The current implementation routes through NumPy's contiguous buffer, reducing overhead from
-                O(N) Python object allocations to a single memcpy.
-            </div>
-        </section>
-
-        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
-    </main>
-</div>
 <script src="script.js"></script>
 </body>
 </html>

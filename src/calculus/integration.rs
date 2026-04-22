@@ -32,6 +32,13 @@ pub fn integrate_trapezoidal(x: &Vector, y: &Vector) -> PyResult<f64> {
 ///
 /// Uses Simpson's 1/3 rule. For even numbers of points, falls back to the
 /// trapezoidal rule for the final interval.
+///
+/// Examples:
+///     >>> from rmath.vector import Vector
+///     >>> from rmath.calculus import integrate_simpson_array
+///     >>> y = Vector([1, 4, 9]) # x^2 at 0, 1, 2
+///     >>> integrate_simpson_array(y, dx=1.0)
+///     2.6666666666666665
 #[pyfunction]
 pub fn integrate_simpson_array(y: &Vector, dx: f64) -> PyResult<f64> {
     y.with_slice(|s| {

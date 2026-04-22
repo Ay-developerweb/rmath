@@ -35,11 +35,12 @@ impl Array {
 
     /// Compute the inverse of a square matrix.
     ///
-    /// Uses LU decomposition with pivoting. Raises ValueError if the 
-    /// matrix is singular or not square.
+    /// Uses LU decomposition with partial pivoting.
     ///
-    /// Returns:
-    ///     A new Inverse Array.
+    /// Example:
+    ///     >>> a = ra.Array([[1, 2], [3, 4]])
+    ///     >>> a.inv()
+    ///     Array([[-2.0, 1.0], [1.5, -0.5]])
     #[pyo3(name = "inv")]
     pub fn inv_py(&self, py: Python<'_>) -> PyResult<Self> {
         py.allow_threads(|| self.inv_internal())
@@ -47,11 +48,10 @@ impl Array {
 
     /// Solve the linear system Ax = B for x.
     ///
-    /// Args:
-    ///     b: Right-hand side matrix or vector.
-    ///
-    /// Returns:
-    ///     The solution Array x.
+    /// Example:
+    ///     >>> a = ra.Array([[1, 2], [3, 4]])
+    ///     >>> b = ra.Array([[5], [6]])
+    ///     >>> x = a.solve(b)
     #[pyo3(name = "solve")]
     pub fn solve_py(&self, py: Python<'_>, b: &Array) -> PyResult<Self> {
         py.allow_threads(|| self.solve_internal(b))
@@ -90,9 +90,10 @@ impl Array {
     /// Factors matrix A into an orthogonal matrix Q and an upper triangular matrix R.
     pub fn qr(&self, py: Python<'_>) -> PyResult<(Self, Self)> { py.allow_threads(|| self.qr_internal()) }
 
-    /// Perform Singular Value Decomposition.
+    /// Perform Singular Value Decomposition (SVD).
     ///
-    /// Factors the matrix into U, S, and V^T such that A = U * diag(S) * V^T.
+    /// Factors the matrix A into U, S, and V^T such that A = U * diag(S) * V^T.
+    /// U and V^T are orthogonal matrices, and S contains the singular values.
     ///
     /// Returns:
     ///     A tuple (U, S, V_T) where U, V_T are Arrays and S is a Vector.

@@ -119,6 +119,14 @@ pub fn describe(data: Bound<'_, PyAny>) -> PyResult<HashMap<String, f64>> {
 }
 
 /// Calculate the arithmetic mean of a dataset.
+///
+/// Multi-threaded calculation on the Rayon thread pool. Releases the 
+/// Python GIL during execution.
+///
+/// Examples:
+///     >>> from rmath.stats import mean
+///     >>> mean([1, 2, 3, 4, 5])
+///     3.0
 #[pyfunction]
 pub fn mean(data: Bound<'_, PyAny>) -> PyResult<f64> {
     dispatch_stats_op!(data, slice, {
@@ -128,6 +136,8 @@ pub fn mean(data: Bound<'_, PyAny>) -> PyResult<f64> {
 }
 
 /// Calculate the sample variance (degree of freedom = 1).
+///
+/// Uses Welford's algorithm for numerical stability.
 #[pyfunction]
 pub fn variance(data: Bound<'_, PyAny>) -> PyResult<f64> {
     let d = describe(data)?;
@@ -135,6 +145,8 @@ pub fn variance(data: Bound<'_, PyAny>) -> PyResult<f64> {
 }
 
 /// Calculate the sample standard deviation.
+///
+/// Uses Welford's algorithm for numerical stability.
 #[pyfunction]
 pub fn std_dev(data: Bound<'_, PyAny>) -> PyResult<f64> {
     let d = describe(data)?;
@@ -143,7 +155,15 @@ pub fn std_dev(data: Bound<'_, PyAny>) -> PyResult<f64> {
 
 /// Calculate the median of a dataset.
 ///
-/// Uses an unstable selection algorithm for O(N) performance.
+/// Uses an unstable selection algorithm (introselect) for O(N) performance, 
+/// avoiding the O(N log N) cost of a full sort.
+///
+/// Examples:
+///     >>> from rmath.stats import median
+///     >>> median([3, 1, 2])
+///     2.0
+///     >>> median([1, 2, 3, 4])  # Average of middle two
+///     2.5
 #[pyfunction]
 pub fn median(data: Bound<'_, PyAny>) -> PyResult<f64> {
     dispatch_stats_op!(data, slice, {
@@ -163,7 +183,13 @@ pub fn median(data: Bound<'_, PyAny>) -> PyResult<f64> {
 
 /// Find the mode (most common value) of a dataset.
 ///
-/// If there are multiple modes, the one encountered first is returned.
+/// If there are multiple modes with the same highest frequency, the one 
+/// encountered first in the input is returned.
+///
+/// Examples:
+///     >>> from rmath.stats import mode
+///     >>> mode([1, 2, 2, 3, 3, 3])
+///     3.0
 #[pyfunction]
 pub fn mode(data: Bound<'_, PyAny>) -> PyResult<f64> {
     dispatch_stats_op!(data, slice, {
@@ -193,6 +219,14 @@ pub fn mode(data: Bound<'_, PyAny>) -> PyResult<f64> {
 }
 
 /// Calculate the Interquartile Range (IQR).
+///
+/// Measures the difference between the 75th and 25th percentiles.
+/// Highly robust to outliers.
+///
+/// Examples:
+///     >>> from rmath.stats import iqr
+///     >>> iqr([1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
+///     4.5
 #[pyfunction]
 pub fn iqr(data: Bound<'_, PyAny>) -> PyResult<f64> {
     let v: PyRef<Vector> = data.extract()?;
@@ -218,6 +252,9 @@ pub fn iqr(data: Bound<'_, PyAny>) -> PyResult<f64> {
 }
 
 /// Calculate the Median Absolute Deviation (MAD).
+///
+/// A robust measure of the variability of a univariate sample of 
+/// quantitative data.
 #[pyfunction]
 pub fn mad(data: Bound<'_, PyAny>) -> PyResult<f64> {
     let v: PyRef<Vector> = data.extract()?;

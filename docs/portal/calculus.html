@@ -1,124 +1,90 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rmath.calculus — RMath Documentation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.calculus — RMath Docs</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="portal">
-    <aside class="sidebar" id="sidebar">
-        <a href="index.html" class="sidebar-brand"><img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span></a>
-        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
-        <nav id="sidebarNav">
-            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
-            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link"><code>Interop</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link active"><code>rmath.calculus</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
-        </nav>
-    </aside>
-    <main class="content">
-        <section id="overview" class="hero">
-            <div class="badge">Math Module</div>
-            <h1>rmath.<span class="gradient-text">calculus</span></h1>
-            <p class="hero-sub">Automatic differentiation via dual numbers, numerical integration (trapezoidal and Simpson's rule), and Newton's method for root-finding.</p>
-            <div class="code-window"><div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">autodiff.py</span></div>
-                <pre><code><span class="kw">import</span> rmath.calculus <span class="kw">as</span> <span class="num">rc</span>
 
-<span class="cm"># f(x) = x² + 3x at x = 2</span>
-x = <span class="num">rc</span>.<span class="fn">Dual</span>(<span class="num">2.0</span>, <span class="num">1.0</span>)  <span class="cm"># value=2, seed derivative=1</span>
-y = x * x + x * <span class="num">3.0</span>
+<nav class="navbar">
+    <div class="navbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <a href="index.html" class="nav-brand">
+            <img src="rmath_logo.svg" alt="RMath Logo" class="logo-img">
+            <span>RMath Docs</span>
+        </a>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">User Guide</a>
+            <a href="array.html" class="nav-link active">API Reference</a>
+            <a href="theory.html" class="nav-link">Theory</a>
+            <a href="interop.html" class="nav-link">Interop</a>
+            <a href="benchmarks.html" class="nav-link">Performance</a>
+        </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+</nav>
 
-<span class="kw">print</span>(y.value)       <span class="cm"># 10.0</span>
-<span class="kw">print</span>(y.derivative)  <span class="cm"># 7.0  → f'(2) = 2(2) + 3</span></code></pre>
-            </div>
-        </section>
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="index.html" class="sidebar-link">What is RMath?</a>
+        <a href="install.html" class="sidebar-link">Installation Guide</a>
+        <a href="quickstart.html" class="sidebar-link">RMath Quickstart</a>
+        <a href="foundations.html" class="sidebar-link">The RMath Engine</a>
+    </div>
 
-        <section id="dual">
-            <h2>Dual Numbers</h2>
-            <p>Dual numbers <code>a + bε</code> (where ε² = 0) enable forward-mode automatic differentiation. Build an expression using Dual operands and the derivative is computed alongside the value.</p>
-            <div class="api-section">
-                <div class="api-section-title">Constructor &amp; Properties</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>Dual(val, der)</code></td><td class="desc">Create a dual number with value and derivative seed</td></tr>
-                    <tr><td><code>.value</code></td><td class="returns">float</td><td class="desc">The real part</td></tr>
-                    <tr><td><code>.derivative</code></td><td class="returns">float</td><td class="desc">The derivative (epsilon coefficient)</td></tr>
-                </tbody></table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Operators</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>+ - * / **</code></td><td class="desc">All work with Dual or float operands, propagating derivatives automatically</td></tr>
-                    <tr><td><code>-x</code></td><td class="desc">Unary negation</td></tr>
-                </tbody></table>
-            </div>
-            <div class="api-section">
-                <div class="api-section-title">Math Functions</div>
-                <table class="api-table"><tbody>
-                    <tr><td><code>.sin()</code></td><td class="desc">sin(x), derivative: cos(x)</td></tr>
-                    <tr><td><code>.cos()</code></td><td class="desc">cos(x), derivative: -sin(x)</td></tr>
-                    <tr><td><code>.exp()</code></td><td class="desc">eˣ, derivative: eˣ</td></tr>
-                    <tr><td><code>.log()</code></td><td class="desc">ln(x), derivative: 1/x</td></tr>
-                </tbody></table>
-            </div>
-        </section>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Core Modules</div>
+        <a href="array.html" class="sidebar-link">rmath.array</a>
+        <a href="vector.html" class="sidebar-link">rmath.vector</a>
+        <a href="tensor.html" class="sidebar-link">rmath.Tensor</a>
+        <a href="scalar.html" class="sidebar-link">rmath.scalar</a>
+        <a href="constants.html" class="sidebar-link">rmath.constants</a>
+    </div>
 
-        <section id="integration">
-            <h2>Numerical Integration</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>integrate_trapezoidal(x, y)</code></td><td class="desc">Trapezoidal rule on sampled data (x, y vectors)</td></tr>
-                    <tr><td><code>integrate_simpson_array(y, dx)</code></td><td class="desc">Simpson's rule on uniformly-spaced samples</td></tr>
-                    <tr><td><code>integrate_simpson(f, a, b, n)</code></td><td class="desc">Simpson's rule on a callable f over [a, b] with n intervals</td></tr>
-                </tbody>
-            </table></div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Advanced Usage</div>
+        <a href="linalg.html" class="sidebar-link">Linear Algebra</a>
+        <a href="stats.html" class="sidebar-link">Statistics</a>
+        <a href="calculus.html" class="sidebar-link active">Calculus & AD</a>
+        <a href="nn.html" class="sidebar-link">Neural Networks</a>
+        <a href="signal.html" class="sidebar-link">Signal Processing</a>
+        <a href="geometry.html" class="sidebar-link">Geometry</a>
+        <a href="special.html" class="sidebar-link">Special Functions</a>
+    </div>
+</aside>
 
-            <div class="code-window">
-                <div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">integration.py</span></div>
-                <pre><code><span class="kw">import</span> rmath <span class="kw">as</span> <span class="num">rm</span>
-<span class="kw">import</span> math
+<main class="container">
+    <h1>rmath.calculus</h1>
+    <p>
+        Industrial-grade tools for automatic differentiation and numerical integration.
+    </p>
 
-<span class="cm"># Integrate sin(x) from 0 to pi (exact area = 2.0)</span>
-<span class="kw">def</span> <span class="fn">f</span>(x):
-    <span class="kw">return</span> math.<span class="fn">sin</span>(x)
+    <h2>Proven: Forward-Mode AD</h2>
+    <div class="proven-code">
+        <div class="code-header">
+            <span>dual_math.py</span>
+        </div>
+        <pre><code><span class="token-keyword">from</span> rmath.calculus <span class="token-keyword">import</span> Dual
 
-area = <span class="num">rm</span>.calculus.<span class="fn">integrate_simpson</span>(f, <span class="num">0.0</span>, math.pi, <span class="num">1000</span>)
-<span class="kw">print</span>(area)  <span class="cm"># ≈ 2.0</span>
+<span class="token-comment"># f(x) = x^2 + 5x + 10</span>
+x = Dual(<span class="token-number">3.0</span>, <span class="token-number">1.0</span>)
+y = x**<span class="token-number">2</span> + <span class="token-number">5</span>*x + <span class="token-number">10</span>
 
-<span class="cm"># Integrate sampled data (Trapezoidal)</span>
-x = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">0.0</span>, <span class="num">1.0</span>, <span class="num">2.0</span>, <span class="num">3.0</span>])
-y = <span class="num">rm</span>.<span class="fn">Vector</span>([<span class="num">0.0</span>, <span class="num">1.0</span>, <span class="num">4.0</span>, <span class="num">9.0</span>])  <span class="cm"># y = x²</span>
-area_trapz = <span class="num">rm</span>.calculus.<span class="fn">integrate_trapezoidal</span>(x, y)
-<span class="kw">print</span>(area_trapz)  <span class="cm"># 9.5 (exact is 9.0, limited by only 4 points)</span></code></pre>
-            </div>
-        </section>
+<span class="token-comment"># f'(3) = 2(3) + 5 = 11</span>
+<span class="token-builtin">print</span>(<span class="token-string">f"f(3): {y.value}"</span>)
+<span class="token-builtin">print</span>(<span class="token-string">f"f'(3): {y.derivative}"</span>)</code></pre>
+        <div class="code-output">
+f(3): 34.0
+f'(3): 11.0
+        </div>
+    </div>
+</main>
 
-        <section id="rootfinding">
-            <h2>Root-Finding</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>find_root_newton(f, x0, tol, max_iter)</code></td><td class="desc">Newton's method using autodiff. <code>f</code> takes a Dual and returns a Dual. Derivatives are computed automatically.</td></tr>
-                </tbody>
-            </table></div>
-            <div class="code-window"><div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">root.py</span></div>
-                <pre><code><span class="kw">import</span> rmath.calculus <span class="kw">as</span> <span class="num">rc</span>
-
-<span class="cm"># Find root of f(x) = x² - 2 → x = √2</span>
-<span class="kw">def</span> <span class="fn">f</span>(x):
-    <span class="kw">return</span> x * x - <span class="num">2.0</span>
-
-root = <span class="num">rc</span>.<span class="fn">find_root_newton</span>(f, x0=<span class="num">1.0</span>, tol=<span class="num">1e-12</span>, max_iter=<span class="num">50</span>)
-<span class="cm"># root ≈ 1.4142135623730951</span></code></pre>
-            </div>
-        </section>
-        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
-    </main>
-</div>
 <script src="script.js"></script>
 </body>
 </html>

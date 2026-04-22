@@ -5,6 +5,12 @@ use crate::vector::core::Vector;
 ///
 /// Quaternions provide a way to represent and compose 3D rotations without
 /// the risk of gimbal lock.
+///
+/// Examples:
+///     >>> from rmath.geometry import Quaternion
+///     >>> q = Quaternion(1, 0, 0, 0) # Identity
+///     >>> q.rotate_vector([1, 0, 0])
+///     Vector([1.0, 0.0, 0.0])
 #[pyclass(module = "rmath")]
 #[derive(Clone, Copy, Debug)]
 pub struct Quaternion {

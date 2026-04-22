@@ -1,60 +1,86 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>rmath.special — RMath Documentation</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>rmath.special — RMath Docs</title>
     <link rel="stylesheet" href="style.css">
-    <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
 </head>
 <body>
-<div class="portal">
-    <aside class="sidebar" id="sidebar">
-        <a href="index.html" class="sidebar-brand"><img src="rmath_logo.svg" alt="RMath"><span>RMath<small>v0.1.4</small></span></a>
-        <div class="sidebar-search"><span class="icon">🔍</span><input type="text" id="moduleSearch" placeholder="Search docs..." autocomplete="off"></div>
-        <nav id="sidebarNav">
-            <div class="nav-group"><div class="nav-group-title">Guide</div><a href="index.html" class="nav-link">Overview</a></div>
-            <div class="nav-group"><div class="nav-group-title">Core</div><a href="array.html" class="nav-link"><code>rmath.array</code></a><a href="tensor.html" class="nav-link"><code>rmath.Tensor</code></a><a href="vector.html" class="nav-link"><code>rmath.vector</code></a><a href="scalar.html" class="nav-link"><code>rmath.scalar</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Ecosystem</div><a href="interop.html" class="nav-link"><code>Interop</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Math</div><a href="linalg.html" class="nav-link"><code>rmath.linalg</code></a><a href="stats.html" class="nav-link"><code>rmath.stats</code></a><a href="calculus.html" class="nav-link"><code>rmath.calculus</code></a></div>
-            <div class="nav-group"><div class="nav-group-title">Extensions</div><a href="geometry.html" class="nav-link"><code>rmath.geometry</code></a><a href="signal.html" class="nav-link"><code>rmath.signal</code></a><a href="nn.html" class="nav-link"><code>rmath.nn</code></a><a href="special.html" class="nav-link active"><code>rmath.special</code></a><a href="constants.html" class="nav-link"><code>rmath.constants</code></a></div>
-        </nav>
-    </aside>
-    <main class="content">
-        <section id="overview" class="hero">
-            <div class="badge">Extension</div>
-            <h1>rmath.<span class="gradient-text">special</span></h1>
-            <p class="hero-sub">Special mathematical functions. All functions accept <code>float</code>, <code>list[float]</code>, <code>Vector</code>, or <code>Array</code> and return the matching type.</p>
-        </section>
 
-        <section id="api">
-            <h2>API Reference</h2>
-            <div class="api-section"><table class="api-table">
-                <thead><tr><th>Function</th><th>Description</th></tr></thead>
-                <tbody>
-                    <tr><td><code>gamma(x)</code></td><td class="desc">Gamma function Γ(x). Extends factorial to real numbers: Γ(n) = (n-1)!</td></tr>
-                    <tr><td><code>ln_gamma(x)</code></td><td class="desc">Natural log of the absolute Gamma function: ln|Γ(x)|. Avoids overflow for large inputs.</td></tr>
-                    <tr><td><code>erf(x)</code></td><td class="desc">Error function erf(x) = (2/√π) ∫₀ˣ e⁻ᵗ² dt. Used in probability and statistics.</td></tr>
-                </tbody>
-            </table></div>
-            <div class="callout">
-                <strong>Polymorphic dispatch:</strong> Pass a float to get a float back. Pass a Vector or Array to get element-wise results of the same type.
-            </div>
-            <div class="code-window"><div class="code-header"><div class="dots"><span class="r"></span><span class="y"></span><span class="g"></span></div><span class="filename">special_example.py</span></div>
-                <pre><code><span class="kw">import</span> rmath.special <span class="kw">as</span> <span class="num">sp</span>
-<span class="kw">import</span> rmath.vector <span class="kw">as</span> <span class="num">rv</span>
+<nav class="navbar">
+    <div class="navbar-left">
+        <button class="menu-btn" id="menuBtn" aria-label="Open menu">
+            <svg viewBox="0 0 24 24" width="24" height="24"><path fill="currentColor" d="M3 18h18v-2H3v2zm0-5h18v-2H3v2zm0-7v2h18V6H3z"/></svg>
+        </button>
+        <a href="index.html" class="nav-brand">
+            <img src="rmath_logo.svg" alt="RMath Logo" class="logo-img">
+            <span>RMath Docs</span>
+        </a>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">User Guide</a>
+            <a href="array.html" class="nav-link active">API Reference</a>
+            <a href="theory.html" class="nav-link">Theory</a>
+            <a href="interop.html" class="nav-link">Interop</a>
+            <a href="benchmarks.html" class="nav-link">Performance</a>
+        </div>
+    </div>
+    <button class="theme-toggle" id="themeToggle" aria-label="Toggle dark mode"></button>
+</nav>
 
-<span class="cm"># Scalar</span>
-g = <span class="num">sp</span>.<span class="fn">gamma</span>(<span class="num">5.0</span>)  <span class="cm"># 24.0 (= 4!)</span>
+<aside class="sidebar">
+    <div class="sidebar-section">
+        <div class="sidebar-title">Getting Started</div>
+        <a href="index.html" class="sidebar-link">What is RMath?</a>
+        <a href="install.html" class="sidebar-link">Installation Guide</a>
+        <a href="quickstart.html" class="sidebar-link">RMath Quickstart</a>
+        <a href="foundations.html" class="sidebar-link">The RMath Engine</a>
+    </div>
 
-<span class="cm"># Vectorized</span>
-v = <span class="num">rv</span>.<span class="fn">Vector</span>([<span class="num">0.5</span>, <span class="num">1.0</span>, <span class="num">1.5</span>, <span class="num">2.0</span>])
-erfs = <span class="num">sp</span>.<span class="fn">erf</span>(v)  <span class="cm"># Vector of erf values</span></code></pre>
-            </div>
-        </section>
-        <footer class="footer"><p>© 2026 RMath Contributors · <a href="https://github.com/Ay-developerweb/rmath">GitHub</a></p></footer>
-    </main>
-</div>
+    <div class="sidebar-section">
+        <div class="sidebar-title">Core Modules</div>
+        <a href="array.html" class="sidebar-link">rmath.array</a>
+        <a href="vector.html" class="sidebar-link">rmath.vector</a>
+        <a href="tensor.html" class="sidebar-link">rmath.Tensor</a>
+        <a href="scalar.html" class="sidebar-link">rmath.scalar</a>
+        <a href="constants.html" class="sidebar-link">rmath.constants</a>
+    </div>
+
+    <div class="sidebar-section">
+        <div class="sidebar-title">Advanced Usage</div>
+        <a href="linalg.html" class="sidebar-link">Linear Algebra</a>
+        <a href="stats.html" class="sidebar-link">Statistics</a>
+        <a href="calculus.html" class="sidebar-link">Calculus & AD</a>
+        <a href="nn.html" class="sidebar-link">Neural Networks</a>
+        <a href="signal.html" class="sidebar-link">Signal Processing</a>
+        <a href="geometry.html" class="sidebar-link">Geometry</a>
+        <a href="special.html" class="sidebar-link active">Special Functions</a>
+    </div>
+</aside>
+
+<main class="container">
+    <h1>rmath.special</h1>
+    <p>
+        Bessel, Gamma, and Error functions with automatic broadcasting.
+    </p>
+
+    <h2>Proven: Factorial via Gamma</h2>
+    <div class="proven-code">
+        <div class="code-header">
+            <span>special_verify.py</span>
+        </div>
+        <pre><code><span class="token-keyword">from</span> rmath <span class="token-keyword">import</span> special
+
+<span class="token-comment"># Gamma(n) = (n-1)!</span>
+val = special.gamma(<span class="token-number">6.0</span>)
+
+<span class="token-builtin">print</span>(<span class="token-string">f"Gamma(6) [5!]: {val}"</span>)</code></pre>
+        <div class="code-output">
+Gamma(6) [5!]: 120.0
+        </div>
+    </div>
+</main>
+
 <script src="script.js"></script>
 </body>
 </html>

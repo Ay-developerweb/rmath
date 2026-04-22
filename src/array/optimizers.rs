@@ -1,8 +1,16 @@
 use pyo3::prelude::*;
+use rayon::prelude::*;
 use super::autograd::Tensor;
 use super::core::Array;
 
-#[pyclass(module = "rmath")]
+/// Stochastic Gradient Descent (SGD) optimizer.
+///
+/// Supports optional momentum for faster convergence.
+///
+/// Example:
+///     >>> optimizer = ra.SGD(model.parameters(), lr=0.01, momentum=0.9)
+///     >>> optimizer.step()
+#[pyclass(module = "rmath.array")]
 pub struct SGD {
     pub params: Vec<Tensor>,
     pub lr: f64,
@@ -25,27 +33,33 @@ impl SGD {
     }
 
     pub fn step(&mut self) -> PyResult<()> {
+        let lr = self.lr;
+        let momentum = self.momentum;
+
         for i in 0..self.params.len() {
             let param = &mut self.params[i];
-            if let Some(grad) = param.grad() {
-                let velocity = if self.momentum > 0.0 {
-                    let v = match &self.velocities[i] {
-                        Some(prev_v) => {
-                            // v = momentum * prev_v + lr * grad
-                            let term1 = prev_v.map_elements(|x| x * self.momentum);
-                            let term2 = grad.map_elements(|x| x * self.lr);
-                            term1.add_array(&term2)?
-                        }
-                        None => grad.map_elements(|x| x * self.lr),
-                    };
-                    self.velocities[i] = Some(v.clone());
-                    v
-                } else {
-                    grad.map_elements(|x| x * self.lr)
-                };
+            let grad_opt = param.grad();
+            if let Some(grad) = grad_opt {
+                let mut p_lock = param.data_ptr.write().unwrap();
+                let p_data = p_lock.storage_slice_mut();
+                let g_data = grad.data(); // Contiguous copy if needed
+                
+                if momentum > 0.0 {
+                    if self.velocities[i].is_none() {
+                        self.velocities[i] = Some(Array::zeros_internal(&grad.shape));
+                    }
+                    let v_arr = self.velocities[i].as_mut().unwrap();
+                    let v_data = v_arr.storage_slice_mut();
 
-                let new_data = param.data().sub_array(&velocity)?;
-                param.update_data(new_data);
+                    p_data.par_iter_mut().zip(v_data.par_iter_mut()).zip(g_data.par_iter()).for_each(|((p, v), &g)| {
+                        *v = momentum * (*v) + lr * g;
+                        *p -= *v;
+                    });
+                } else {
+                    p_data.par_iter_mut().zip(g_data.par_iter()).for_each(|(p, &g)| {
+                        *p -= lr * g;
+                    });
+                }
             }
         }
         Ok(())
@@ -58,8 +72,14 @@ impl SGD {
     }
 }
 
-/// Adam Optimizer: The industry standard for deep learning
-#[pyclass(module = "rmath")]
+/// Adam Optimizer: The industry standard for deep learning.
+///
+/// Implements the Adam algorithm with bias correction and fused parameter updates.
+///
+/// Example:
+///     >>> optimizer = ra.Adam(model.parameters(), lr=1e-3)
+///     >>> optimizer.step()
+#[pyclass(module = "rmath.array")]
 pub struct Adam {
     params: Vec<Tensor>,
     lr: f64,
@@ -83,35 +103,41 @@ impl Adam {
 
     pub fn step(&mut self) -> PyResult<()> {
         self.t += 1;
-        let lr_t = self.lr * (1.0 - self.beta2.powi(self.t as i32)).sqrt() / (1.0 - self.beta1.powi(self.t as i32));
+        let t = self.t as i32;
+        let beta1 = self.beta1;
+        let beta2 = self.beta2;
+        let eps = self.eps;
+        let lr = self.lr;
+
+        // Correct bias
+        let bias_correction1 = 1.0 - beta1.powi(t);
+        let bias_correction2 = 1.0 - beta2.powi(t);
+        let lr_t = lr * bias_correction2.sqrt() / bias_correction1;
 
         for i in 0..self.params.len() {
             let param = &mut self.params[i];
-            if let Some(grad) = param.grad() {
-                // m = beta1 * m + (1 - beta1) * grad
-                let m_part1 = self.m[i].map_elements(|x| x * self.beta1);
-                let m_part2 = grad.map_elements(|x| x * (1.0 - self.beta1));
-                self.m[i] = m_part1.add_array(&m_part2)?;
-
-                // v = beta2 * v + (1 - beta2) * grad^2
-                let v_part1 = self.v[i].map_elements(|x| x * self.beta2);
-                let grad_sq = grad.map_elements(|x| x * x);
-                let v_part2 = grad_sq.map_elements(|x| x * (1.0 - self.beta2));
-                self.v[i] = v_part1.add_array(&v_part2)?;
-
-                // weight = weight - lr_t * m / (sqrt(v) + eps)
-                let m = &self.m[i];
-                let v = &self.v[i];
-                let denom = v.map_elements(|x| x.sqrt() + self.eps);
+            let grad_opt = param.grad();
+            if let Some(grad) = grad_opt {
+                let mut p_lock = param.data_ptr.write().unwrap();
+                let p_data = p_lock.storage_slice_mut();
+                let g_data = grad.data();
                 
-                // This is a bit complex for our current elementwise helpers, 
-                // but we can map it manually for now.
-                let update_data: Vec<f64> = m.data().iter().zip(denom.data().iter())
-                    .map(|(&mi, &di)| mi / di * lr_t).collect();
-                let update = Array::from_flat(update_data, m.shape.clone());
+                let m_data = self.m[i].storage_slice_mut();
+                let v_data = self.v[i].storage_slice_mut();
 
-                let new_data = param.data().sub_array(&update)?;
-                param.update_data(new_data);
+                // ONE PASS FUSION: m, v, and param update in one loop
+                p_data.par_iter_mut()
+                    .zip(m_data.par_iter_mut())
+                    .zip(v_data.par_iter_mut())
+                    .zip(g_data.par_iter())
+                    .for_each(|(((p, m), v), &g)| {
+                        // m = beta1 * m + (1 - beta1) * g
+                        *m = beta1 * (*m) + (1.0 - beta1) * g;
+                        // v = beta2 * v + (1 - beta2) * g^2
+                        *v = beta2 * (*v) + (1.0 - beta2) * g * g;
+                        // p = p - lr_t * m / (sqrt(v) + eps)
+                        *p -= lr_t * (*m) / ((*v).sqrt() + eps);
+                    });
             }
         }
         Ok(())
