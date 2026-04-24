@@ -4,6 +4,12 @@ pub mod fft;
 pub mod convolution;
 
 pub fn register_signal(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.setattr(
+        "__doc__",
+        "rmath.signal — Signal processing operations.\n\n\
+        Provides Fast Fourier Transforms (FFT) and 1D convolutions backed by \
+        Rust's high-performance `rustfft` and custom thread-pool kernels.",
+    )?;
     m.add_function(wrap_pyfunction!(fft::fft, m)?)?;
     m.add_function(wrap_pyfunction!(fft::fft_styled, m)?)?;
     m.add_function(wrap_pyfunction!(fft::rfft, m)?)?;

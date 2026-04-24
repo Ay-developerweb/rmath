@@ -1,0 +1,34 @@
+﻿
+=== VECTOR BENCHMARKS (Add Scalar) ===
+
+--- N = 4 ---
+  NumPy (+1.0)                    2.55 us
+  rmath (+1.0)                    0.40 us
+
+--- N = 1,000 ---
+  NumPy (+1.0)                    3.49 us
+  rmath (+1.0)                    1.11 us
+
+--- N = 1,000,000 ---
+  NumPy (+1.0)                 4263.96 us
+  rmath (+1.0)                 3476.85 us
+
+=== MATRIX BENCHMARKS (Matmul) ===
+
+--- Matrix 2x2 ---
+  NumPy (@)                       3.19 us
+  rmath (@)                       1.88 us
+
+--- Matrix 100x100 ---
+  NumPy (@)                     194.60 us
+  rmath (@)                     245.84 us
+
+--- Matrix 500x500 ---
+  NumPy (@)                    5110.12 us
+  rmath (@)                    6795.53 us
+
+=== BROADCASTING BENCHMARKS (Matrix + Vector) ===
+
+--- Matrix 1000x1000 + Vector 1000 ---
+  NumPy (m + v)                4128.20 us
+  rmath (m + v)                6699.96 us

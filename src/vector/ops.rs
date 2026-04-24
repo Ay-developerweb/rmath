@@ -373,15 +373,15 @@ pub fn dot(v1: &Vector, v2: &Vector) -> PyResult<f64> {
 
 #[pyfunction]
 pub fn add_scalar(v: &Vector, s: f64) -> Vector {
-    v.map_internal(|x| x + s)
+    v.map_internal(move |x| x + s)
 }
 #[pyfunction]
 pub fn sub_scalar(v: &Vector, s: f64) -> Vector {
-    v.map_internal(|x| x - s)
+    v.map_internal(move |x| x - s)
 }
 #[pyfunction]
 pub fn mul_scalar(v: &Vector, s: f64) -> Vector {
-    v.map_internal(|x| x * s)
+    v.map_internal(move |x| x * s)
 }
 #[pyfunction]
 pub fn div_scalar(v: &Vector, s: f64) -> PyResult<Vector> {
@@ -390,7 +390,7 @@ pub fn div_scalar(v: &Vector, s: f64) -> PyResult<Vector> {
             "division by zero",
         ));
     }
-    Ok(v.map_internal(|x| x / s))
+    Ok(v.map_internal(move |x| x / s))
 }
 #[pyfunction]
 pub fn pow_scalar(v: &Vector, e: f64) -> Vector {
@@ -403,20 +403,20 @@ pub fn clamp(v: &Vector, lo: f64, hi: f64) -> Vector {
 
 #[pyfunction]
 pub fn add_vec(v1: &Vector, v2: &Vector) -> PyResult<Vector> {
-    v1.zip_map_internal(v2, |a, b| a + b)
+    v1.zip_map_internal(v2, move |a, b| a + b)
 }
 #[pyfunction]
 pub fn sub_vec(v1: &Vector, v2: &Vector) -> PyResult<Vector> {
-    v1.zip_map_internal(v2, |a, b| a - b)
+    v1.zip_map_internal(v2, move |a, b| a - b)
 }
 #[pyfunction]
 pub fn mul_vec(v1: &Vector, v2: &Vector) -> PyResult<Vector> {
-    v1.zip_map_internal(v2, |a, b| a * b)
+    v1.zip_map_internal(v2, move |a, b| a * b)
 }
 #[pyfunction]
 pub fn div_vec(v1: &Vector, v2: &Vector) -> PyResult<Vector> {
     // Documents IEEE behaviour: 0-divisors yield INFINITY, not an error.
-    v1.zip_map_internal(v2, |a, b| a / b)
+    v1.zip_map_internal(v2, move |a, b| a / b)
 }
 
 // ---------------------------------------------------------------------------

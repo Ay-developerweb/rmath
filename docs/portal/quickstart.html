@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="author" content="Ayomide Adediran" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <link rel="icon" type="image/svg+xml" href="logo.svg">
+    <title>RMath Docs</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100..900&family=Fira+Code:wght@300..700&display=swap" rel="stylesheet" />
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://code.iconify.design/iconify-icon/3.0.0/iconify-icon.min.js"></script>
+    <!-- Theme init: apply saved preference BEFORE render to prevent flash -->
+    <script>
+      (function() {
+        var saved = localStorage.getItem('rmath-theme');
+        var prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        if (saved === 'dark' || (!saved && prefersDark)) {
+          document.documentElement.classList.add('dark');
+        }
+      })();
+    </script>
+    <style type="text/tailwindcss">
+      @import "tailwindcss";
+      /* Tell Tailwind v4 to use .dark class (not media query) for dark: utilities */
+      @custom-variant dark (&:where(.dark, .dark *));
+      @theme inline {
+        --color-background: var(--background);
+        --color-foreground: var(--foreground);
+        --color-primary: var(--primary);
+        --color-muted: var(--muted);
+        --color-muted-foreground: var(--muted-foreground);
+        --color-card: var(--card);
+        --color-border: var(--border);
+        --font-family-sans: "Inter", sans-serif;
+        --font-family-heading: "Inter", sans-serif;
+        --font-family-mono: "Fira Code", monospace;
+      }
+      /* Light mode (default) */
+      :root {
+        --background: #fcfcfd;
+        --foreground: #0f172a;
+        --primary: #4f46e5;
+        --muted: #f1f5f9;
+        --muted-foreground: #64748b;
+        --card: #ffffff;
+        --border: #e2e8f0;
+        /* Code block tokens - light */
+        --code-bg: #f1f5f9;
+        --code-output-bg: #e2e8f0;
+        --code-text: #1e293b;
+        --code-output-color: #059669;
+        --code-header-bg: #e8edf2;
+        --code-header-color: #64748b;
+        --code-border: #d1d5db;
+        --token-keyword: #7c3aed;
+        --token-string: #16a34a;
+        --token-function: #2563eb;
+        --token-comment: #6b7280;
+        --token-number: #b45309;
+        --token-builtin: #b45309;
+      }
+      /* Dark mode */
+      .dark {
+        --background: #0f172a;
+        --foreground: #f8fafc;
+        --primary: #6366f1;
+        --muted: #1e293b;
+        --muted-foreground: #94a3b8;
+        --card: #1e293b;
+        --border: #334155;
+        /* Code block tokens - dark */
+        --code-bg: #050c1a;
+        --code-output-bg: #020814;
+        --code-text: #e2e8f0;
+        --code-output-color: #34d399;
+        --code-header-bg: rgba(255,255,255,0.04);
+        --code-header-color: #94a3b8;
+        --code-border: #1e293b;
+        --token-keyword: #c084fc;
+        --token-string: #4ade80;
+        --token-function: #60a5fa;
+        --token-comment: #94a3b8;
+        --token-number: #fb923c;
+        --token-builtin: #fcd34d;
+      }
+    </style>
+    <style>
+      /* ── DOCUMENTATION CONTENT STYLES ──
+         All values use CSS variables so both light and dark
+         switch automatically when .dark is toggled on <html>.
+         No html:not(.dark) specificity battles needed. */
+
+      .docs-content { color: var(--foreground); font-family: "Inter", sans-serif; }
+      .docs-content h1 { font-size: 2.25rem; font-weight: 800; margin-bottom: 1.5rem; letter-spacing: -0.025em; color: var(--foreground); }
+      .docs-content h2 { font-size: 1.5rem; font-weight: 700; margin-top: 3rem; margin-bottom: 1.5rem; display: flex; align-items: center; gap: 0.5rem; color: var(--foreground); }
+      .docs-content h3 { font-size: 1.25rem; font-weight: 600; margin-top: 2rem; margin-bottom: 1rem; color: var(--foreground); }
+      .docs-content p { font-size: 1.05rem; color: var(--muted-foreground); line-height: 1.75; margin-bottom: 1.5rem; }
+      .docs-content code { font-family: "Fira Code", monospace; background-color: var(--muted); padding: 0.125rem 0.375rem; border-radius: 0.25rem; color: var(--primary); font-size: 0.9em; border: 1px solid var(--border); }
+
+      /* ── CODE BLOCKS (all vars, no hardcoded colors) ── */
+      .proven-code { background-color: var(--code-bg); border-radius: 0.75rem; margin: 2rem 0; overflow: hidden; border: 1px solid var(--code-border); box-shadow: 0 4px 24px rgba(0,0,0,0.12); transition: background-color 0.2s, border-color 0.2s; }
+      .code-header { background-color: var(--code-header-bg); padding: 0.6rem 1.25rem; border-bottom: 1px solid var(--code-border); color: var(--code-header-color); font-size: 0.75rem; font-family: "Fira Code", monospace; font-weight: 500; display: flex; justify-content: space-between; align-items: center; }
+      .proven-code pre { padding: 1.5rem; font-family: "Fira Code", monospace; font-size: 0.875rem; color: var(--code-text); overflow-x: auto; white-space: pre-wrap; word-break: break-all; line-height: 1.6; margin: 0; }
+      .proven-code pre code { background: transparent; padding: 0; border: none; color: inherit; }
+      .code-output { background-color: var(--code-output-bg); border-top: 1px solid var(--code-border); padding: 1.25rem 1.5rem; font-family: "Fira Code", monospace; font-size: 0.875rem; color: var(--code-output-color); }
+      .code-output::before { content: "Output:"; display: block; font-size: 0.72rem; color: var(--muted-foreground); margin-bottom: 0.5rem; text-transform: uppercase; font-weight: 700; letter-spacing: 0.06em; }
+
+      /* ── SYNTAX TOKENS (all via CSS vars) ── */
+      .token-keyword  { color: var(--token-keyword); }
+      .token-string   { color: var(--token-string); }
+      .token-function { color: var(--token-function); }
+      .token-comment  { color: var(--token-comment); font-style: italic; }
+      .token-number   { color: var(--token-number); }
+      .token-builtin  { color: var(--token-builtin); }
+
+      /* ── TABLES ── */
+      .docs-content table { width: 100%; border-collapse: collapse; margin: 2rem 0; background-color: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; overflow: hidden; }
+      .docs-content th { text-align: left; padding: 1rem 1.25rem; background-color: var(--muted); border-bottom: 2px solid var(--border); color: var(--foreground); font-weight: 600; }
+      .docs-content td { padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); color: var(--muted-foreground); }
+      .docs-content tr:last-child td { border-bottom: none; }
+
+      /* ── CALLOUTS ── */
+      .callout { padding: 1.5rem; border-radius: 0.75rem; margin: 2rem 0; border-left: 4px solid #ec4899; color: var(--foreground); background: linear-gradient(to right, rgba(236,72,153,0.08), transparent); }
+      .callout strong { color: #ec4899; font-weight: 700; }
+
+      /* ── CARDS ── */
+      .doc-section { margin-bottom: 3rem; }
+      .tier-card { background-color: var(--card); border: 1px solid var(--border); border-radius: 0.75rem; padding: 2rem; margin-bottom: 1.5rem; transition: all 0.2s; position: relative; overflow: hidden; }
+      .tier-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: linear-gradient(to right, #6366f1, #ec4899); opacity: 0; transition: opacity 0.2s; }
+      .tier-card:hover { transform: translateY(-4px); box-shadow: 0 10px 24px rgba(0,0,0,0.12); }
+      .tier-card:hover::before { opacity: 1; }
+      .tier-card h3 { font-size: 1.25rem; color: var(--foreground); margin-top: 0; margin-bottom: 0.75rem; }
+      .tier-card p { margin-bottom: 0; color: var(--muted-foreground); }
+    
+      /* Global Reset \u0026 Premium Scrollbar */
+      html, body { margin: 0; padding: 0; }
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; border: 2px solid var(--background); }
+      ::-webkit-scrollbar-thumb:hover { background: var(--muted-foreground); }
+      * { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+</style>
+  </head>
+  <body>
+<div class="h-screen w-full bg-background flex flex-col relative font-sans text-foreground overflow-hidden">
+  <!-- Top Navigation -->
+  <header class="shrink-0 z-50 w-full border-b border-border bg-background/80 backdrop-blur-md">
+    <div class="flex h-14 items-center px-4 md:px-6 gap-2 md:gap-4">
+      <div class="flex items-center gap-2 flex-1 md:flex-none">
+        <button onclick="document.getElementById('mobileNav').classList.remove('hidden')" class="lg:hidden p-1.5 hover:bg-muted rounded-md transition-colors flex items-center justify-center">
+          <iconify-icon icon="lucide:menu" class="text-xl"></iconify-icon>
+        </button>
+        <!-- RMath Custom SVG Logo -->
+        <img src="logo.svg" alt="RMath" class="w-8 h-8 object-contain drop-shadow-sm shrink-0" />
+        <span class="font-bold text-lg tracking-tight hidden sm:block">rmath</span>
+      </div>
+      <div class="flex-1 flex items-center justify-center px-2">
+        <button onclick="document.getElementById('searchOverlay').classList.remove('hidden'); document.getElementById('searchInput').focus();" class="flex items-center gap-3 w-full max-w-sm px-3 py-1.5 bg-muted/50 border border-border rounded-md text-muted-foreground text-sm hover:border-primary/50 transition-colors">
+          <iconify-icon icon="lucide:search"></iconify-icon>
+          <span class="hidden sm:inline">Search documentation...</span>
+          <span class="sm:hidden">Search...</span>
+          <kbd class="hidden md:inline-flex ml-auto pointer-events-none h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 text-foreground">
+            <span class="text-xs">⌘</span>K
+          </kbd>
+        </button>
+      </div>
+      <nav class="flex items-center gap-2 md:gap-4">
+        <a href="index.html" class="text-xs md:text-sm font-medium hover:text-primary transition-colors hidden sm:block">v0.1.5</a>
+        <a href="https://github.com/Ay-developerweb/rmath" target="_blank" class="text-xs md:text-sm font-medium hover:text-primary transition-colors">
+          <iconify-icon icon="lucide:github" class="text-lg sm:hidden"></iconify-icon>
+          <span class="hidden sm:inline">GitHub</span>
+        </a>
+        <button onclick="toggleTheme()" class="p-2 hover:bg-muted rounded-md transition-colors flex items-center justify-center">
+          <iconify-icon id="themeIcon" icon="lucide:moon" class="text-lg"></iconify-icon>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <div class="flex flex-1 overflow-hidden relative">
+    <!-- Left Sidebar (Desktop) -->
+    <aside class="hidden lg:flex w-64 flex-col border-r border-border bg-background overflow-y-auto p-6 gap-6 shrink-0">
+      <section>
+        <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Getting Started</h4>
+        <ul class="space-y-1">
+          <li><a href="index.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">What is RMath?</a></li>
+          <li><a href="install.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Installation</a></li>
+          <li><a href="quickstart.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Quickstart</a></li>
+          <li><a href="foundations.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">The RMath Engine</a></li>
+        </ul>
+      </section>
+      <section>
+        <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Core Modules</h4>
+        <ul class="space-y-1">
+          <li><a href="array.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.array</a></li>
+          <li><a href="vector.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.vector</a></li>
+          <li><a href="tensor.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.Tensor</a></li>
+          <li><a href="scalar.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.scalar</a></li>
+          <li><a href="constants.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.constants</a></li>
+        </ul>
+      </section>
+      <section>
+        <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Advanced Usage</h4>
+        <ul class="space-y-1">
+          <li><a href="linalg.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Linear Algebra</a></li>
+          <li><a href="stats.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Statistics</a></li>
+          <li><a href="calculus.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Calculus & AD</a></li>
+          <li><a href="interop.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Interop</a></li>
+          <li><a href="theory.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Theory</a></li>
+          <li><a href="benchmarks.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Performance</a></li>
+        </ul>
+      </section>
+      <div class="mt-auto pt-6 border-t border-border">
+        <p class="text-[10px] text-muted-foreground leading-relaxed">
+          Engineered by <br>
+          <a href="https://github.com/Ay-developerweb" class="font-semibold text-foreground hover:text-primary transition-colors">Ayomide Adediran</a>
+        </p>
+      </div>
+    </aside>
+
+    <!-- Mobile Nav Overlay -->
+    <div id="mobileNav" class="hidden fixed inset-0 z-[200] bg-background/80 backdrop-blur-sm flex lg:hidden">
+      <aside class="w-[280px] h-full bg-background border-r border-border  flex flex-col  shadow-2xl animate-in slide-in-from-left duration-200">
+        <div class="flex items-center justify-between sticky top-0 bg-background px-6 py-4 z-10 border-b border-border/50">
+          <span class="font-bold text-lg">Menu</span>
+          <button onclick="document.getElementById('mobileNav').classList.add('hidden')" class="p-2 hover:bg-muted rounded-md">
+            <iconify-icon icon="lucide:x" class="text-xl"></iconify-icon>
+          </button>
+        </div>
+        <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        <section>
+          <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Getting Started</h4>
+          <ul class="space-y-1">
+            <li><a href="index.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">What is RMath?</a></li>
+            <li><a href="install.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Installation</a></li>
+            <li><a href="quickstart.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Quickstart</a></li>
+            <li><a href="foundations.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">The RMath Engine</a></li>
+          </ul>
+        </section>
+        <section>
+          <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Core Modules</h4>
+          <ul class="space-y-1">
+            <li><a href="array.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.array</a></li>
+            <li><a href="vector.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.vector</a></li>
+            <li><a href="tensor.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.Tensor</a></li>
+            <li><a href="scalar.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.scalar</a></li>
+            <li><a href="constants.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">rmath.constants</a></li>
+          </ul>
+        </section>
+        <section>
+          <h4 class="mb-3 text-xs font-semibold uppercase tracking-wider text-muted-foreground">Advanced Usage</h4>
+          <ul class="space-y-1">
+            <li><a href="linalg.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Linear Algebra</a></li>
+            <li><a href="stats.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Statistics</a></li>
+            <li><a href="calculus.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Calculus & AD</a></li>
+            <li><a href="interop.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Interop</a></li>
+            <li><a href="theory.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Theory</a></li>
+            <li><a href="benchmarks.html" class="flex items-center px-3 py-2 text-sm font-medium hover:bg-muted rounded-md transition-colors">Performance</a></li>
+          </ul>
+        </section>
+      <div class="mt-auto pt-6 border-t border-border">
+        <p class="text-[10px] text-muted-foreground leading-relaxed">
+          Engineered by <br>
+          <a href="https://github.com/Ay-developerweb" class="font-semibold text-foreground hover:text-primary transition-colors">Ayomide Adediran</a>
+        </p>
+      </div>
+    </aside>
+      <div onclick="document.getElementById('mobileNav').classList.add('hidden')" class="flex-1"></div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto">
+      <div class="max-w-4xl mx-auto px-4 sm:px-8 py-8 sm:py-12 docs-content">
+        <h1>RMath Quickstart</h1>
+    <p>
+        Learn the fundamentals of RMath in under 5 minutes. All code examples
+        on this page have been run against the live library — outputs are exact.
+    </p>
+
+    <h2>1. The RMath Array</h2>
+    <p>
+        <code>rmath.array.Array</code> is the N-dimensional compute engine.
+        Chained operations like <code>.sin()</code> and <code>.exp()</code>
+        run in parallel Rust threads outside the GIL.
+    </p>
+    <div class="proven-code">
+        <div class="code-header"><span>quickstart_array.py</span></div>
+        <pre><code><span class="token-keyword">import</span> rmath.array <span class="token-keyword">as</span> ra
+
+<span class="token-comment"># Create a 2×2 array and inspect it</span>
+a = ra.Array([[<span class="token-number">1.0</span>, <span class="token-number">2.0</span>], [<span class="token-number">3.0</span>, <span class="token-number">4.0</span>]])
+<span class="token-builtin">print</span>(a)
+<span class="token-builtin">print</span>(<span class="token-string">"Mean:"</span>, a.mean())</code></pre>
+        <div class="code-output">Array([
+       [ 1.0000,  2.0000],
+       [ 3.0000,  4.0000]])
+Mean: 2.5</div>
+    </div>
+
+    <h2>2. Working with Vectors</h2>
+    <p>
+        <code>rmath.vector.Vector</code> is the 1-D parallel engine.
+        All operations are <strong>immutable</strong> — methods like
+        <code>.sort()</code> return a new Vector and never modify the original.
+    </p>
+    <div class="proven-code">
+        <div class="code-header"><span>quickstart_vector.py</span></div>
+        <pre><code><span class="token-keyword">import</span> rmath.vector <span class="token-keyword">as</span> rv
+
+v = rv.Vector([<span class="token-number">5.0</span>, <span class="token-number">2.0</span>, <span class="token-number">9.0</span>, <span class="token-number">1.0</span>, <span class="token-number">5.0</span>, <span class="token-number">6.0</span>])
+
+<span class="token-comment"># .sort() returns a NEW vector — v is unchanged</span>
+sorted_v = v.sort()
+
+<span class="token-builtin">print</span>(<span class="token-string">f"Original : {v}"</span>)
+<span class="token-builtin">print</span>(<span class="token-string">f"Sorted   : {sorted_v}"</span>)
+<span class="token-builtin">print</span>(<span class="token-string">f"Mean     : {v.mean():.4f}"</span>)
+<span class="token-builtin">print</span>(<span class="token-string">f"Std Dev  : {v.std_dev():.4f}"</span>)
+<span class="token-builtin">print</span>(<span class="token-string">f"Median   : {v.median()}"</span>)</code></pre>
+        <div class="code-output">Original : Vector([5.0000, 2.0000, 9.0000, 1.0000, 5.0000, 6.0000])
+Sorted   : Vector([1.0000, 2.0000, 5.0000, 5.0000, 6.0000, 9.0000])
+Mean     : 4.6667
+Std Dev  : 2.8752
+Median   : 5.0</div>
+    </div>
+
+    <h2>3. Element-wise Math &amp; Operators</h2>
+    <div class="proven-code">
+        <div class="code-header"><span>quickstart_math.py</span></div>
+        <pre><code><span class="token-keyword">import</span> rmath.vector <span class="token-keyword">as</span> rv
+
+a = rv.Vector([<span class="token-number">1.0</span>, <span class="token-number">2.0</span>, <span class="token-number">3.0</span>])
+b = rv.Vector([<span class="token-number">4.0</span>, <span class="token-number">5.0</span>, <span class="token-number">6.0</span>])
+
+<span class="token-comment"># Python operators work element-wise</span>
+<span class="token-builtin">print</span>(<span class="token-string">"a + b :"</span>, (a + b).to_list())   <span class="token-comment"># [5.0, 7.0, 9.0]</span>
+<span class="token-builtin">print</span>(<span class="token-string">"a * 2 :"</span>, (a * <span class="token-number">2.0</span>).to_list()) <span class="token-comment"># [2.0, 4.0, 6.0]</span>
+
+<span class="token-comment"># Dot product — use .dot(), not @ (@ operator not supported at runtime)</span>
+<span class="token-builtin">print</span>(<span class="token-string">"a · b :"</span>, a.dot(b))             <span class="token-comment"># 32.0</span>
+
+<span class="token-comment"># Trigonometry on linspace</span>
+angles = rv.Vector.linspace(<span class="token-number">0</span>, <span class="token-number">3.14159</span>, <span class="token-number">5</span>)
+<span class="token-builtin">print</span>(<span class="token-string">"sin   :"</span>, angles.sin())</code></pre>
+        <div class="code-output">a + b : [5.0, 7.0, 9.0]
+a * 2 : [2.0, 4.0, 6.0]
+a · b : 32.0
+sin   : Vector([0.0000, 0.7071, 1.0000, 0.7071, 0.0000])</div>
+    </div>
+
+    <h2>4. Filtering</h2>
+    <div class="proven-code">
+        <div class="code-header"><span>quickstart_filter.py</span></div>
+        <pre><code><span class="token-keyword">import</span> rmath.vector <span class="token-keyword">as</span> rv
+
+v = rv.Vector([<span class="token-number">10.0</span>, <span class="token-number">20.0</span>, <span class="token-number">30.0</span>, <span class="token-number">40.0</span>, <span class="token-number">50.0</span>])
+
+<span class="token-builtin">print</span>(v.filter_gt(<span class="token-number">25.0</span>))  <span class="token-comment"># elements &gt; 25</span>
+<span class="token-builtin">print</span>(v.filter_lt(<span class="token-number">35.0</span>))  <span class="token-comment"># elements &lt; 35</span>
+
+<span class="token-comment"># Zero-allocation fused multi-condition filter (no mask vectors created)</span>
+income = rv.Vector([<span class="token-number">100.0</span>, <span class="token-number">200.0</span>, <span class="token-number">50.0</span>, <span class="token-number">300.0</span>, <span class="token-number">80.0</span>])
+age    = rv.Vector([<span class="token-number">25.0</span>,  <span class="token-number">35.0</span>,  <span class="token-number">22.0</span>, <span class="token-number">45.0</span>,  <span class="token-number">30.0</span>])
+
+result = age.filter_where([(income, <span class="token-string">"lt"</span>, <span class="token-number">150.0</span>), (age, <span class="token-string">"lt"</span>, <span class="token-number">32.0</span>)])
+<span class="token-builtin">print</span>(result)</code></pre>
+        <div class="code-output">Vector([30.0000, 40.0000, 50.0000])
+Vector([10.0000, 20.0000, 30.0000])
+Vector([25.0000, 22.0000, 30.0000])</div>
+    </div>
+
+    <h2>5. Scaling and Clamping</h2>
+    <div class="proven-code">
+        <div class="code-header"><span>quickstart_scale.py</span></div>
+        <pre><code><span class="token-keyword">import</span> rmath.vector <span class="token-keyword">as</span> rv
+
+data = rv.Vector([<span class="token-number">-10.0</span>, <span class="token-number">5.0</span>, <span class="token-number">15.0</span>, <span class="token-number">25.0</span>])
+
+<span class="token-comment"># Clamp elements to a specific range</span>
+<span class="token-builtin">print</span>(<span class="token-string">"clamp  :"</span>, data.clamp(<span class="token-number">0.0</span>, <span class="token-number">10.0</span>))
+
+<span class="token-comment"># Standardize to zero-mean, unit-variance</span>
+<span class="token-builtin">print</span>(<span class="token-string">"z-score:"</span>, data.standardize())</code></pre>
+        <div class="code-output">clamp  : Vector([0.0000, 5.0000, 10.0000, 10.0000])
+z-score: Vector([-1.2558, -0.2512, 0.4186, 1.0884])</div>
+    </div>
+
+    <div class="callout">
+        <strong>Next Steps:</strong> Explore the
+        <a href="vector.html">Vector module reference</a> (70+ methods),
+        <a href="array.html">Array reference</a>, or jump to
+        <a href="benchmarks.html">Performance Benchmarks</a> to see rmath vs NumPy
+        on real-world 5M-row pipelines.
+    </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<!-- Search Overlay -->
+<div id="searchOverlay" class="hidden fixed inset-0 z-[100] bg-background/80 backdrop-blur-sm flex items-start justify-center pt-10 sm:pt-[15vh] px-4">
+  <div class="w-full max-w-2xl bg-card border border-border shadow-2xl rounded-xl overflow-hidden animate-in fade-in zoom-in duration-200">
+    <div class="flex items-center px-4 border-b border-border">
+      <iconify-icon icon="lucide:search" class="text-xl text-muted-foreground"></iconify-icon>
+      <input type="text" id="searchInput" oninput="performSearch(this.value)" placeholder="Search documentation..." class="w-full bg-transparent border-none focus:ring-0 py-4 px-3 text-lg placeholder:text-muted-foreground outline-none text-foreground" autocomplete="off" />
+      <button onclick="document.getElementById('searchOverlay').classList.add('hidden')" class="flex items-center gap-1.5 px-2 py-1 bg-muted/50 rounded border border-border hover:bg-muted transition-colors">
+        <span class="text-[10px] font-medium text-muted-foreground">ESC</span>
+      </button>
+    </div>
+    <div class="max-h-[60vh] overflow-y-auto p-2" id="searchResults">
+      <div class="p-8 text-center">
+        <iconify-icon icon="lucide:search" class="text-4xl text-muted-foreground/30 mb-3"></iconify-icon>
+        <p class="text-sm text-muted-foreground">Type to search for modules, classes, and guides...</p>
+      </div>
+    </div>
+  </div>
+  <div onclick="document.getElementById('searchOverlay').classList.add('hidden')" class="absolute inset-0 -z-10 cursor-pointer"></div>
+</div>
+
+<script>
+  // Dynamic Search Engine
+  const searchIndex = [
+    { title: "What is RMath?", url: "index.html", type: "Guide", desc: "Introduction to the RMath native engine" },
+    { title: "Installation", url: "install.html", type: "Guide", desc: "Build from source and environment setup" },
+    { title: "Quickstart", url: "quickstart.html", type: "Guide", desc: "Learn RMath fundamentals in 5 minutes" },
+    { title: "The RMath Engine", url: "foundations.html", type: "Theory", desc: "Memory architecture, SIMD, and thread safety" },
+    { title: "rmath.array", url: "array.html", type: "Core", desc: "N-dimensional array object (Array)" },
+    { title: "rmath.vector", url: "vector.html", type: "Core", desc: "SIMD optimized vector operations" },
+    { title: "rmath.Tensor", url: "tensor.html", type: "Core", desc: "Autograd and dynamic computation graphs" },
+    { title: "rmath.scalar", url: "scalar.html", type: "Core", desc: "Scalar mathematical operations" },
+    { title: "rmath.constants", url: "constants.html", type: "Core", desc: "Mathematical and physical constants" },
+    { title: "Linear Algebra", url: "linalg.html", type: "Advanced", desc: "Matrix operations, determinants, decompositions" },
+    { title: "Statistics", url: "stats.html", type: "Advanced", desc: "Probability, distributions, variance, skewness" },
+    { title: "Calculus & AD", url: "calculus.html", type: "Advanced", desc: "Derivatives, integrals, and root finding" },
+    { title: "Interop", url: "interop.html", type: "Advanced", desc: "NumPy, SciPy, and PyTorch interoperability" },
+    { title: "Theory", url: "theory.html", type: "Theory", desc: "Numerical stability and algorithms (e.g. Welford's)" },
+    { title: "Performance Benchmarks", url: "benchmarks.html", type: "Performance", desc: "Speed and memory profiling vs NumPy/PyTorch" }
+  ];
+
+  function performSearch(query) {
+    const container = document.getElementById('searchResults');
+    if (!query.trim()) {
+      container.innerHTML = `
+        <div class="p-8 text-center">
+          <iconify-icon icon="lucide:search" class="text-4xl text-muted-foreground/30 mb-3"></iconify-icon>
+          <p class="text-sm text-muted-foreground">Type to search for modules, classes, and guides...</p>
+        </div>`;
+      return;
+    }
+    
+    const q = query.toLowerCase();
+    const results = searchIndex.filter(item => 
+      item.title.toLowerCase().includes(q) || 
+      item.desc.toLowerCase().includes(q) ||
+      item.type.toLowerCase().includes(q)
+    );
+
+    if (results.length === 0) {
+      container.innerHTML = '<div class="p-8 text-center text-sm text-muted-foreground">No results found for "' + query + '"</div>';
+      return;
+    }
+
+    container.innerHTML = results.map(item => `
+      <button onclick="window.location.href='${item.url}'" class="w-full flex items-center justify-between px-3 py-3 rounded-lg hover:bg-muted/50 transition-all group text-left mb-1">
+        <div class="flex items-center gap-3">
+          <div class="w-8 h-8 rounded bg-muted flex items-center justify-center text-muted-foreground group-hover:text-foreground transition-colors shrink-0">
+            <iconify-icon icon="lucide:file-text"></iconify-icon>
+          </div>
+          <div>
+            <div class="text-sm font-semibold text-foreground">${item.title}</div>
+            <div class="text-xs text-muted-foreground line-clamp-1">${item.desc}</div>
+          </div>
+        </div>
+        <span class="px-2 py-0.5 bg-muted text-[10px] font-bold rounded uppercase tracking-tighter text-foreground shrink-0 ml-2">${item.type}</span>
+      </button>
+    `).join('');
+  }
+
+  function toggleTheme() {
+    const html = document.documentElement;
+    const isDark = html.classList.toggle('dark');
+    localStorage.setItem('rmath-theme', isDark ? 'dark' : 'light');
+    document.getElementById('themeIcon').setAttribute('icon', isDark ? 'lucide:moon' : 'lucide:sun');
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    // Sync icon with current theme (already applied by inline script in <head>)
+    const isDark = document.documentElement.classList.contains('dark');
+    document.getElementById('themeIcon').setAttribute('icon', isDark ? 'lucide:moon' : 'lucide:sun');
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      document.getElementById('searchOverlay').classList.add('hidden');
+    }
+    if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+      e.preventDefault();
+      document.getElementById('searchOverlay').classList.remove('hidden');
+      setTimeout(() => document.getElementById('searchInput').focus(), 100);
+    }
+  });
+</script>
+</body>
+</html>
+
+
+
+
+
+
+
+
+
+
+
+
+

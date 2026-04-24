@@ -208,6 +208,12 @@ pub mod transforms;
 pub mod topology;
 
 pub fn register_geometry(_py: Python<'_>, m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.setattr(
+        "__doc__",
+        "rmath.geometry — Spatial mathematics and geometric algorithms.\n\n\
+        Provides high-performance distance metrics, spatial transformations \
+        (Quaternions), and topological algorithms (Convex Hull, Point-in-Polygon).",
+    )?;
     m.add_class::<transforms::Quaternion>()?;
     m.add_function(wrap_pyfunction!(topology::is_point_in_polygon, m)?)?;
     m.add_function(wrap_pyfunction!(topology::convex_hull, m)?)?;

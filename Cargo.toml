@@ -1,6 +1,9 @@
 [package]
 name = "rmath"
-version = "0.1.4"
+version = "0.1.5"
+authors = ["Ayomide Adediran <ayomideadediran45@gmail.com>"]
+description = "High-performance mathematical accelerator powered by Rust."
+repository = "https://github.com/Ay-developerweb/rmath"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html

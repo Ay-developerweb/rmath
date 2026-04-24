@@ -15,6 +15,20 @@ use crate::vector::Vector;
 /// - Eigenvalues/vectors (Symmetric Eigh)
 /// - Batch Least Squares (Solve)
 pub fn register_linalg(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.setattr(
+        "__doc__",
+        "rmath.linalg — Linear Algebra routines.\n\n\
+        High-performance matrix decompositions and solvers backed by `faer`.\n\n\
+        Functions:\n\
+            - `inv(a)`: Matrix Inversion (LU Decomposition)\n\
+            - `det(a)`: Matrix Determinant\n\
+            - `solve(a, b)`: Solve linear system Ax = B\n\
+            - `qr(a)`: QR Decomposition\n\
+            - `svd(a)`: Singular Value Decomposition\n\
+            - `eigh(a)`: Eigenvalues/vectors for symmetric matrices\n\
+            - `cholesky(a)`: Cholesky Decomposition\n\
+            - `pseudo_inv(a)`: Moore-Penrose Pseudo-Inverse",
+    )?;
     m.add_function(wrap_pyfunction!(inv, m)?)?;
     m.add_function(wrap_pyfunction!(det, m)?)?;
     m.add_function(wrap_pyfunction!(solve, m)?)?;

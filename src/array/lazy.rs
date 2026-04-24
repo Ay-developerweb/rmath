@@ -371,6 +371,15 @@ impl MmapArray {
         let iter = MmapChunkIterator { path: self.path.clone(), rows: self.rows, cols: self.cols, chunk_size, current: 0 };
         Ok(iter.into_pyobject(py)?.into_any())
     }
+    pub fn load_rows(&self, start: usize, end: usize) -> PyResult<Array> {
+        let r = self.rows;
+        let c = self.cols;
+        let end = end.min(r);
+        if start >= end { return Err(PyErr::new::<pyo3::exceptions::PyValueError, _>("Bounds error")); }
+        let ptr = self.mmap.as_ref().unwrap().as_ptr() as *const f64;
+        let data = unsafe { std::slice::from_raw_parts(ptr.add(start*c), (end-start)*c) }.to_vec();
+        Ok(Array::from_flat(data, vec![end-start, c]))
+    }
 }
 
 #[pyclass(module = "rmath")]

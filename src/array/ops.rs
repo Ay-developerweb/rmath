@@ -242,8 +242,15 @@ impl Array {
 
     /// Matrix multiplication (dot product).
     ///
-    /// Supports 2D matrix multiplication and Batched Matrix Multiplication (BMM)
-    /// for N-D arrays.
+    /// Supports 2D matrix multiplication and vector-matrix multiplication.
+    /// Operates outside the Python GIL using the `faer` and `matrixmultiply` backends.
+    ///
+    /// Examples:
+    ///     >>> import rmath.array as ra
+    ///     >>> a = ra.Array([[1, 2], [3, 4]])
+    ///     >>> b = ra.Array([[2, 0], [1, 2]])
+    ///     >>> a.matmul(b)
+    ///     Array([[4.0, 4.0], [10.0, 8.0]])
     pub fn matmul<'py>(&self, rhs: &Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
         let py = rhs.py();
         if let Ok(other) = rhs.extract::<PyRef<Array>>() {
@@ -568,6 +575,17 @@ impl Array {
         }
     }
 
+    /// Compute the sum of array elements over a given axis.
+    ///
+    /// If `axis` is None, sums all elements using Kahan compensated summation.
+    /// If `axis` is 0, computes the sum of each column (returns a Vector).
+    /// If `axis` is 1, computes the sum of each row (returns a Vector).
+    ///
+    /// Examples:
+    ///     >>> import rmath.array as ra
+    ///     >>> a = ra.Array([[1, 2], [3, 4]])
+    ///     >>> a.sum(axis=0)
+    ///     Vector([4.0, 6.0])
     #[pyo3(signature = (axis=None))]
     pub fn sum<'py>(&self, py: Python<'py>, axis: Option<usize>) -> PyResult<Bound<'py, PyAny>> {
         match axis {
@@ -764,10 +782,17 @@ impl Array {
         Ok(Self::from_flat(data, self.shape.clone()))
     }
 
+    /// Compute the Pearson correlation matrix (rows = variables).
+    ///
+    /// Returns an N x N correlation matrix where element (i, j) is the
+    /// correlation between row i and row j.
     pub fn correlation_matrix<'py>(&self, py: Python<'py>) -> PyResult<Self> {
         crate::stats::inferential::correlation_matrix(py, self)
     }
 
+    /// Compute the pairwise Euclidean distance matrix between rows of two arrays.
+    ///
+    /// Returns an M x N array of distances where M is self.nrows() and N is other.nrows().
     pub fn cdist<'py>(&self, py: Python<'py>, other: &Array) -> PyResult<Self> {
         crate::geometry::cdist(py, self, other)
     }

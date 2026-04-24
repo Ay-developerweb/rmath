@@ -2,6 +2,12 @@ use pyo3::prelude::*;
 
 /// Registers the constants submodule (rmath.constants).
 pub fn register_constants(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.add(
+        "__doc__",
+        "Mathematical and physical constants.\n\n\
+        Provides high-precision constants including PI, E, PHI, TAU, and machine \
+        epsilons, bypassing Python's `math` module overhead.",
+    )?;
 
     // --- Fundamental Mathematical Constants ---
     m.add("PI",       std::f64::consts::PI)?;         // 3.14159…

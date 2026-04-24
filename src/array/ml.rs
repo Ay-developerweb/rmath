@@ -5,6 +5,16 @@ use rayon::prelude::*;
 use rand::Rng;
 
 pub fn register_nn(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.setattr(
+        "__doc__",
+        "rmath.nn — Neural Network building blocks.\n\n\
+        Provides high-performance, SIMD-accelerated activation functions, \
+        loss functions, normalization layers, and weight initializers.\n\n\
+        Activations: relu, sigmoid, leaky_relu, gelu, softmax\n\
+        Loss: mse_loss, cross_entropy_loss\n\
+        Layers: batch_norm, layer_norm, dropout",
+    )?;
+
     // Activations
     m.add_function(wrap_pyfunction!(relu, m)?)?;
     m.add_function(wrap_pyfunction!(sigmoid, m)?)?;
@@ -31,6 +41,12 @@ pub fn register_nn(m: &Bound<'_, PyModule>) -> PyResult<()> {
 }
 
 fn register_initializers(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.setattr(
+        "__doc__",
+        "rmath.nn.initializers — Weight initialization strategies.\n\n\
+        Provides parameter initialization for neural networks, including \
+        Glorot (Xavier) and He (Kaiming) initializations.",
+    )?;
     m.add_function(wrap_pyfunction!(glorot_uniform, m)?)?;
     m.add_function(wrap_pyfunction!(glorot_normal, m)?)?;
     m.add_function(wrap_pyfunction!(he_uniform, m)?)?;

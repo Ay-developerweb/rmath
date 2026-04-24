@@ -1,0 +1,14 @@
+﻿=== THE PYTORCH CPU CHALLENGE ===
+Synthesizing 100000 samples in PyTorch memory...
+Data ready (Time: 0.0048s)
+Starting Vectorized Gradient Descent (50 Epochs)...
+Epoch  0: Loss 8.74755478
+Epoch 10: Loss 0.10078826
+Epoch 20: Loss 0.00116174
+Epoch 30: Loss 0.00001340
+Epoch 40: Loss 0.00000015
+Training Complete (Total Time: 0.0841s)
+
+--- PyTorch Evaluation ---
+Predicted Weights: [3.4999630451202393, -1.999981164932251]
+Predicted Bias: 0.5000

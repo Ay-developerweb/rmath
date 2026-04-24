@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/Ay-developerweb/rmath/main/docs/portal/rmath_logo.svg" width="120" alt="RMath">
+  <img src="docs/portal/logo.svg" width="150" alt="RMath Logo">
 </p>
 
 <h3 align="center">Drop-in numerical accelerator for the Python computing ecosystem.</h3>
@@ -416,7 +416,7 @@ Benchmarked on Windows (CPython 3.13, AMD64). Medians of 20 runs, 3 warmup.
 
 **Average speedup: 3.98x over PyTorch.**
 
-### Phase 3: Intelligence & Fusion (v0.1.4) 🚀
+### Phase 3: Intelligence & Fusion (v0.1.5) 🚀
 
 The latest release introduces **Single-Pass Parallel Kernels** for optimizers and elementwise math.
 
@@ -440,6 +440,22 @@ result = a.lazy().mul(2.0).sin().exp().execute()
 # 2. Disk-Streaming Fusion (Math applied during load)
 result = ra.LazyArray.open("data.csv").sigmoid().add(1.0).load()
 ```
+
+### Real-World Data Pipeline — rmath vs NumPy (v0.1.5)
+
+Benchmarked on Windows (CPython 3.13, AMD64). 5 million row financial dataset.
+
+| Pipeline Step | rmath Time | rmath Mem | NumPy Time | NumPy Mem | Speedup |
+|---------------|-----------|-----------|------------|-----------|---------|
+| Data Generation | 0.30s | 153 MB | 1.31s | 137 MB | **4.3× faster** |
+| Data Cleaning | 0.15s | **0.5 MB** | 0.17s | 4.8 MB | **1.1× faster** |
+| Feature Engineering | 0.07s | 76 MB | 0.12s | 76 MB | **1.8× faster** |
+| Descriptive Stats | 0.26s | 0.07 MB | 0.25s | 0.03 MB | Comparable |
+| Correlation Analysis | 0.038s | 0.04 MB | 0.43s | 0.13 MB | **11.2× faster** |
+| Segmentation | 0.47s | 120 MB | 0.93s | 38 MB | **2.0× faster** |
+| Linear Signal | 0.16s | 0.03 MB | 0.13s | 0.00 MB | NumPy slight edge |
+
+> rmath wins on **5 of 7** pipeline stages. Data cleaning uses **9× less memory** than NumPy (0.5 MB vs 4.8 MB) thanks to zero-allocation `filter_where`. Full benchmark scripts in `benchmarks/pipeline/`.
 
 ### Numerical Accuracy
 
@@ -480,6 +496,12 @@ Python ─── PyO3 FFI ──> Rust core (rayon + faer)
 ## Documentation
 
 Full API reference: **[ay-developerweb.github.io/rmath/portal/](https://ay-developerweb.github.io/rmath/portal/)**
+
+## Author
+
+**Ayomide Adediran** (@Ay-developerweb)
+- GitHub: [Ay-developerweb](https://github.com/Ay-developerweb)
+- Email: ayomideadediran45@gmail.com
 
 ## Contributing
 

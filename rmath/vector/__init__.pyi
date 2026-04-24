@@ -155,9 +155,6 @@ class Vector:
     def __neg__(self) -> "Vector": ...
     def __pos__(self) -> "Vector": ...
     def __abs__(self) -> "Vector": ...
-    def __matmul__(self, other: "Vector") -> float:
-        """Dot product using the `@` operator."""
-        ...
 
     # --- Comparison Operators (Returns Vec[bool]) ---
     def __eq__(self, other: Any) -> List[bool]: ...
@@ -198,22 +195,45 @@ class Vector:
         ...
 
     # --- Named Arithmetic Methods ---
-    def add(self, other: Union[float, "Vector"]) -> "Vector": ...
-    def sub(self, other: Union[float, "Vector"]) -> "Vector": ...
-    def mul(self, other: Union[float, "Vector"]) -> "Vector": ...
-    def div(self, other: Union[float, "Vector"]) -> "Vector": ...
-    def pow(self, other: Union[float, "Vector"]) -> "Vector": ...
+    def add(self, other: Union[float, "Vector"]) -> "Vector":
+        """Element-wise addition. Accepts a scalar or another Vector."""
+        ...
+    def sub(self, other: Union[float, "Vector"]) -> "Vector":
+        """Element-wise subtraction."""
+        ...
+    def mul(self, other: Union[float, "Vector"]) -> "Vector":
+        """Element-wise multiplication."""
+        ...
+    def div(self, other: Union[float, "Vector"]) -> "Vector":
+        """Element-wise division."""
+        ...
+    def pow(self, other: Union[float, "Vector"]) -> "Vector":
+        """Element-wise exponentiation."""
+        ...
 
     # --- Scalar Arithmetic Methods ---
-    def add_scalar(self, s: float) -> "Vector": ...
-    def sub_scalar(self, s: float) -> "Vector": ...
-    def mul_scalar(self, s: float) -> "Vector": ...
-    def div_scalar(self, s: float) -> "Vector":
-        """Divide every element by a scalar. Raises `ZeroDivisionError` if `s == 0`."""
+    def add_scalar(self, s: float) -> "Vector":
+        """Add a scalar to every element."""
         ...
-    def pow_scalar(self, exp: float) -> "Vector": ...
+    def sub_scalar(self, s: float) -> "Vector":
+        """Subtract a scalar from every element."""
+        ...
+    def mul_scalar(self, s: float) -> "Vector":
+        """Multiply every element by a scalar."""
+        ...
+    def div_scalar(self, s: float) -> "Vector":
+        """Divide every element by a scalar. Raises ``ZeroDivisionError`` if ``s == 0``."""
+        ...
+    def pow_scalar(self, exp: float) -> "Vector":
+        """Raise every element to the power ``exp``."""
+        ...
     def clamp(self, lo: float, hi: float) -> "Vector":
-        """Clamp every element to the range [lo, hi]."""
+        """Clamp every element to the range ``[lo, hi]``.
+
+        Example:
+            >>> Vector([1, 5, 10]).clamp(2, 8)
+            Vector([2.0, 5.0, 8.0])
+        """
         ...
 
     # --- Vector-Vector Methods ---
@@ -228,20 +248,42 @@ class Vector:
         ...
 
     # --- Element-wise Math ---
-    def ceil(self) -> "Vector": ...
-    def floor(self) -> "Vector": ...
-    def round(self) -> "Vector": ...
-    def trunc(self) -> "Vector": ...
-    def fract(self) -> "Vector": ...
-    def abs(self) -> "Vector": ...
-    def sqrt(self) -> "Vector": ...
-    def cbrt(self) -> "Vector": ...
-    def signum(self) -> "Vector": ...
-    def recip(self) -> "Vector":
-        """Calculate element-wise reciprocal (1/x)."""
+    def ceil(self) -> "Vector":
+        """Round each element up toward +∞."""
         ...
-    def sigmoid(self) -> "Vector": ...
-    def clip(self, lo: float, hi: float) -> "Vector": ...
+    def floor(self) -> "Vector":
+        """Round each element down toward -∞."""
+        ...
+    def round(self) -> "Vector":
+        """Round each element to the nearest integer."""
+        ...
+    def trunc(self) -> "Vector":
+        """Truncate each element toward zero."""
+        ...
+    def fract(self) -> "Vector":
+        """Return the fractional part of each element."""
+        ...
+    def abs(self) -> "Vector":
+        """Element-wise absolute value."""
+        ...
+    def sqrt(self) -> "Vector":
+        """Element-wise square root."""
+        ...
+    def cbrt(self) -> "Vector":
+        """Element-wise cube root."""
+        ...
+    def signum(self) -> "Vector":
+        """Element-wise sign: ``-1.0``, ``0.0``, or ``1.0``."""
+        ...
+    def recip(self) -> "Vector":
+        """Element-wise reciprocal: ``1/x``."""
+        ...
+    def sigmoid(self) -> "Vector":
+        """Element-wise sigmoid: ``1 / (1 + exp(-x))``."""
+        ...
+    def clip(self, lo: float, hi: float) -> "Vector":
+        """Alias for ``clamp``."""
+        ...
 
     # --- Trigonometric ---
     def sin(self) -> "Vector": ...
@@ -253,25 +295,45 @@ class Vector:
     def sinh(self) -> "Vector": ...
     def cosh(self) -> "Vector": ...
     def tanh(self) -> "Vector": ...
-    def atan2_scalar(self, x: float) -> "Vector": ...
-    def hypot_scalar(self, y: float) -> "Vector": ...
+    def atan2_scalar(self, x: float) -> "Vector":
+        """Element-wise ``atan2(self[i], x)`` — angle in radians from the x-axis."""
+        ...
+    def hypot_scalar(self, y: float) -> "Vector":
+        """Element-wise ``sqrt(self[i]² + y²)`` — hypotenuse length."""
+        ...
 
     # --- Exp/Log ---
-    def exp(self) -> "Vector": ...
-    def exp2(self) -> "Vector": ...
-    def expm1(self) -> "Vector": ...
-    def log(self) -> "Vector": ...
-    def log2(self) -> "Vector": ...
-    def log10(self) -> "Vector": ...
-    def log1p(self) -> "Vector": ...
+    def exp(self) -> "Vector":
+        """Element-wise ``e^x``."""
+        ...
+    def exp2(self) -> "Vector":
+        """Element-wise ``2^x``."""
+        ...
+    def expm1(self) -> "Vector":
+        """Element-wise ``e^x - 1``, accurate for small x."""
+        ...
+    def log(self) -> "Vector":
+        """Element-wise natural logarithm (base e)."""
+        ...
+    def log2(self) -> "Vector":
+        """Element-wise base-2 logarithm."""
+        ...
+    def log10(self) -> "Vector":
+        """Element-wise base-10 logarithm."""
+        ...
+    def log1p(self) -> "Vector":
+        """Element-wise ``ln(1 + x)``, accurate for small x."""
+        ...
 
     # --- Statistics & Reductions ---
     def sum(self) -> float:
         """Calculate the sum using Kahan compensation for high precision."""
         ...
-    def prod(self) -> float: ...
+    def prod(self) -> float:
+        """Calculate the product of all elements."""
+        ...
     def mean(self) -> float:
-        """Calculate the arithmetic mean. Returns `NaN` for empty vectors."""
+        """Calculate the arithmetic mean. Returns ``NaN`` for empty vectors."""
         ...
     def variance(self) -> float:
         """Calculate the sample variance (n-1 divisor)."""
@@ -279,14 +341,30 @@ class Vector:
     def pop_variance(self) -> float:
         """Calculate the population variance (n divisor)."""
         ...
-    def std_dev(self) -> float: ...
-    def pop_std_dev(self) -> float: ...
-    def median(self) -> float: ...
-    def min(self) -> float: ...
-    def max(self) -> float: ...
-    def argmin(self) -> int: ...
-    def argmax(self) -> int: ...
-    def percentile(self, q: float) -> float: ...
+    def std_dev(self) -> float:
+        """Calculate the sample standard deviation."""
+        ...
+    def pop_std_dev(self) -> float:
+        """Calculate the population standard deviation."""
+        ...
+    def median(self) -> float:
+        """Calculate the median value."""
+        ...
+    def min(self) -> float:
+        """Return the minimum element."""
+        ...
+    def max(self) -> float:
+        """Return the maximum element."""
+        ...
+    def argmin(self) -> int:
+        """Return the index of the minimum element."""
+        ...
+    def argmax(self) -> int:
+        """Return the index of the maximum element."""
+        ...
+    def percentile(self, q: float) -> float:
+        """Return the value at the ``q``-th percentile (0–100)."""
+        ...
     
     def norm(self) -> float:
         """Calculate the Euclidean (L2) norm: sqrt(sum(x²))."""
@@ -309,22 +387,222 @@ class Vector:
         ...
 
     # --- Predicates (returns List[bool] or bool) ---
-    def any(self) -> bool: ...
-    def all(self) -> bool: ...
-    def isnan(self) -> List[bool]: ...
-    def isfinite(self) -> List[bool]: ...
-    def isinf(self) -> List[bool]: ...
-    def is_integer(self) -> List[bool]: ...
-    def is_prime(self) -> List[bool]: ...
+    def any(self) -> bool:
+        """Return ``True`` if any element is non-zero."""
+        ...
+    def all(self) -> bool:
+        """Return ``True`` if all elements are non-zero."""
+        ...
+    def isnan(self) -> List[bool]:
+        """Element-wise NaN check."""
+        ...
+    def isfinite(self) -> List[bool]:
+        """Element-wise finiteness check (not NaN or ±Inf)."""
+        ...
+    def isinf(self) -> List[bool]:
+        """Element-wise infinity check."""
+        ...
+    def is_integer(self) -> List[bool]:
+        """Element-wise check for integer values (e.g. 3.0 → True, 3.5 → False)."""
+        ...
+    def is_prime(self) -> List[bool]:
+        """Element-wise primality check (elements are truncated to integers)."""
+        ...
 
     # --- Filtering and selection ---
-    def filter_by_mask(self, mask: Union[List[bool], "Vector"]) -> "Vector": ...
-    def gt_mask(self, threshold: float) -> "Vector": ...
-    def lt_mask(self, threshold: float) -> "Vector": ...
-    def eq_mask(self, value: float) -> "Vector": ...
-    def filter_gt(self, threshold: float) -> "Vector": ...
-    def filter_lt(self, threshold: float) -> "Vector": ...
-    def where_(self, mask: List[bool], other: "Vector") -> "Vector": ...
+    def filter_gt(self, threshold: float) -> "Vector":
+        """Return elements greater than threshold."""
+        ...
+    def filter_lt(self, threshold: float) -> "Vector":
+        """Return elements less than threshold."""
+        ...
+    def filter_where(self, conditions: List[Tuple["Vector", str, float]]) -> "Vector":
+        """Fully fused conditional filter — zero mask allocations."""
+        ...
+    @staticmethod
+    def multi_filter_where(vectors: List["Vector"], conditions: List[Tuple["Vector", str, float]]) -> List["Vector"]:
+        """Filter multiple vectors by the same conditions in a single pass."""
+        ...
+    def eq_mask(self, value: float) -> "Vector":
+        """Generate a mask Vector: 1.0 where self[i] == value, 0.0 otherwise."""
+        ...
+    def where_(self, mask: List[bool], other: "Vector") -> "Vector":
+        """Elementwise selection: where mask[i] -> self[i], else other[i]."""
+        ...
+    def sort(self) -> "Vector":
+        """Return a sorted copy of the vector (ascending)."""
+        ...
+    def sort_desc(self) -> "Vector":
+        """Return a sorted copy of the vector (descending)."""
+        ...
+
+    def filter_by_mask(self, mask: Union[List[bool], "Vector"]) -> "Vector":
+        """Return elements where ``mask[i]`` is truthy.
+
+        Parallelized via chunked filtering for large vectors (≥ 8 192 elements).
+        Releases the GIL during execution.
+
+        Args:
+            mask: A ``Vector`` of 1.0/0.0 values or a Python list of bools.
+                  Must have the same length as this vector.
+
+        Example:
+            >>> v = Vector([1, 2, 3, 4])
+            >>> v.filter_by_mask([True, False, True, False])
+            Vector([1.0, 3.0])
+        """
+        ...
+
+    def filter_by_masks(self, masks: List["Vector"]) -> "Vector":
+        """Filter elements where **all** mask vectors are non-zero (logical AND).
+
+        Fuses the AND check in a single pass — no intermediate combined mask
+        is allocated, saving O(N) memory per additional mask.
+        Parallelized and GIL-releasing.
+
+        Args:
+            masks: A list of ``Vector`` masks (1.0/0.0).
+                   All must have the same length as this vector.
+
+        Example:
+            >>> v = Vector([1, 2, 3, 4, 5])
+            >>> m1 = Vector([1, 0, 1, 0, 1])
+            >>> m2 = Vector([1, 1, 0, 0, 1])
+            >>> v.filter_by_masks([m1, m2])
+            Vector([1.0, 5.0])
+        """
+        ...
+
+    def filter_where(
+        self,
+        conditions: List[Tuple["Vector", str, float]],
+        mode: str = "all",
+    ) -> "Vector":
+        """Fully fused conditional filter — **zero mask allocations**.
+
+        Checks conditions directly on source vectors per-element without
+        materializing any intermediate mask vector.
+
+        Args:
+            conditions: List of ``(vector, operator, threshold)`` tuples.
+                Supported operators: ``"lt"``/``"<"``, ``"gt"``/``">"``,
+                ``"le"``/``"<="``, ``"ge"``/``">="``, ``"eq"``/``"=="``,
+                ``"ne"``/``"!="``.
+            mode: ``"all"`` (AND, default) or ``"any"`` (OR).
+
+        Example:
+            >>> data = Vector([10, 20, 30, 40, 50])
+            >>> income = Vector([100, 200, 50, 300, 80])
+            >>> data.filter_where([(income, "lt", 150)])
+            Vector([10.0, 30.0, 50.0])
+        """
+        ...
+
+    @staticmethod
+    def multi_filter_where(
+        vectors: List["Vector"],
+        conditions: List[Tuple["Vector", str, float]],
+        mode: str = "all",
+    ) -> List["Vector"]:
+        """Filter multiple vectors by the same conditions in a single pass.
+
+        Checks conditions **once** per element, then gathers from all data
+        vectors simultaneously.  Significantly faster than calling
+        ``filter_where`` separately on each vector.
+
+        Parallelized and GIL-releasing.
+
+        Args:
+            vectors: List of data ``Vector`` objects to filter (must all
+                     have the same length).
+            conditions: Same format as ``filter_where``.
+            mode: ``"all"`` (AND, default) or ``"any"`` (OR).
+
+        Returns:
+            A list of filtered ``Vector`` objects in the same order as
+            the input.
+
+        Example:
+            >>> a = Vector([1, 2, 3, 4, 5])
+            >>> b = Vector([10, 20, 30, 40, 50])
+            >>> cond = Vector([100, 200, 50, 300, 80])
+            >>> Vector.multi_filter_where([a, b], [(cond, "lt", 150)])
+            [Vector([1.0, 3.0, 5.0]), Vector([10.0, 30.0, 50.0])]
+        """
+        ...
+
+    def gt_mask(self, threshold: float) -> "Vector":
+        """Generate a mask: ``1.0`` where ``self[i] > threshold``, ``0.0`` otherwise.
+
+        Use with ``filter_by_mask`` or ``filter_by_masks`` for conditional filtering.
+        For zero-allocation filtering, prefer ``filter_where`` instead.
+
+        Example:
+            >>> v = Vector([10, 20, 30, 40])
+            >>> v.gt_mask(25)
+            Vector([0.0, 0.0, 1.0, 1.0])
+        """
+        ...
+
+    def lt_mask(self, threshold: float) -> "Vector":
+        """Generate a mask: ``1.0`` where ``self[i] < threshold``, ``0.0`` otherwise.
+
+        Example:
+            >>> v = Vector([10, 20, 30, 40])
+            >>> v.lt_mask(25)
+            Vector([1.0, 1.0, 0.0, 0.0])
+        """
+        ...
+
+    def eq_mask(self, value: float) -> "Vector":
+        """Generate a mask: ``1.0`` where ``self[i] == value``, ``0.0`` otherwise.
+
+        Example:
+            >>> v = Vector([1, 2, 3, 2, 1])
+            >>> v.eq_mask(2.0)
+            Vector([0.0, 1.0, 0.0, 1.0, 0.0])
+        """
+        ...
+
+    def filter_gt(self, threshold: float) -> "Vector":
+        """Return only elements greater than ``threshold``.
+
+        Shorthand for ``v.filter_by_mask(v.gt_mask(threshold))``.
+
+        Example:
+            >>> Vector([10, 20, 30, 40]).filter_gt(25)
+            Vector([30.0, 40.0])
+        """
+        ...
+
+    def filter_lt(self, threshold: float) -> "Vector":
+        """Return only elements less than ``threshold``.
+
+        Shorthand for ``v.filter_by_mask(v.lt_mask(threshold))``.
+
+        Example:
+            >>> Vector([10, 20, 30, 40]).filter_lt(25)
+            Vector([10.0, 20.0])
+        """
+        ...
+
+    def where_(self, mask: List[bool], other: "Vector") -> "Vector":
+        """Element-wise selection: pick from ``self`` where mask is True,
+        from ``other`` where mask is False.
+
+        Similar to ``numpy.where(mask, self, other)``.
+
+        Args:
+            mask: A list of bools (same length as ``self``).
+            other: A ``Vector`` to pick from when mask is False.
+
+        Example:
+            >>> a = Vector([1, 2, 3])
+            >>> b = Vector([10, 20, 30])
+            >>> a.where_([True, False, True], b)
+            Vector([1.0, 20.0, 3.0])
+        """
+        ...
 
     # --- Sorting & Reordering ---
     def sort(self) -> "Vector":
@@ -336,27 +614,51 @@ class Vector:
     def argsort(self) -> List[int]:
         """Return the indices that would sort this vector."""
         ...
-    def reverse(self) -> "Vector": ...
+    def reverse(self) -> "Vector":
+        """Return a new Vector with elements in reversed order."""
+        ...
     def unique(self) -> "Vector":
         """Return a new Vector containing only unique elements (sorted)."""
         ...
 
     # --- Cumulative Operations ---
-    def cumsum(self) -> "Vector": ...
-    def cumprod(self) -> "Vector": ...
+    def cumsum(self) -> "Vector":
+        """Cumulative sum: ``out[i] = sum(self[0..=i])``."""
+        ...
+    def cumprod(self) -> "Vector":
+        """Cumulative product: ``out[i] = prod(self[0..=i])``."""
+        ...
     def diff(self) -> "Vector":
-        """Calculate the first-order discrete difference: out[i] = v[i] - v[i-1]."""
+        """First-order discrete difference: ``out[i] = self[i+1] - self[i]``.
+
+        Returns a Vector with length ``n - 1``.
+        """
         ...
 
     # --- Shaping & Slicing ---
-    def head(self, n: int) -> "Vector": ...
-    def tail(self, n: int) -> "Vector": ...
-    def chunks(self, chunk_size: int) -> List["Vector"]: ...
-    def append(self, val: float) -> "Vector": ...
-    def extend(self, other: "Vector") -> "Vector": ...
+    def head(self, n: int) -> "Vector":
+        """Return the first ``n`` elements."""
+        ...
+    def tail(self, n: int) -> "Vector":
+        """Return the last ``n`` elements."""
+        ...
+    def chunks(self, chunk_size: int) -> List["Vector"]:
+        """Split into a list of sub-vectors of size ``chunk_size``.
+
+        The last chunk may be shorter if the length is not evenly divisible.
+        """
+        ...
+    def append(self, val: float) -> "Vector":
+        """Return a new Vector with ``val`` added at the end."""
+        ...
+    def extend(self, other: "Vector") -> "Vector":
+        """Return a new Vector by concatenating ``other`` at the end."""
+        ...
 
     # --- Specialized Math ---
-    def lerp_scalar(self, other: float, t: float) -> "Vector": ...
+    def lerp_scalar(self, other: float, t: float) -> "Vector":
+        """Element-wise linear interpolation: ``self[i] + t * (other - self[i])``."""
+        ...
 
 class VectorIter:
     """An iterator over Vector elements."""

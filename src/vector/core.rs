@@ -43,7 +43,17 @@ const SAFE_ALLOC_LIMIT: usize = 250_000_000; // ~2GB safety limit
 pub enum VectorStorage {
     Inline([f64; INLINE_MAX], usize),
     Heap(Arc<Vec<f64>>),
-    VirtualRange { start: f64, step: f64, count: usize },
+    VirtualRange {
+        start: f64,
+        step: f64,
+        count: usize,
+    },
+    /// A "Projected" vector is a functional representation: y = f(i).
+    /// This allows O(1) storage for massive computed vectors (e.g. sin(range(1B))).
+    Projected {
+        mapping: Arc<dyn Fn(usize) -> f64 + Send + Sync>,
+        count: usize,
+    },
 }
 
 /// A high-performance, parallelized 1D numeric container.
@@ -169,6 +179,7 @@ impl Vector {
             VectorStorage::Inline(_, n) => *n,
             VectorStorage::Heap(v) => v.len(),
             VectorStorage::VirtualRange { count, .. } => *count,
+            VectorStorage::Projected { count, .. } => *count,
         }
     }
 
@@ -188,13 +199,31 @@ impl Vector {
             VectorStorage::Heap(v) => f(v.as_slice()),
             VectorStorage::VirtualRange { start, step, count } => {
                 if *count > SAFE_ALLOC_LIMIT {
-                    panic!("MEMORY PROTECTION: Refusing to materialize a range of {} elements (~{} GB). This would freeze your computer.", 
+                    panic!("MEMORY PROTECTION: Refusing to materialize a range of {} elements (~{} GB). This would freeze your computer. Use functional reductions (mean, sum) which support virtual vectors.", 
                            count, (*count * 8) / 1_000_000_000);
                 }
-                // Materialize into a temporary buffer for slice-based operations
                 let data: Vec<f64> = (0..*count).map(|i| start + i as f64 * step).collect();
                 f(&data)
             }
+            VectorStorage::Projected { mapping, count } => {
+                if *count > SAFE_ALLOC_LIMIT {
+                    panic!("MEMORY PROTECTION: Refusing to materialize a projected vector of {} elements (~{} GB).", 
+                           count, (*count * 8) / 1_000_000_000);
+                }
+                let data: Vec<f64> = (0..*count).map(|i| mapping(i)).collect();
+                f(&data)
+            }
+        }
+    }
+
+    /// Internal "get" that bypasses slice materialization.
+    #[inline(always)]
+    pub fn get_internal(&self, i: usize) -> f64 {
+        match &self.storage {
+            VectorStorage::Inline(arr, _) => arr[i],
+            VectorStorage::Heap(arc) => arc[i],
+            VectorStorage::VirtualRange { start, step, .. } => start + i as f64 * step,
+            VectorStorage::Projected { mapping, .. } => mapping(i),
         }
     }
 
@@ -205,7 +234,7 @@ impl Vector {
     // Heap large (>= PAR_THRESHOLD): Rayon par_iter.
     pub fn map_internal<F>(&self, f: F) -> Vector
     where
-        F: Fn(f64) -> f64 + Sync + Send,
+        F: Fn(f64) -> f64 + Sync + Send + 'static,
     {
         match &self.storage {
             VectorStorage::Inline(arr, n) => {
@@ -219,6 +248,16 @@ impl Vector {
             }
             VectorStorage::Heap(v) => {
                 let n = v.len();
+                if n > SAFE_ALLOC_LIMIT {
+                    let v_arc = Arc::clone(v);
+                    let f_arc = Arc::new(f);
+                    return Vector {
+                        storage: VectorStorage::Projected {
+                            mapping: Arc::new(move |i| f_arc(v_arc[i])),
+                            count: n,
+                        },
+                    };
+                }
                 let data: Vec<f64> = if n >= PAR_THRESHOLD {
                     v.par_iter().map(|&x| f(x)).collect()
                 } else {
@@ -228,19 +267,37 @@ impl Vector {
             }
             VectorStorage::VirtualRange { start, step, count } => {
                 let n = *count;
+                let s = *start;
+                let st = *step;
                 if n > SAFE_ALLOC_LIMIT {
-                    panic!("MEMORY PROTECTION: Operation would require allocating {} elements (~{} GB). This exceeds the safety limit.", 
-                           n, (n * 8) / 1_000_000_000);
+                    let f_arc = Arc::new(f);
+                    return Vector {
+                        storage: VectorStorage::Projected {
+                            mapping: Arc::new(move |i| f_arc(s + i as f64 * st)),
+                            count: n,
+                        },
+                    };
                 }
                 let data: Vec<f64> = if n >= PAR_THRESHOLD {
                     (0..n)
                         .into_par_iter()
-                        .map(|i| f(start + (i as f64 * step)))
+                        .map(|i| f(s + (i as f64 * st)))
                         .collect()
                 } else {
-                    (0..n).map(|i| f(start + (i as f64 * step))).collect()
+                    (0..n).map(|i| f(s + (i as f64 * st))).collect()
                 };
                 Vector::from_arc(Arc::new(data))
+            }
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                let m_arc = Arc::clone(mapping);
+                let f_arc = Arc::new(f);
+                Vector {
+                    storage: VectorStorage::Projected {
+                        mapping: Arc::new(move |i| f_arc(m_arc(i))),
+                        count: n,
+                    },
+                }
             }
         }
     }
@@ -248,7 +305,7 @@ impl Vector {
     /// Elementwise binary operation on two vectors of equal length.
     pub fn zip_map_internal<F>(&self, other: &Vector, f: F) -> PyResult<Vector>
     where
-        F: Fn(f64, f64) -> f64 + Sync + Send,
+        F: Fn(f64, f64) -> f64 + Sync + Send + 'static,
     {
         let n = self.len_internal();
         if n != other.len_internal() {
@@ -259,11 +316,15 @@ impl Vector {
             )));
         }
         if n > SAFE_ALLOC_LIMIT {
-            return Err(pyo3::exceptions::PyMemoryError::new_err(format!(
-                "MEMORY PROTECTION: zip_map would require allocating {} elements (~{} GB).",
-                n,
-                (n * 8) / 1_000_000_000
-            )));
+            let v1 = self.clone();
+            let v2 = other.clone();
+            let f_arc = Arc::new(f);
+            return Ok(Vector {
+                storage: VectorStorage::Projected {
+                    mapping: Arc::new(move |i| f_arc(v1.get_internal(i), v2.get_internal(i))),
+                    count: n,
+                },
+            });
         }
         let data = self.with_slice(|s1| {
             other.with_slice(|s2| {
@@ -307,6 +368,57 @@ impl Vector {
                 }
                 let last = start + (n - 1.0) * step;
                 (n / 2.0) * (start + last)
+            }
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n >= PAR_THRESHOLD {
+                    (0..n)
+                        .into_par_iter()
+                        .fold(
+                            || (0.0_f64, 0.0_f64), // (sum, comp)
+                            |(mut sum, mut comp), i| {
+                                let x = mapping(i);
+                                let y = x - comp;
+                                let t = sum + y;
+                                comp = (t - sum) - y;
+                                sum = t;
+                                (sum, comp)
+                            },
+                        )
+                        .reduce(
+                            || (0.0, 0.0),
+                            |(s1, c1), (s2, c2)| {
+                                let mut sum = s1;
+                                let mut comp = c1;
+                                
+                                // Add s2
+                                let y = s2 - comp;
+                                let t = sum + y;
+                                comp = (t - sum) - y;
+                                sum = t;
+                                
+                                // Add c2
+                                let y = c2 - comp;
+                                let t = sum + y;
+                                comp = (t - sum) - y;
+                                sum = t;
+                                
+                                (sum, comp)
+                            },
+                        )
+                        .0
+                } else {
+                    let mut sum = 0.0_f64;
+                    let mut comp = 0.0_f64;
+                    for i in 0..n {
+                        let x = mapping(i);
+                        let y = x - comp;
+                        let t = sum + y;
+                        comp = (t - sum) - y;
+                        sum = t;
+                    }
+                    sum
+                }
             }
             _ => {
                 self.with_slice(|s| {
@@ -358,18 +470,63 @@ impl Vector {
     /// Welford single-pass mean and M2 (for variance).
     /// Returns (mean, M2, count).
     pub fn welford(&self) -> (f64, f64, usize) {
-        self.with_slice(|s| {
-            let mut mean = 0.0_f64;
-            let mut m2 = 0.0_f64;
-            let mut count = 0_usize;
-            for &x in s {
-                count += 1;
-                let delta = x - mean;
-                mean += delta / count as f64;
-                m2 += delta * (x - mean);
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n >= PAR_THRESHOLD {
+                    let (mean, m2, count) = (0..n)
+                        .into_par_iter()
+                        .fold(
+                            || (0.0, 0.0, 0usize),
+                            |(mut mean, mut m2, mut c), i| {
+                                c += 1;
+                                let x = mapping(i);
+                                let delta = x - mean;
+                                mean += delta / c as f64;
+                                m2 += delta * (x - mean);
+                                (mean, m2, c)
+                            },
+                        )
+                        .reduce(
+                            || (0.0, 0.0, 0),
+                            |(m1, s1, n1), (m2, s2, n2)| {
+                                if n1 == 0 { return (m2, s2, n2); }
+                                if n2 == 0 { return (m1, s1, n1); }
+                                let n = (n1 + n2) as f64;
+                                let delta = m2 - m1;
+                                let m = (n1 as f64 * m1 + n2 as f64 * m2) / n;
+                                let s = s1 + s2 + delta * delta * (n1 as f64 * n2 as f64) / n;
+                                (m, s, n1 + n2)
+                            },
+                        );
+                    (mean, m2, count)
+                } else {
+                    let mut mean = 0.0_f64;
+                    let mut m2 = 0.0_f64;
+                    let mut count = 0_usize;
+                    for i in 0..n {
+                        count += 1;
+                        let x = mapping(i);
+                        let delta = x - mean;
+                        mean += delta / count as f64;
+                        m2 += delta * (x - mean);
+                    }
+                    (mean, m2, count)
+                }
             }
-            (mean, m2, count)
-        })
+            _ => self.with_slice(|s| {
+                let mut mean = 0.0_f64;
+                let mut m2 = 0.0_f64;
+                let mut count = 0_usize;
+                for &x in s {
+                    count += 1;
+                    let delta = x - mean;
+                    mean += delta / count as f64;
+                    m2 += delta * (x - mean);
+                }
+                (mean, m2, count)
+            }),
+        }
     }
     pub fn moments(&self) -> (f64, f64, usize) {
         let (m, m2, n) = self.welford();
@@ -401,65 +558,151 @@ impl Vector {
         if self.is_empty() {
             return 1.0;
         }
-        self.with_slice(|s| {
-            if s.len() >= PAR_THRESHOLD {
-                s.par_iter().cloned().reduce(|| 1.0, |a, b| a * b)
-            } else {
-                s.iter().cloned().product()
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n >= PAR_THRESHOLD {
+                    (0..n).into_par_iter().map(|i| mapping(i)).product()
+                } else {
+                    (0..n).map(|i| mapping(i)).product()
+                }
             }
-        })
+            _ => self.with_slice(|s| {
+                if s.len() >= PAR_THRESHOLD {
+                    s.par_iter().cloned().reduce(|| 1.0, |a, b| a * b)
+                } else {
+                    s.iter().cloned().product()
+                }
+            }),
+        }
     }
 
     pub fn min(&self) -> f64 {
         if self.is_empty() {
             return f64::NAN;
         }
-        self.with_slice(|s| {
-            if s.len() >= PAR_THRESHOLD {
-                s.par_iter().cloned().reduce(|| f64::INFINITY, f64::min)
-            } else {
-                s.iter().cloned().fold(f64::INFINITY, f64::min)
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n >= PAR_THRESHOLD {
+                    (0..n).into_par_iter().map(|i| mapping(i)).reduce(|| f64::INFINITY, f64::min)
+                } else {
+                    (0..n).map(|i| mapping(i)).fold(f64::INFINITY, f64::min)
+                }
             }
-        })
+            _ => self.with_slice(|s| {
+                if s.len() >= PAR_THRESHOLD {
+                    s.par_iter().cloned().reduce(|| f64::INFINITY, f64::min)
+                } else {
+                    s.iter().cloned().fold(f64::INFINITY, f64::min)
+                }
+            }),
+        }
     }
 
     pub fn max(&self) -> f64 {
         if self.is_empty() {
             return f64::NAN;
         }
-        self.with_slice(|s| {
-            if s.len() >= PAR_THRESHOLD {
-                s.par_iter().cloned().reduce(|| f64::NEG_INFINITY, f64::max)
-            } else {
-                s.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n >= PAR_THRESHOLD {
+                    (0..n).into_par_iter().map(|i| mapping(i)).reduce(|| f64::NEG_INFINITY, f64::max)
+                } else {
+                    (0..n).map(|i| mapping(i)).fold(f64::NEG_INFINITY, f64::max)
+                }
             }
-        })
+            _ => self.with_slice(|s| {
+                if s.len() >= PAR_THRESHOLD {
+                    s.par_iter().cloned().reduce(|| f64::NEG_INFINITY, f64::max)
+                } else {
+                    s.iter().cloned().fold(f64::NEG_INFINITY, f64::max)
+                }
+            }),
+        }
     }
 
     pub fn argmin(&self) -> isize {
         if self.is_empty() {
             return -1;
         }
-        self.with_slice(|s| {
-            s.iter()
-                .enumerate()
-                .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(i, _)| i as isize)
-                .unwrap_or(-1)
-        })
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n >= PAR_THRESHOLD {
+                    (0..n)
+                        .into_par_iter()
+                        .map(|i| (i, mapping(i)))
+                        .reduce(
+                            || (usize::MAX, f64::INFINITY),
+                            |(i1, v1), (i2, v2)| {
+                                if v2 < v1 { (i2, v2) } else { (i1, v1) }
+                            },
+                        )
+                        .0 as isize
+                } else {
+                    let mut min_val = f64::INFINITY;
+                    let mut min_idx = 0;
+                    for i in 0..n {
+                        let v = mapping(i);
+                        if v < min_val {
+                            min_val = v;
+                            min_idx = i;
+                        }
+                    }
+                    min_idx as isize
+                }
+            }
+            _ => self.with_slice(|s| {
+                s.iter()
+                    .enumerate()
+                    .min_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .map(|(i, _)| i as isize)
+                    .unwrap_or(-1)
+            }),
+        }
     }
 
     pub fn argmax(&self) -> isize {
         if self.is_empty() {
             return -1;
         }
-        self.with_slice(|s| {
-            s.iter()
-                .enumerate()
-                .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
-                .map(|(i, _)| i as isize)
-                .unwrap_or(-1)
-        })
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n >= PAR_THRESHOLD {
+                    (0..n)
+                        .into_par_iter()
+                        .map(|i| (i, mapping(i)))
+                        .reduce(
+                            || (usize::MAX, f64::NEG_INFINITY),
+                            |(i1, v1), (i2, v2)| {
+                                if v2 > v1 { (i2, v2) } else { (i1, v1) }
+                            },
+                        )
+                        .0 as isize
+                } else {
+                    let mut max_val = f64::NEG_INFINITY;
+                    let mut max_idx = 0;
+                    for i in 0..n {
+                        let v = mapping(i);
+                        if v > max_val {
+                            max_val = v;
+                            max_idx = i;
+                        }
+                    }
+                    max_idx as isize
+                }
+            }
+            _ => self.with_slice(|s| {
+                s.iter()
+                    .enumerate()
+                    .max_by(|(_, a), (_, b)| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal))
+                    .map(|(i, _)| i as isize)
+                    .unwrap_or(-1)
+            }),
+        }
     }
 
     pub fn variance(&self) -> f64 {
@@ -533,69 +776,112 @@ impl Vector {
     ///
     /// Optimized with manual loop unrolling and parallelization.
     pub fn norm(&self) -> f64 {
-        self.with_slice(|s| {
-            let n = s.len();
-            if n == 0 {
-                return 0.0;
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n == 0 { return 0.0; }
+                let sum: f64 = if n >= PAR_THRESHOLD {
+                    (0..n).into_par_iter().map(|i| { let x = mapping(i); x * x }).sum()
+                } else {
+                    (0..n).map(|i| { let x = mapping(i); x * x }).sum()
+                };
+                sum.sqrt()
             }
+            _ => self.with_slice(|s| {
+                let n = s.len();
+                if n == 0 {
+                    return 0.0;
+                }
 
-            let mut sum = 0.0_f64;
-            let mut i = 0;
+                let mut sum = 0.0_f64;
+                let mut i = 0;
 
-            // Manual unrolling for 8-element strips
-            while i + 8 <= n {
-                sum += s[i] * s[i]
-                    + s[i + 1] * s[i + 1]
-                    + s[i + 2] * s[i + 2]
-                    + s[i + 3] * s[i + 3]
-                    + s[i + 4] * s[i + 4]
-                    + s[i + 5] * s[i + 5]
-                    + s[i + 6] * s[i + 6]
-                    + s[i + 7] * s[i + 7];
-                i += 8;
-            }
-            // Tail
-            while i < n {
-                sum += s[i] * s[i];
-                i += 1;
-            }
-            sum.sqrt()
-        })
+                // Manual unrolling for 8-element strips
+                while i + 8 <= n {
+                    sum += s[i] * s[i]
+                        + s[i + 1] * s[i + 1]
+                        + s[i + 2] * s[i + 2]
+                        + s[i + 3] * s[i + 3]
+                        + s[i + 4] * s[i + 4]
+                        + s[i + 5] * s[i + 5]
+                        + s[i + 6] * s[i + 6]
+                        + s[i + 7] * s[i + 7];
+                    i += 8;
+                }
+                // Tail
+                while i < n {
+                    sum += s[i] * s[i];
+                    i += 1;
+                }
+                sum.sqrt()
+            }),
+        }
     }
 
     pub fn norm_l1(&self) -> f64 {
-        self.with_slice(|s| {
-            let n = s.len();
-            let mut sum = 0.0_f64;
-            let mut i = 0;
-            while i + 8 <= n {
-                sum += s[i].abs()
-                    + s[i + 1].abs()
-                    + s[i + 2].abs()
-                    + s[i + 3].abs()
-                    + s[i + 4].abs()
-                    + s[i + 5].abs()
-                    + s[i + 6].abs()
-                    + s[i + 7].abs();
-                i += 8;
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n >= PAR_THRESHOLD {
+                    (0..n).into_par_iter().map(|i| mapping(i).abs()).sum()
+                } else {
+                    (0..n).map(|i| mapping(i).abs()).sum()
+                }
             }
-            while i < n {
-                sum += s[i].abs();
-                i += 1;
-            }
-            sum
-        })
+            _ => self.with_slice(|s| {
+                let n = s.len();
+                let mut sum = 0.0_f64;
+                let mut i = 0;
+                while i + 8 <= n {
+                    sum += s[i].abs()
+                        + s[i + 1].abs()
+                        + s[i + 2].abs()
+                        + s[i + 3].abs()
+                        + s[i + 4].abs()
+                        + s[i + 5].abs()
+                        + s[i + 6].abs()
+                        + s[i + 7].abs();
+                    i += 8;
+                }
+                while i < n {
+                    sum += s[i].abs();
+                    i += 1;
+                }
+                sum
+            }),
+        }
     }
 
     pub fn norm_inf(&self) -> f64 {
-        self.with_slice(|s| s.iter().map(|x| x.abs()).fold(0.0_f64, f64::max))
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                if n >= PAR_THRESHOLD {
+                    (0..n).into_par_iter().map(|i| mapping(i).abs()).reduce(|| 0.0, f64::max)
+                } else {
+                    (0..n).map(|i| mapping(i).abs()).fold(0.0, f64::max)
+                }
+            }
+            _ => self.with_slice(|s| s.iter().map(|x| x.abs()).fold(0.0_f64, f64::max)),
+        }
     }
 
     pub fn norm_lp(&self, p: f64) -> f64 {
-        self.with_slice(|s| {
-            let sum: f64 = s.iter().map(|x| x.abs().powf(p)).sum();
-            sum.powf(1.0 / p)
-        })
+        match &self.storage {
+            VectorStorage::Projected { mapping, count } => {
+                let n = *count;
+                let sum: f64 = if n >= PAR_THRESHOLD {
+                    (0..n).into_par_iter().map(|i| mapping(i).abs().powf(p)).sum()
+                } else {
+                    (0..n).map(|i| mapping(i).abs().powf(p)).sum()
+                };
+                sum.powf(1.0 / p)
+            }
+            _ => self.with_slice(|s| {
+                let sum: f64 = s.iter().map(|x| x.abs().powf(p)).sum();
+                sum.powf(1.0 / p)
+            }),
+        }
     }
 
     pub fn dot(&self, other: &Vector) -> PyResult<f64> {
@@ -656,13 +942,13 @@ impl Vector {
     }
 
     pub fn add_scalar(&self, s: f64) -> Vector {
-        self.map_internal(|x| x + s)
+        self.map_internal(move |x| x + s)
     }
     pub fn sub_scalar(&self, s: f64) -> Vector {
-        self.map_internal(|x| x - s)
+        self.map_internal(move |x| x - s)
     }
     pub fn mul_scalar(&self, s: f64) -> Vector {
-        self.map_internal(|x| x * s)
+        self.map_internal(move |x| x * s)
     }
     pub fn div_scalar(&self, s: f64) -> PyResult<Vector> {
         if s == 0.0 {
@@ -670,7 +956,7 @@ impl Vector {
                 "division by zero",
             ));
         }
-        Ok(self.map_internal(|x| x / s))
+        Ok(self.map_internal(move |x| x / s))
     }
 }
 
@@ -889,12 +1175,10 @@ impl Vector {
 
     pub fn __iter__(&self) -> VectorIter {
         match &self.storage {
-            // Heap: O(1) Arc reference-count bump — no memcopy regardless of N.
             VectorStorage::Heap(arc) => VectorIter {
                 source: IterSource::Heap(Arc::clone(arc)),
                 pos: 0,
             },
-            // Inline: at most 32 × f64 = 256 bytes — copy is negligible.
             VectorStorage::Inline(arr, n) => {
                 let mut buf = [0.0_f64; INLINE_MAX];
                 buf[..*n].copy_from_slice(&arr[..*n]);
@@ -903,13 +1187,12 @@ impl Vector {
                     pos: 0,
                 }
             }
-            // Virtual: Lazy iteration — no memory allocation, even for 50B elements.
             VectorStorage::VirtualRange { start, step, count } => VectorIter {
-                source: IterSource::VirtualRange {
-                    start: *start,
-                    step: *step,
-                    count: *count,
-                },
+                source: IterSource::VirtualRange { start: *start, step: *step, count: *count },
+                pos: 0,
+            },
+            VectorStorage::Projected { mapping, count } => VectorIter {
+                source: IterSource::Projected { mapping: Arc::clone(mapping), count: *count },
                 pos: 0,
             },
         }
@@ -921,35 +1204,38 @@ impl Vector {
 
     pub fn __getitem__(&self, index: &Bound<'_, PyAny>) -> PyResult<PyObject> {
         Python::with_gil(|py| {
-            // Integer indexing
             if let Ok(i) = index.extract::<isize>() {
                 let len = self.len_internal() as isize;
                 let idx = if i < 0 { i + len } else { i };
                 if idx < 0 || idx >= len {
-                    return Err(pyo3::exceptions::PyIndexError::new_err(
-                        "index out of range",
-                    ));
+                    return Err(pyo3::exceptions::PyIndexError::new_err("index out of range"));
                 }
-                let val = self.with_slice(|s| s[idx as usize]);
-                return Ok(crate::scalar::Scalar(val)
-                    .into_pyobject(py)?
-                    .into_any()
-                    .unbind());
+                let val = self.get_internal(idx as usize);
+                return Ok(crate::scalar::Scalar(val).into_pyobject(py)?.into_any().unbind());
             }
-            // Slice indexing
             if let Ok(sl) = index.downcast::<PySlice>() {
                 let len = self.len_internal();
                 let indices = sl.indices(len as isize)?;
                 let start = indices.start as usize;
                 let stop = indices.stop as usize;
                 let step = indices.step as usize;
-                let data: Vec<f64> =
-                    self.with_slice(|s| (start..stop).step_by(step.max(1)).map(|i| s[i]).collect());
+                let diff = indices.stop - indices.start;
+                let count = if diff <= 0 { 0 } else { (diff + indices.step - 1) / indices.step } as usize;
+
+                if count > SAFE_ALLOC_LIMIT {
+                    let this = self.clone();
+                    return Ok(Vector {
+                        storage: VectorStorage::Projected {
+                            mapping: Arc::new(move |i| this.get_internal(start + i * step)),
+                            count,
+                        },
+                    }.into_pyobject(py)?.into_any().unbind());
+                }
+
+                let data: Vec<f64> = (start..stop).step_by(step.max(1)).map(|i| self.get_internal(i)).collect();
                 return Ok(Vector::new(data).into_pyobject(py)?.into_any().unbind());
             }
-            Err(pyo3::exceptions::PyTypeError::new_err(
-                "__getitem__ requires int or slice",
-            ))
+            Err(pyo3::exceptions::PyTypeError::new_err("__getitem__ requires int or slice"))
         })
     }
 
@@ -969,9 +1255,6 @@ impl Vector {
                 Arc::make_mut(arc)[idx as usize] = value;
             }
             VectorStorage::VirtualRange { start, step, count } => {
-                // MATERIALIZATION GUARD:
-                // We must materialize the range into a Heap vector before we can
-                // modify a single element. We check the safety limit first.
                 if *count > SAFE_ALLOC_LIMIT {
                     return Err(pyo3::exceptions::PyMemoryError::new_err(format!(
                         "MEMORY PROTECTION: Cannot mutate a virtual range of {} elements. Too large for RAM.", count
@@ -984,6 +1267,18 @@ impl Vector {
                 self.storage = VectorStorage::Heap(Arc::new(data));
                 self.__setitem__(index, value)?
             }
+            VectorStorage::Projected { mapping, count } => {
+                if *count > SAFE_ALLOC_LIMIT {
+                    return Err(pyo3::exceptions::PyMemoryError::new_err(format!(
+                        "MEMORY PROTECTION: Cannot mutate a projected vector of {} elements. Too large for RAM.", count
+                    )));
+                }
+                let m = Arc::clone(mapping);
+                let c = *count;
+                let data: Vec<f64> = (0..c).map(|i| m(i)).collect();
+                self.storage = VectorStorage::Heap(Arc::new(data));
+                self.__setitem__(index, value)?
+            }
         }
         Ok(())
     }
@@ -992,28 +1287,29 @@ impl Vector {
     pub fn __repr__(&self) -> String {
         match &self.storage {
             VectorStorage::VirtualRange { start, step, count } => {
-                if *count == 0 {
-                    return "Vector([])".to_string();
-                }
+                if *count == 0 { return "Vector([])".to_string(); }
                 let last = start + (*count as f64 - 1.0) * step;
-                format!(
-                    "Vector(range({:.4}..{:.4}, step={:.4}), len={})",
-                    start, last, step, count
-                )
+                format!("Vector(range({:.4}..{:.4}, step={:.4}), len={})", start, last, step, count)
+            }
+            VectorStorage::Projected { count, .. } => {
+                if *count == 0 { return "Vector([])".to_string(); }
+                if *count > 10 {
+                    let first = self.get_internal(0);
+                    let second = self.get_internal(1);
+                    let last = self.get_internal(*count - 1);
+                    format!("Vector([Projected: {:.4}, {:.4}, ..., {:.4}], len={})", first, second, last, count)
+                } else {
+                    let vals: Vec<String> = (0..*count).map(|i| format!("{:.4}", self.get_internal(i))).collect();
+                    format!("Vector([Projected: {}])", vals.join(", "))
+                }
             }
             _ => self.with_slice(|s| {
-                if s.len() <= 10 {
-                    let formatted_vals: Vec<String> = s.iter().map(|v| format!("{v:.4}")).collect();
-                    format!("Vector([{}])", formatted_vals.join(", "))
+                if s.is_empty() { return "Vector([])".to_string(); }
+                if s.len() > 10 {
+                    format!("Vector([{:.4}, {:.4}, ..., {:.4}], len={})", s[0], s[1], s[s.len() - 1], s.len())
                 } else {
-                    format!(
-                        "Vector([{}, {}, ..., {}, {}], len={})",
-                        s[0],
-                        s[1],
-                        s[s.len() - 2],
-                        s[s.len() - 1],
-                        s.len()
-                    )
+                    let vals: Vec<String> = s.iter().map(|x| format!("{:.4}", x)).collect();
+                    format!("Vector([{}])", vals.join(", "))
                 }
             }),
         }
@@ -1054,6 +1350,14 @@ impl Vector {
                 let data: Vec<f64> = (0..*count).map(|i| start + i as f64 * step).collect();
                 crate::scalar::from_shared_buffer(Arc::new(data))
             }
+            VectorStorage::Projected { mapping, count } => {
+                if *count > SAFE_ALLOC_LIMIT {
+                    panic!("MEMORY PROTECTION: Refusing to create lazy pipeline for projected vector of {} elements (~{} GB).", 
+                           count, (*count * 8) / 1_000_000_000);
+                }
+                let data: Vec<f64> = (0..*count).map(|i| mapping(i)).collect();
+                crate::scalar::from_shared_buffer(Arc::new(data))
+            }
         }
     }
 
@@ -1092,12 +1396,12 @@ impl Vector {
         let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
             let this = self.clone();
-            return py.allow_threads(move || Ok(this.map_internal(|x| x + s)));
+            return py.allow_threads(move || Ok(this.map_internal(move |x| x + s)));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
             let this = self.clone();
             let other = v.clone();
-            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a + b));
+            return py.allow_threads(move || this.zip_map_internal(&other, move |a, b| a + b));
         }
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or Vector",
@@ -1117,12 +1421,12 @@ impl Vector {
         let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
             let this = self.clone();
-            return py.allow_threads(move || Ok(this.map_internal(|x| x - s)));
+            return py.allow_threads(move || Ok(this.map_internal(move |x| x - s)));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
             let this = self.clone();
             let other = v.clone();
-            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a - b));
+            return py.allow_threads(move || this.zip_map_internal(&other, move |a, b| a - b));
         }
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or Vector",
@@ -1133,12 +1437,12 @@ impl Vector {
         let py = lhs.py();
         if let Ok(s) = lhs.extract::<f64>() {
             let this = self.clone();
-            return py.allow_threads(move || Ok(this.map_internal(|x| s - x)));
+            return py.allow_threads(move || Ok(this.map_internal(move |x| s - x)));
         }
         if let Ok(v) = lhs.extract::<PyRef<Vector>>() {
             let this = self.clone();
             let other = v.clone();
-            return py.allow_threads(move || other.zip_map_internal(&this, |a, b| a - b));
+            return py.allow_threads(move || other.zip_map_internal(&this, move |a, b| a - b));
         }
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or Vector",
@@ -1153,12 +1457,12 @@ impl Vector {
         let py = rhs.py();
         if let Ok(s) = rhs.extract::<f64>() {
             let this = self.clone();
-            return py.allow_threads(move || Ok(this.map_internal(|x| x * s)));
+            return py.allow_threads(move || Ok(this.map_internal(move |x| x * s)));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
             let this = self.clone();
             let other = v.clone();
-            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a * b));
+            return py.allow_threads(move || this.zip_map_internal(&other, move |a, b| a * b));
         }
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or Vector",
@@ -1185,13 +1489,13 @@ impl Vector {
                 ));
             }
             let this = self.clone();
-            return py.allow_threads(move || Ok(this.map_internal(|x| x / s)));
+            return py.allow_threads(move || Ok(this.map_internal(move |x| x / s)));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
             let this = self.clone();
             let other = v.clone();
             // elementwise: 0-divisors produce INFINITY (documented IEEE behaviour)
-            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a / b));
+            return py.allow_threads(move || this.zip_map_internal(&other, move |a, b| a / b));
         }
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or Vector",
@@ -1202,12 +1506,12 @@ impl Vector {
         let py = lhs.py();
         if let Ok(s) = lhs.extract::<f64>() {
             let this = self.clone();
-            return py.allow_threads(move || Ok(this.map_internal(|x| s / x)));
+            return py.allow_threads(move || Ok(this.map_internal(move |x| s / x)));
         }
         if let Ok(v) = lhs.extract::<PyRef<Vector>>() {
             let this = self.clone();
             let other = v.clone();
-            return py.allow_threads(move || other.zip_map_internal(&this, |a, b| a / b));
+            return py.allow_threads(move || other.zip_map_internal(&this, move |a, b| a / b));
         }
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or Vector",
@@ -1223,12 +1527,12 @@ impl Vector {
                 ));
             }
             let this = self.clone();
-            return py.allow_threads(move || Ok(this.map_internal(|x| (x / s).floor())));
+            return py.allow_threads(move || Ok(this.map_internal(move |x| (x / s).floor())));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
             let this = self.clone();
             let other = v.clone();
-            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| (a / b).floor()));
+            return py.allow_threads(move || this.zip_map_internal(&other, move |a, b| (a / b).floor()));
         }
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or Vector",
@@ -1244,12 +1548,12 @@ impl Vector {
                 ));
             }
             let this = self.clone();
-            return py.allow_threads(move || Ok(this.map_internal(|x| x % s)));
+            return py.allow_threads(move || Ok(this.map_internal(move |x| x % s)));
         }
         if let Ok(v) = rhs.extract::<PyRef<Vector>>() {
             let this = self.clone();
             let other = v.clone();
-            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a % b));
+            return py.allow_threads(move || this.zip_map_internal(&other, move |a, b| a % b));
         }
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or Vector",
@@ -1264,12 +1568,12 @@ impl Vector {
         let py = exp.py();
         if let Ok(s) = exp.extract::<f64>() {
             let this = self.clone();
-            return py.allow_threads(move || Ok(this.map_internal(|x| x.powf(s))));
+            return py.allow_threads(move || Ok(this.map_internal(move |x| x.powf(s))));
         }
         if let Ok(v) = exp.extract::<PyRef<Vector>>() {
             let this = self.clone();
             let other = v.clone();
-            return py.allow_threads(move || this.zip_map_internal(&other, |a, b| a.powf(b)));
+            return py.allow_threads(move || this.zip_map_internal(&other, move |a, b| a.powf(b)));
         }
         Err(pyo3::exceptions::PyTypeError::new_err(
             "Expected float or Vector",
@@ -1283,7 +1587,7 @@ impl Vector {
     /// Unary negation: -self.
     pub fn __neg__(&self, py: Python<'_>) -> Vector {
         let this = self.clone();
-        py.allow_threads(move || this.map_internal(|x| -x))
+        py.allow_threads(move || this.map_internal(move |x| -x))
     }
     /// Unary positive: +self (returns a copy).
     pub fn __pos__(&self) -> Vector {
@@ -1292,7 +1596,7 @@ impl Vector {
     /// Absolute value: abs(self).
     pub fn __abs__(&self, py: Python<'_>) -> Vector {
         let this = self.clone();
-        py.allow_threads(move || this.map_internal(|x| x.abs()))
+        py.allow_threads(move || this.map_internal(move |x| x.abs()))
     }
 
     /// Zero-copy conversion to Array
@@ -1370,7 +1674,7 @@ impl Vector {
             ));
         }
         let this = self.clone();
-        py.allow_threads(move || Ok(this.map_internal(|x| x / s)))
+        py.allow_threads(move || Ok(this.map_internal(move |x| x / s)))
     }
 
     // -----------------------------------------------------------------------
@@ -1440,7 +1744,7 @@ impl Vector {
             if s == 0.0 {
                 this
             } else {
-                this.map_internal(|x| (x - m) / s)
+                this.map_internal(move |x| (x - m) / s)
             }
         })
     }
@@ -1449,19 +1753,16 @@ impl Vector {
     pub fn softmax_py(&self, py: Python<'_>) -> Self {
         let this = self.clone();
         py.allow_threads(move || {
-            this.with_slice(|s| {
-                if s.is_empty() {
-                    return Self::zeros(0);
-                }
-                let max_val = s.iter().fold(f64::NEG_INFINITY, |a, &b| a.max(b));
-                let exps: Vec<f64> = s.par_iter().map(|&x| (x - max_val).exp()).collect();
-                let sum_exps: f64 = exps.par_iter().sum();
-                if sum_exps == 0.0 {
-                    Self::new(vec![1.0 / s.len() as f64; s.len()])
-                } else {
-                    Self::new(exps).div_scalar(sum_exps).unwrap()
-                }
-            })
+            if this.is_empty() { return Vector::zeros_internal(0); }
+            let max_val = this.max();
+            let exps = this.map_internal(move |x| (x - max_val).exp());
+            let sum_exps = exps.sum();
+            if sum_exps == 0.0 {
+                let n = this.len_internal();
+                Vector::full_internal(n, 1.0 / n as f64)
+            } else {
+                exps.map_internal(move |x| x / sum_exps)
+            }
         })
     }
 
@@ -1540,12 +1841,7 @@ impl Vector {
             return Err(pyo3::exceptions::PyValueError::new_err("p must be > 0"));
         }
         let this = self.clone();
-        py.allow_threads(move || {
-            Ok(this.with_slice(|s| {
-                let sum: f64 = s.iter().map(|x| x.abs().powf(p)).sum();
-                sum.powf(1.0 / p)
-            }))
-        })
+        py.allow_threads(move || Ok(this.norm_lp(p)))
     }
 
     /// Dot product.
@@ -1608,19 +1904,16 @@ impl Vector {
         })
     }
 
-    // -----------------------------------------------------------------------
-    // Filtering and selection
-    // -----------------------------------------------------------------------
-
     /// Return elements where mask[i] is True.
     ///
     /// The mask can be a `Vector` (where non-zero means True) or a Python list of bools.
+    /// Parallelized for large vectors via chunked filtering.
     ///
     /// Examples:
     ///     >>> v = Vector([1, 2, 3, 4])
     ///     >>> v.filter_by_mask([True, False, True, False])
     ///     Vector([1.0, 3.0])
-    pub fn filter_by_mask(&self, mask: &Bound<'_, PyAny>) -> PyResult<Vector> {
+    pub fn filter_by_mask(&self, py: Python<'_>, mask: &Bound<'_, PyAny>) -> PyResult<Vector> {
         let n = self.len_internal();
         // Fast path: Vector mask (stays in Rust, no Python bool extraction)
         if let Ok(vmask) = mask.extract::<PyRef<Vector>>() {
@@ -1629,16 +1922,34 @@ impl Vector {
                     "mask length must match vector length",
                 ));
             }
-            let data = self.with_slice(|s| {
-                vmask.with_slice(|m| {
-                    s.iter()
-                        .zip(m.iter())
-                        .filter(|&(_, &mv)| mv != 0.0)
-                        .map(|(&v, _)| v)
-                        .collect()
-                })
+            let this = self.clone();
+            let mask_clone = vmask.clone();
+            return py.allow_threads(move || {
+                Ok(this.with_slice(|s| {
+                    mask_clone.with_slice(|m| {
+                        if n >= PAR_THRESHOLD {
+                            let num_threads = rayon::current_num_threads();
+                            let chunk = (n + num_threads - 1) / num_threads;
+                            let data: Vec<f64> = s.par_chunks(chunk.max(1))
+                                .zip(m.par_chunks(chunk.max(1)))
+                                .flat_map_iter(|(sc, mc)| {
+                                    sc.iter().zip(mc.iter())
+                                        .filter(|&(_, &mv)| mv != 0.0)
+                                        .map(|(&v, _)| v)
+                                })
+                                .collect();
+                            Vector::new(data)
+                        } else {
+                            let data: Vec<f64> = s.iter()
+                                .zip(m.iter())
+                                .filter(|&(_, &mv)| mv != 0.0)
+                                .map(|(&v, _)| v)
+                                .collect();
+                            Vector::new(data)
+                        }
+                    })
+                }))
             });
-            return Ok(Vector::new(data));
         }
         // Fallback: Python list of bools
         let bool_mask: Vec<bool> = mask.extract()?;
@@ -1647,30 +1958,359 @@ impl Vector {
                 "mask length must match vector length",
             ));
         }
-        let data = self.with_slice(|s| {
-            s.iter()
-                .zip(bool_mask.iter())
-                .filter(|&(_, &m)| m)
-                .map(|(&v, _)| v)
-                .collect()
-        });
-        Ok(Vector::new(data))
+        let this = self.clone();
+        py.allow_threads(move || {
+            let data = this.with_slice(|s| {
+                s.iter()
+                    .zip(bool_mask.iter())
+                    .filter(|&(_, &m)| m)
+                    .map(|(&v, _)| v)
+                    .collect()
+            });
+            Ok(Vector::new(data))
+        })
+    }
+
+    /// Filter elements where ALL mask vectors are non-zero (logical AND).
+    ///
+    /// Fuses the AND check in a single pass — no intermediate combined mask
+    /// is allocated, saving O(N) memory per additional mask.
+    /// Parallelized for large vectors.
+    ///
+    /// Examples:
+    ///     >>> v = Vector([1, 2, 3, 4, 5])
+    ///     >>> m1 = Vector([1, 0, 1, 0, 1])
+    ///     >>> m2 = Vector([1, 1, 0, 0, 1])
+    ///     >>> v.filter_by_masks([m1, m2])
+    ///     Vector([1.0, 5.0])
+    pub fn filter_by_masks(&self, py: Python<'_>, masks: Vec<PyRef<Vector>>) -> PyResult<Vector> {
+        let n = self.len_internal();
+        if masks.is_empty() {
+            return Ok(self.clone());
+        }
+        for mask in &masks {
+            if mask.len_internal() != n {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "all mask lengths must match vector length",
+                ));
+            }
+        }
+        // Clone Arc-backed vectors (O(1) per clone — just Arc refcount bump)
+        let this = self.clone();
+        let owned_masks: Vec<Vector> = masks.iter().map(|m| (*m).clone()).collect();
+
+        py.allow_threads(move || {
+            Ok(this.with_slice(|s| {
+                if n >= PAR_THRESHOLD {
+                    let num_threads = rayon::current_num_threads();
+                    let chunk = (n + num_threads - 1) / num_threads;
+                    let data: Vec<f64> = (0..n).into_par_iter()
+                        .chunks(chunk.max(1))
+                        .flat_map_iter(|idx_chunk| {
+                            idx_chunk.into_iter().filter_map(|i| {
+                                if owned_masks.iter().all(|m| m.get_internal(i) != 0.0) {
+                                    Some(s[i])
+                                } else {
+                                    None
+                                }
+                            })
+                        })
+                        .collect();
+                    Vector::new(data)
+                } else {
+                    let data: Vec<f64> = (0..n)
+                        .filter(|&i| owned_masks.iter().all(|m| m.get_internal(i) != 0.0))
+                        .map(|i| s[i])
+                        .collect();
+                    Vector::new(data)
+                }
+            }))
+        })
+    }
+
+    /// Fully fused conditional filter — zero mask allocations.
+    ///
+    /// Checks conditions directly on source vectors per-element without
+    /// materializing any intermediate mask vector.
+    ///
+    /// Each condition is a tuple of (Vector, operator_string, threshold).
+    /// Supported operators: "lt" (<), "gt" (>), "le" (<=), "ge" (>=), "eq" (==), "ne" (!=).
+    ///
+    /// `mode`: "all" (AND — default) or "any" (OR).
+    ///
+    /// Examples:
+    ///     >>> data = Vector([10, 20, 30, 40, 50])
+    ///     >>> income = Vector([100, 200, 50, 300, 80])
+    ///     >>> age = Vector([25, 18, 30, 22, 40])
+    ///     >>> data.filter_where([(income, "lt", 150), (age, "gt", 20)])
+    ///     Vector([10.0, 50.0])
+    #[pyo3(signature = (conditions, mode = "all"))]
+    pub fn filter_where(
+        &self,
+        py: Python<'_>,
+        conditions: Vec<(PyRef<Vector>, String, f64)>,
+        mode: &str,
+    ) -> PyResult<Vector> {
+        let n = self.len_internal();
+        if conditions.is_empty() {
+            return Ok(self.clone());
+        }
+
+        // Validate lengths
+        for (vec, _, _) in &conditions {
+            if vec.len_internal() != n {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "all condition vectors must match data vector length",
+                ));
+            }
+        }
+
+        // Parse operators upfront (fail fast on invalid ops)
+        let parsed: Vec<(Vector, u8, f64)> = conditions
+            .iter()
+            .map(|(vec, op, thresh)| {
+                let op_code: u8 = match op.as_str() {
+                    "lt" | "<"  => 0,
+                    "gt" | ">"  => 1,
+                    "le" | "<=" => 2,
+                    "ge" | ">=" => 3,
+                    "eq" | "==" => 4,
+                    "ne" | "!=" => 5,
+                    _ => return Err(pyo3::exceptions::PyValueError::new_err(
+                        format!("Unknown operator '{}'. Use: lt, gt, le, ge, eq, ne (or <, >, <=, >=, ==, !=)", op),
+                    )),
+                };
+                Ok(((*vec).clone(), op_code, *thresh))
+            })
+            .collect::<PyResult<Vec<_>>>()?;
+
+        let use_any = mode == "any";
+        let this = self.clone();
+
+        py.allow_threads(move || {
+            // Pre-extract raw data slices from condition vectors (O(1) per vector).
+            // This eliminates the per-element match dispatch in get_internal.
+            // For Heap vectors (all vectors > 32 elements): Arc::clone = refcount bump.
+            // For others: one-time materialization.
+            let cond_arcs: Vec<Arc<Vec<f64>>> = parsed.iter()
+                .map(|(vec, _, _)| {
+                    match &vec.storage {
+                        VectorStorage::Heap(arc) => Arc::clone(arc),
+                        _ => Arc::new(vec.with_slice(|s| s.to_vec())),
+                    }
+                })
+                .collect();
+
+            let ops: Vec<(u8, f64)> = parsed.iter()
+                .map(|(_, op, thresh)| (*op, *thresh))
+                .collect();
+
+            Ok(this.with_slice(|s| {
+                let check = |i: usize| -> bool {
+                    let iter = cond_arcs.iter().zip(ops.iter()).map(|(data, &(op, thresh))| {
+                        let val = data[i]; // direct Vec index — zero match overhead
+                        match op {
+                            0 => val < thresh,
+                            1 => val > thresh,
+                            2 => val <= thresh,
+                            3 => val >= thresh,
+                            4 => val == thresh,
+                            5 => val != thresh,
+                            _ => unreachable!(),
+                        }
+                    });
+                    if use_any { iter.fold(false, |a, b| a || b) }
+                    else       { iter.fold(true,  |a, b| a && b) }
+                };
+
+                if n >= PAR_THRESHOLD {
+                    let num_threads = rayon::current_num_threads();
+                    let chunk = (n + num_threads - 1) / num_threads;
+                    let data: Vec<f64> = s.par_chunks(chunk.max(1))
+                        .enumerate()
+                        .flat_map_iter(|(ci, sc)| {
+                            let base = ci * chunk.max(1);
+                            sc.iter().enumerate().filter_map(move |(j, &val)| {
+                                if check(base + j) { Some(val) } else { None }
+                            })
+                        })
+                        .collect();
+                    Vector::new(data)
+                } else {
+                    let data: Vec<f64> = (0..n)
+                        .filter(|&i| check(i))
+                        .map(|i| s[i])
+                        .collect();
+                    Vector::new(data)
+                }
+            }))
+        })
+    }
+
+    /// Filter multiple vectors by the same conditions in a single pass.
+    ///
+    /// Checks conditions ONCE per element, then gathers from ALL data vectors
+    /// simultaneously. This is 4× faster than calling `filter_where` separately
+    /// on each vector when they share the same conditions.
+    ///
+    /// Parallelized and GIL-releasing.
+    ///
+    /// Examples:
+    ///     >>> a = Vector([1, 2, 3, 4, 5])
+    ///     >>> b = Vector([10, 20, 30, 40, 50])
+    ///     >>> cond = Vector([100, 200, 50, 300, 80])
+    ///     >>> Vector.multi_filter_where([a, b], [(cond, "lt", 150)])
+    ///     [Vector([1.0, 3.0, 5.0]), Vector([10.0, 30.0, 50.0])]
+    #[staticmethod]
+    #[pyo3(signature = (vectors, conditions, mode = "all"))]
+    pub fn multi_filter_where(
+        py: Python<'_>,
+        vectors: Vec<PyRef<Vector>>,
+        conditions: Vec<(PyRef<Vector>, String, f64)>,
+        mode: &str,
+    ) -> PyResult<Vec<Vector>> {
+        if vectors.is_empty() {
+            return Ok(vec![]);
+        }
+        let n = vectors[0].len_internal();
+
+        // Validate all data vectors have same length
+        for v in &vectors {
+            if v.len_internal() != n {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "all data vectors must have the same length",
+                ));
+            }
+        }
+        // Validate condition vectors
+        for (cv, _, _) in &conditions {
+            if cv.len_internal() != n {
+                return Err(pyo3::exceptions::PyValueError::new_err(
+                    "all condition vectors must match data vector length",
+                ));
+            }
+        }
+
+        // Parse operators upfront
+        let parsed: Vec<(Vector, u8, f64)> = conditions
+            .iter()
+            .map(|(vec, op, thresh)| {
+                let op_code: u8 = match op.as_str() {
+                    "lt" | "<"  => 0,
+                    "gt" | ">"  => 1,
+                    "le" | "<=" => 2,
+                    "ge" | ">=" => 3,
+                    "eq" | "==" => 4,
+                    "ne" | "!=" => 5,
+                    _ => return Err(pyo3::exceptions::PyValueError::new_err(
+                        format!("Unknown operator '{}'. Use: lt, gt, le, ge, eq, ne", op),
+                    )),
+                };
+                Ok(((*vec).clone(), op_code, *thresh))
+            })
+            .collect::<PyResult<Vec<_>>>()?;
+
+        let use_any = mode == "any";
+        // Clone data vectors (Arc refcount bump = O(1) each)
+        let data_vecs: Vec<Vector> = vectors.iter().map(|v| (*v).clone()).collect();
+
+        py.allow_threads(move || {
+            // Pre-extract Arc slices for conditions
+            let cond_arcs: Vec<Arc<Vec<f64>>> = parsed.iter()
+                .map(|(vec, _, _)| {
+                    match &vec.storage {
+                        VectorStorage::Heap(arc) => Arc::clone(arc),
+                        _ => Arc::new(vec.with_slice(|s| s.to_vec())),
+                    }
+                })
+                .collect();
+
+            let ops: Vec<(u8, f64)> = parsed.iter()
+                .map(|(_, op, thresh)| (*op, *thresh))
+                .collect();
+
+            // Pre-extract Arc slices for data vectors
+            let data_arcs: Vec<Arc<Vec<f64>>> = data_vecs.iter()
+                .map(|vec| {
+                    match &vec.storage {
+                        VectorStorage::Heap(arc) => Arc::clone(arc),
+                        _ => Arc::new(vec.with_slice(|s| s.to_vec())),
+                    }
+                })
+                .collect();
+
+            let check = |i: usize| -> bool {
+                let iter = cond_arcs.iter().zip(ops.iter()).map(|(data, &(op, thresh))| {
+                    let val = data[i];
+                    match op {
+                        0 => val < thresh,
+                        1 => val > thresh,
+                        2 => val <= thresh,
+                        3 => val >= thresh,
+                        4 => val == thresh,
+                        5 => val != thresh,
+                        _ => unreachable!(),
+                    }
+                });
+                if use_any { iter.fold(false, |a, b| a || b) }
+                else       { iter.fold(true,  |a, b| a && b) }
+            };
+
+            if n >= PAR_THRESHOLD {
+                let num_threads = rayon::current_num_threads();
+                let chunk = (n + num_threads - 1) / num_threads;
+
+                // Phase 1: compute valid indices (one parallel pass)
+                // Uses Rayon's optimized flat_map_iter + collect — no manual merge
+                let valid: Vec<usize> = (0..num_threads)
+                    .into_par_iter()
+                    .flat_map_iter(|t| {
+                        let start = t * chunk;
+                        let end = ((t + 1) * chunk).min(n);
+                        (start..end).filter(|&i| check(i))
+                    })
+                    .collect();
+
+                // Phase 2: gather from each data vector at valid indices
+                // Each vector is a sequential scan — cache-friendly, no thrashing
+                let results: Vec<Vector> = data_arcs.iter()
+                    .map(|data| {
+                        let filtered: Vec<f64> = valid.par_iter()
+                            .map(|&i| data[i])
+                            .collect();
+                        Vector::new(filtered)
+                    })
+                    .collect();
+                Ok(results)
+            } else {
+                // Phase 1: serial index computation
+                let valid: Vec<usize> = (0..n).filter(|&i| check(i)).collect();
+                // Phase 2: serial gather per vector
+                let results: Vec<Vector> = data_arcs.iter()
+                    .map(|data| {
+                        let filtered: Vec<f64> = valid.iter().map(|&i| data[i]).collect();
+                        Vector::new(filtered)
+                    })
+                    .collect();
+                Ok(results)
+            }
+        })
     }
 
     /// Generate a mask Vector: 1.0 where self[i] > threshold, 0.0 otherwise.
     /// Stays in Rust — use with filter_by_mask for zero-extraction filtering.
     pub fn gt_mask(&self, threshold: f64) -> Vector {
-        self.map_internal(|x| if x > threshold { 1.0 } else { 0.0 })
+        self.map_internal(move |x| if x > threshold { 1.0 } else { 0.0 })
     }
 
     /// Generate a mask Vector: 1.0 where self[i] < threshold, 0.0 otherwise.
     pub fn lt_mask(&self, threshold: f64) -> Vector {
-        self.map_internal(|x| if x < threshold { 1.0 } else { 0.0 })
+        self.map_internal(move |x| if x < threshold { 1.0 } else { 0.0 })
     }
 
     /// Generate a mask Vector: 1.0 where self[i] == value, 0.0 otherwise.
     pub fn eq_mask(&self, value: f64) -> Vector {
-        self.map_internal(|x| if x == value { 1.0 } else { 0.0 })
+        self.map_internal(move |x| if x == value { 1.0 } else { 0.0 })
     }
 
     /// Return elements greater than threshold.
@@ -1852,120 +2492,120 @@ impl Vector {
 
     /// Element-wise square root.
     pub fn sqrt(&self) -> Self {
-        self.map_internal(|x| x.sqrt())
+        self.map_internal(move |x| x.sqrt())
     }
     /// Element-wise cube root.
     pub fn cbrt(&self) -> Self {
-        self.map_internal(|x| x.cbrt())
+        self.map_internal(move |x| x.cbrt())
     }
     /// Element-wise sine.
     pub fn sin(&self) -> Self {
-        self.map_internal(|x| x.sin())
+        self.map_internal(move |x| x.sin())
     }
     /// Element-wise cosine.
     pub fn cos(&self) -> Self {
-        self.map_internal(|x| x.cos())
+        self.map_internal(move |x| x.cos())
     }
     /// Element-wise tangent.
     pub fn tan(&self) -> Self {
-        self.map_internal(|x| x.tan())
+        self.map_internal(move |x| x.tan())
     }
     pub fn asin(&self) -> Self {
-        self.map_internal(|x| x.asin())
+        self.map_internal(move |x| x.asin())
     }
     pub fn acos(&self) -> Self {
-        self.map_internal(|x| x.acos())
+        self.map_internal(move |x| x.acos())
     }
     /// Element-wise arctangent.
     pub fn atan(&self) -> Self {
-        self.map_internal(|x| x.atan())
+        self.map_internal(move |x| x.atan())
     }
     pub fn sinh(&self) -> Self {
-        self.map_internal(|x| x.sinh())
+        self.map_internal(move |x| x.sinh())
     }
     pub fn cosh(&self) -> Self {
-        self.map_internal(|x| x.cosh())
+        self.map_internal(move |x| x.cosh())
     }
     /// Element-wise hyperbolic tangent.
     pub fn tanh(&self) -> Self {
-        self.map_internal(|x| x.tanh())
+        self.map_internal(move |x| x.tanh())
     }
     /// Element-wise natural exponential: e^x.
     pub fn exp(&self) -> Self {
-        self.map_internal(|x| x.exp())
+        self.map_internal(move |x| x.exp())
     }
     pub fn exp2(&self) -> Self {
-        self.map_internal(|x| x.exp2())
+        self.map_internal(move |x| x.exp2())
     }
     pub fn expm1(&self) -> Self {
-        self.map_internal(|x| x.exp_m1())
+        self.map_internal(move |x| x.exp_m1())
     }
     /// Element-wise natural logarithm: ln(x).
     pub fn log(&self) -> Self {
-        self.map_internal(|x| x.ln())
+        self.map_internal(move |x| x.ln())
     }
     pub fn log2(&self) -> Self {
-        self.map_internal(|x| x.log2())
+        self.map_internal(move |x| x.log2())
     }
     pub fn log10(&self) -> Self {
-        self.map_internal(|x| x.log10())
+        self.map_internal(move |x| x.log10())
     }
     pub fn log1p(&self) -> Self {
-        self.map_internal(|x| x.ln_1p())
+        self.map_internal(move |x| x.ln_1p())
     }
     pub fn abs(&self) -> Self {
-        self.map_internal(|x| x.abs())
+        self.map_internal(move |x| x.abs())
     }
     /// Element-wise ceiling (round toward +inf).
     pub fn ceil(&self) -> Self {
-        self.map_internal(|x| x.ceil())
+        self.map_internal(move |x| x.ceil())
     }
     /// Element-wise floor (round toward -inf).
     pub fn floor(&self) -> Self {
-        self.map_internal(|x| x.floor())
+        self.map_internal(move |x| x.floor())
     }
     /// Element-wise rounding to nearest integer.
     pub fn round(&self) -> Self {
-        self.map_internal(|x| x.round())
+        self.map_internal(move |x| x.round())
     }
     /// Element-wise truncation toward zero.
     pub fn trunc(&self) -> Self {
-        self.map_internal(|x| x.trunc())
+        self.map_internal(move |x| x.trunc())
     }
     pub fn fract(&self) -> Self {
-        self.map_internal(|x| x.fract())
+        self.map_internal(move |x| x.fract())
     }
     pub fn signum(&self) -> Self {
-        self.map_internal(|x| if x == 0.0 { 0.0 } else { x.signum() })
+        self.map_internal(move |x| if x == 0.0 { 0.0 } else { x.signum() })
     }
     pub fn recip(&self) -> Self {
-        self.map_internal(|x| x.recip())
+        self.map_internal(move |x| x.recip())
     }
 
     /// Apply the sigmoid function: 1 / (1 + e^-x).
     pub fn sigmoid(&self) -> Self {
-        self.map_internal(|x| 1.0 / (1.0 + (-x).exp()))
+        self.map_internal(move |x| 1.0 / (1.0 + (-x).exp()))
     }
     pub fn clip(&self, lo: f64, hi: f64) -> Self {
-        self.map_internal(|x| x.clamp(lo, hi))
+        self.map_internal(move |x| x.clamp(lo, hi))
     }
     pub fn pow_scalar(&self, exp: f64) -> Self {
-        self.map_internal(|x| x.powf(exp))
+        self.map_internal(move |x| x.powf(exp))
     }
     pub fn clamp(&self, lo: f64, hi: f64) -> Self {
         self.clip(lo, hi)
     }
     /// Element-wise hypotenuse: sqrt(self² + y²).
     pub fn hypot_scalar(&self, y: f64) -> Self {
-        self.map_internal(|x| x.hypot(y))
+        self.map_internal(move |x| x.hypot(y))
     }
     /// Element-wise two-argument arctangent: atan2(self, x).
     pub fn atan2_scalar(&self, x: f64) -> Self {
-        self.map_internal(|y| y.atan2(x))
+        self.map_internal(move |y| y.atan2(x))
     }
     /// Element-wise linear interpolation between `self` and `other`.
     pub fn lerp_scalar(&self, other: f64, t: f64) -> Self {
-        self.map_internal(|x| x + t * (other - x))
+        self.map_internal(move |x| x + t * (other - x))
     }
 }
 
@@ -1987,6 +2627,7 @@ enum IterSource {
     Inline([f64; INLINE_MAX], usize),
     Heap(Arc<Vec<f64>>),
     VirtualRange { start: f64, step: f64, count: usize },
+    Projected { mapping: Arc<dyn Fn(usize) -> f64 + Send + Sync>, count: usize },
 }
 
 #[pyclass(module = "rmath")]
@@ -2004,22 +2645,20 @@ impl VectorIter {
     fn __next__(&mut self) -> Option<f64> {
         let val = match &self.source {
             IterSource::Inline(buf, n) => {
-                if self.pos >= *n {
-                    return None;
-                }
+                if self.pos >= *n { return None; }
                 buf[self.pos]
             }
             IterSource::Heap(arc) => {
-                if self.pos >= arc.len() {
-                    return None;
-                }
+                if self.pos >= arc.len() { return None; }
                 arc[self.pos]
             }
             IterSource::VirtualRange { start, step, count } => {
-                if self.pos >= *count {
-                    return None;
-                }
+                if self.pos >= *count { return None; }
                 *start + self.pos as f64 * *step
+            }
+            IterSource::Projected { mapping, count } => {
+                if self.pos >= *count { return None; }
+                mapping(self.pos)
             }
         };
         self.pos += 1;

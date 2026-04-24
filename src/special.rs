@@ -6,7 +6,7 @@ use statrs::function::erf as s_erf_internal;
 
 /// Helper to map a special function across a Vector or list (Standard Vec).
 fn map_special<'py, F>(data: Bound<'py, PyAny>, op: F) -> PyResult<Bound<'py, PyAny>> 
-where F: Fn(f64) -> f64 + Sync + Send 
+where F: Fn(f64) -> f64 + Sync + Send + 'static
 {
     let py = data.py();
 
@@ -81,6 +81,13 @@ pub fn rust_erf<'py>(data: Bound<'py, PyAny>) -> PyResult<Bound<'py, PyAny>> {
 }
 
 pub fn register_special(m: &Bound<'_, PyModule>) -> PyResult<()> {
+    m.setattr(
+        "__doc__",
+        "rmath.special — Special mathematical functions.\n\n\
+        Provides high-precision implementations of advanced mathematical \
+        functions (Gamma, Error function) with native broadcasting \
+        across Scalars, Vectors, and Arrays.",
+    )?;
     m.add_function(wrap_pyfunction!(rust_gamma, m)?)?;
     m.add_function(wrap_pyfunction!(rust_ln_gamma, m)?)?;
     m.add_function(wrap_pyfunction!(rust_erf, m)?)?;

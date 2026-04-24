@@ -1,33 +1,164 @@
-<svg width="200" height="200" viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" fill="none">
   <defs>
+
+    <!-- Dark background gradient -->
     <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#4f46e5"/>
+      <stop offset="0%"   stop-color="#0f0c29"/>
+      <stop offset="50%"  stop-color="#1a1042"/>
+      <stop offset="100%" stop-color="#24243e"/>
+    </linearGradient>
+
+    <!-- Radial glow inside bg -->
+    <radialGradient id="bg-glow" cx="50%" cy="45%" r="55%">
+      <stop offset="0%"   stop-color="#4c1d95" stop-opacity="0.6"/>
+      <stop offset="100%" stop-color="#4c1d95" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- ── GEM FACE GRADIENTS ── -->
+    <!-- Upper-left: brilliant indigo highlight (lit face) -->
+    <linearGradient id="b-ul" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#e0e7ff"/>
+      <stop offset="40%"  stop-color="#818cf8"/>
+      <stop offset="100%" stop-color="#4f46e5"/>
+    </linearGradient>
+
+    <!-- Upper-right: violet mid-tone -->
+    <linearGradient id="b-ur" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%"   stop-color="#c084fc"/>
       <stop offset="100%" stop-color="#7c3aed"/>
     </linearGradient>
-    <linearGradient id="accent" x1="0%" y1="0%" x2="100%" y2="0%">
-      <stop offset="0%" stop-color="#22d3ee"/>
-      <stop offset="100%" stop-color="#818cf8"/>
+
+    <!-- Back upper: fuchsia rim-light -->
+    <linearGradient id="b-bk" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#f472b6"/>
+      <stop offset="100%" stop-color="#9333ea"/>
     </linearGradient>
+
+    <!-- Lower-left: deep indigo shadow -->
+    <linearGradient id="b-ll" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#3730a3"/>
+      <stop offset="100%" stop-color="#1e1b4b"/>
+    </linearGradient>
+
+    <!-- Lower-right: deepest violet shadow -->
+    <linearGradient id="b-lr" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%"   stop-color="#5b21b6"/>
+      <stop offset="100%" stop-color="#2e1065"/>
+    </linearGradient>
+
+    <!-- Specular glass highlight -->
+    <radialGradient id="b-spec" cx="30%" cy="25%" r="65%">
+      <stop offset="0%"   stop-color="white" stop-opacity="0.6"/>
+      <stop offset="60%"  stop-color="white" stop-opacity="0.1"/>
+      <stop offset="100%" stop-color="white" stop-opacity="0"/>
+    </radialGradient>
+
+    <!-- Outer gem glow -->
+    <filter id="b-glow" x="-25%" y="-25%" width="150%" height="150%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="7" result="blur"/>
+      <feFlood flood-color="#818cf8" flood-opacity="0.8" result="flood"/>
+      <feComposite in="flood" in2="blur" operator="in" result="shadow"/>
+      <feMerge>
+        <feMergeNode in="shadow"/>
+        <feMergeNode in="SourceGraphic"/>
+      </feMerge>
+    </filter>
+
+    <!-- Apex sparkle glow -->
+    <filter id="b-spark" x="-200%" y="-200%" width="500%" height="500%">
+      <feGaussianBlur in="SourceGraphic" stdDeviation="4"/>
+    </filter>
+
+    <!-- Reflection blur -->
+    <filter id="b-reflect">
+      <feGaussianBlur stdDeviation="3.5"/>
+    </filter>
+
   </defs>
 
-  <!-- Rounded square bg -->
-  <rect x="8" y="8" width="184" height="184" rx="42" fill="url(#bg)"/>
-  <rect x="16" y="16" width="168" height="168" rx="36" fill="none" stroke="rgba(255,255,255,0.12)" stroke-width="1"/>
+  <!-- ── BACKGROUND ── -->
+  <rect x="4" y="4" width="192" height="192" rx="46" fill="url(#bg)"/>
+  <!-- Inner glow -->
+  <rect x="4" y="4" width="192" height="192" rx="46" fill="url(#bg-glow)"/>
+  <!-- Subtle border -->
+  <rect x="4" y="4" width="192" height="192" rx="46" fill="none"
+        stroke="rgba(129,140,248,0.25)" stroke-width="1.5"/>
 
-  <!-- Grid dots (2x3) — evokes matrix/array -->
-  <circle cx="44" cy="38" r="4" fill="rgba(255,255,255,0.25)"/>
-  <circle cx="62" cy="38" r="4" fill="rgba(255,255,255,0.25)"/>
-  <circle cx="44" cy="54" r="4" fill="rgba(255,255,255,0.25)"/>
-  <circle cx="62" cy="54" r="4" fill="rgba(255,255,255,0.25)"/>
-  <circle cx="44" cy="70" r="4" fill="rgba(255,255,255,0.25)"/>
-  <circle cx="62" cy="70" r="4" fill="rgba(255,255,255,0.25)"/>
+  <!--
+    3D GEM — Octahedron scaled to 200×200 badge canvas.
 
-  <!-- Summation symbol ∑ — math mark -->
-  <path d="M138 38h28M138 38l14 20-14 20h28" stroke="url(#accent)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    Key coordinates (scaled ~1.65× from 120×120 version):
+      Top apex    : (100, 14)
+      Left equator: (24, 97)
+      Belly front : (100, 122)
+      Right equator:(176, 97)
+      Bottom apex : (100, 186)
 
-  <!-- Main wordmark: RM -->
-  <text x="100" y="148" text-anchor="middle" font-family="'Inter','Segoe UI',system-ui,sans-serif" font-weight="800" font-size="86" fill="white" letter-spacing="-6">RM</text>
+    Faces:
+      Back-upper  : top, left, right  → fuchsia rim
+      Upper-left  : top, left, belly  → bright lit
+      Upper-right : top, right, belly → violet
+      Lower-left  : left, belly, bottom → deep shadow
+      Lower-right : right, belly, bottom → darkest
+  -->
 
-  <!-- Thin separator line -->
-  <line x1="36" y1="88" x2="164" y2="88" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+  <!-- Face: Back upper rim (fuchsia, visible above equatorial plane) -->
+  <polygon points="100,14 24,97 176,97" fill="url(#b-bk)" opacity="0.82" filter="url(#b-glow)"/>
+
+  <!-- Face: Upper-left (brightest, lit) -->
+  <polygon points="100,14 24,97 100,122" fill="url(#b-ul)" filter="url(#b-glow)"/>
+
+  <!-- Face: Upper-right -->
+  <polygon points="100,14 176,97 100,122" fill="url(#b-ur)"/>
+
+  <!-- Face: Lower-left shadow -->
+  <polygon points="24,97 100,122 100,186" fill="url(#b-ll)"/>
+
+  <!-- Face: Lower-right deepest shadow -->
+  <polygon points="176,97 100,122 100,186" fill="url(#b-lr)"/>
+
+  <!-- ── EDGE DEFINITION LINES ── -->
+  <line x1="100" y1="14"  x2="24"  y2="97"  stroke="rgba(255,255,255,0.4)"  stroke-width="1.1"/>
+  <line x1="100" y1="14"  x2="176" y2="97"  stroke="rgba(255,255,255,0.22)" stroke-width="1.1"/>
+  <line x1="24"  y1="97"  x2="176" y2="97"  stroke="rgba(255,255,255,0.20)" stroke-width="0.9"/>
+  <line x1="24"  y1="97"  x2="100" y2="122" stroke="rgba(255,255,255,0.28)" stroke-width="1.0"/>
+  <line x1="176" y1="97"  x2="100" y2="122" stroke="rgba(255,255,255,0.18)" stroke-width="1.0"/>
+  <line x1="100" y1="122" x2="100" y2="186" stroke="rgba(255,255,255,0.14)" stroke-width="0.9"/>
+  <line x1="24"  y1="97"  x2="100" y2="186" stroke="rgba(255,255,255,0.12)" stroke-width="0.8"/>
+  <line x1="176" y1="97"  x2="100" y2="186" stroke="rgba(255,255,255,0.12)" stroke-width="0.8"/>
+
+  <!-- ── GLASS SPECULAR HIGHLIGHT ── -->
+  <polygon points="100,14 24,97 100,122" fill="url(#b-spec)" opacity="0.95"/>
+
+  <!-- ── TOP APEX SPARKLE ── -->
+  <!-- Outer glow halo -->
+  <circle cx="100" cy="14" r="14" fill="#c7d2fe" opacity="0.35" filter="url(#b-spark)"/>
+  <!-- Inner glow -->
+  <circle cx="100" cy="14" r="6"  fill="#e0e7ff" opacity="0.5"  filter="url(#b-spark)"/>
+  <!-- Sharp apex dot -->
+  <circle cx="100" cy="14" r="3.5" fill="white" opacity="0.98"/>
+  <!-- 4-ray sparkle cross -->
+  <line x1="100" y1="4"  x2="100" y2="10"  stroke="white" stroke-width="1.8" stroke-linecap="round" opacity="0.95"/>
+  <line x1="88"  y1="14" x2="94"  y2="14"  stroke="white" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/>
+  <line x1="106" y1="14" x2="112" y2="14"  stroke="white" stroke-width="1.8" stroke-linecap="round" opacity="0.75"/>
+  <!-- Diagonal sparkle rays -->
+  <line x1="91"  y1="5"  x2="95"  y2="9"   stroke="white" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+  <line x1="109" y1="5"  x2="105" y2="9"   stroke="white" stroke-width="1.2" stroke-linecap="round" opacity="0.5"/>
+
+  <!-- ── BELLY GLINT ── -->
+  <circle cx="100" cy="122" r="3" fill="white" opacity="0.30"/>
+
+  <!-- ── BOTTOM REFLECTION (faint inverted ghost gem) ── -->
+  <g opacity="0.12" filter="url(#b-reflect)"
+     transform="translate(100,200) scale(1,-0.18) translate(-100,0)">
+    <polygon points="100,14 24,97 100,122"  fill="#818cf8"/>
+    <polygon points="100,14 176,97 100,122" fill="#a855f7"/>
+    <polygon points="24,97 100,122 100,186" fill="#4338ca"/>
+    <polygon points="176,97 100,122 100,186" fill="#6d28d9"/>
+  </g>
+
+  <!-- ── LEFT EDGE HIGHLIGHT (extra rim light) ── -->
+  <line x1="100" y1="14" x2="24" y2="97"
+        stroke="url(#b-ul)" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+
 </svg>

@@ -1,7 +1,10 @@
 use pyo3::prelude::*;
+use rayon::prelude::*;
 use statrs::distribution::{Continuous, ContinuousCDF, Discrete, DiscreteCDF};
 use statrs::distribution::{Normal as SNormal, StudentsT as SStudentT, Poisson as SPoisson, Exp as SExp};
 use statrs::statistics::Distribution;
+
+const PAR_THRESHOLD: usize = 8_192;
 
 /// Normal (Gaussian) distribution: N(μ, σ).
 ///
@@ -40,9 +43,20 @@ impl Normal {
     pub fn mean(&self) -> f64 { self.inner.mean().unwrap_or(f64::NAN) }
     
     /// Sample `n` values from the distribution into a high-performance Vector.
+    ///
+    /// Parallelized via Rayon for large samples (n >= 8192).
     pub fn sample(&self, n: usize) -> crate::vector::Vector {
-        let mut rng = rand::thread_rng();
-        let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
+        let dist = self.inner;
+        let data: Vec<f64> = if n >= PAR_THRESHOLD {
+            (0..n).into_par_iter()
+                .map_init(|| rand::thread_rng(), move |rng, _| {
+                    rand::distributions::Distribution::sample(&dist, rng)
+                })
+                .collect()
+        } else {
+            let mut rng = rand::thread_rng();
+            (0..n).map(|_| rand::distributions::Distribution::sample(&dist, &mut rng)).collect()
+        };
         crate::vector::Vector::new(data)
     }
 }
@@ -76,9 +90,20 @@ impl StudentT {
     pub fn cdf(&self, x: f64) -> f64 { self.inner.cdf(x) }
     pub fn ppf(&self, x: f64) -> f64 { self.inner.inverse_cdf(x) }
     /// Sample `n` values from the distribution into a high-performance Vector.
+    ///
+    /// Parallelized via Rayon for large samples (n >= 8192).
     pub fn sample(&self, n: usize) -> crate::vector::Vector {
-        let mut rng = rand::thread_rng();
-        let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
+        let dist = self.inner;
+        let data: Vec<f64> = if n >= PAR_THRESHOLD {
+            (0..n).into_par_iter()
+                .map_init(|| rand::thread_rng(), move |rng, _| {
+                    rand::distributions::Distribution::sample(&dist, rng)
+                })
+                .collect()
+        } else {
+            let mut rng = rand::thread_rng();
+            (0..n).map(|_| rand::distributions::Distribution::sample(&dist, &mut rng)).collect()
+        };
         crate::vector::Vector::new(data)
     }
 }
@@ -113,9 +138,20 @@ impl Poisson {
     /// Cumulative distribution function at `k`.
     pub fn cdf(&self, k: f64) -> f64 { self.inner.cdf(k.floor() as u64) }
     /// Sample `n` values from the distribution into a high-performance Vector.
+    ///
+    /// Parallelized via Rayon for large samples (n >= 8192).
     pub fn sample(&self, n: usize) -> crate::vector::Vector {
-        let mut rng = rand::thread_rng();
-        let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
+        let dist = self.inner;
+        let data: Vec<f64> = if n >= PAR_THRESHOLD {
+            (0..n).into_par_iter()
+                .map_init(|| rand::thread_rng(), move |rng, _| {
+                    rand::distributions::Distribution::sample(&dist, rng)
+                })
+                .collect()
+        } else {
+            let mut rng = rand::thread_rng();
+            (0..n).map(|_| rand::distributions::Distribution::sample(&dist, &mut rng)).collect()
+        };
         crate::vector::Vector::new(data)
     }
 }
@@ -148,9 +184,20 @@ impl Exponential {
     pub fn cdf(&self, x: f64) -> f64 { self.inner.cdf(x) }
     pub fn ppf(&self, x: f64) -> f64 { self.inner.inverse_cdf(x) }
     /// Sample `n` values from the distribution into a high-performance Vector.
+    ///
+    /// Parallelized via Rayon for large samples (n >= 8192).
     pub fn sample(&self, n: usize) -> crate::vector::Vector {
-        let mut rng = rand::thread_rng();
-        let data: Vec<f64> = (0..n).map(|_| rand::distributions::Distribution::sample(&self.inner, &mut rng)).collect();
+        let dist = self.inner;
+        let data: Vec<f64> = if n >= PAR_THRESHOLD {
+            (0..n).into_par_iter()
+                .map_init(|| rand::thread_rng(), move |rng, _| {
+                    rand::distributions::Distribution::sample(&dist, rng)
+                })
+                .collect()
+        } else {
+            let mut rng = rand::thread_rng();
+            (0..n).map(|_| rand::distributions::Distribution::sample(&dist, &mut rng)).collect()
+        };
         crate::vector::Vector::new(data)
     }
 }

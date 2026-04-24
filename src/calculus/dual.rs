@@ -65,6 +65,29 @@ impl Dual {
         Ok(Dual { val, der })
     }
 
+    pub fn __rtruediv__(&self, other: Bound<'_, PyAny>) -> PyResult<Dual> {
+        let o = extract_dual(other)?;
+        if self.val == 0.0 { return Err(pyo3::exceptions::PyZeroDivisionError::new_err("div by zero")); }
+        // (c+dε)/(a+bε) = (c/a) + ((da - cb)/a^2)ε
+        let val = o.val / self.val;
+        let der = (o.der * self.val - o.val * self.der) / (self.val * self.val);
+        Ok(Dual { val, der })
+    }
+
+    pub fn __radd__(&self, other: Bound<'_, PyAny>) -> PyResult<Dual> {
+        self.__add__(other)
+    }
+
+    pub fn __rsub__(&self, other: Bound<'_, PyAny>) -> PyResult<Dual> {
+        let o = extract_dual(other)?;
+        Ok(Dual { val: o.val - self.val, der: o.der - self.der })
+    }
+
+    pub fn __rmul__(&self, other: Bound<'_, PyAny>) -> PyResult<Dual> {
+        self.__mul__(other)
+    }
+
+
     pub fn __pow__(&self, p: f64, _mod: Option<f64>) -> Dual {
         // d/dx(u^p) = p * u^(p-1) * du/dx
         Dual { 

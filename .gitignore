@@ -10,6 +10,7 @@ __pycache__/
 /.venv/
 .pytest_cache/
 .python-version
+.ipynb_checkpoints/
 
 # RMath Large Data & Binaries
 *.npy
@@ -22,33 +23,35 @@ __pycache__/
 *.dll
 *.lib
 *.exe
-*.csv
 
-# IDEs
+# IDEs & System
 .vscode/
 .idea/
 .env
 .env.example
+.DS_Store
+Thumbs.db
 
-# Documentation Builds (We only want the custom portal)
+# Documentation Builds
 /docs/html/
 
-# Internal / scratch
+# AI & Internal Scratch (Internal)
+.antigravity_knowledge.md
+/scratch/
 /trashee/
-/test/
-/rust_rmath_test/
-/rust_math_test/
-/comparison_test/
-/py_test/
-/projects/
-/benchmarks/
-/new
-/new.rpy
-/DOCS.md
-/benchmark_scalar_analysis.md
-/benchmark_vector_analysis.md
+apply_ui.py
 
-# Portal build artifacts
+# Keep these in Git (important for library visibility)
+!/benchmarks/
+!/test/
+!/tests/
+!/projects/
+!/DOCS.md
+!/benchmark_scalar_analysis.md
+!/benchmark_vector_analysis.md
+
+# Portal specific cleanup
+/docs/portal/logo.png
 /docs/portal/rmath_logo.png
 /docs/portal/rmath_logo_svg_*.png
 

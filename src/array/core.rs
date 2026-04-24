@@ -913,6 +913,7 @@ impl Array {
 
     // ── Conversion ────────────────────────────────────────────────────────
 
+    /// Convert the 2D array to a nested Python list (Vec<Vec<f64>>).
     pub fn to_list(&self) -> Vec<Vec<f64>> {
         let (r, c) = (self.nrows(), self.ncols());
         let contig = self.to_contiguous();
@@ -923,6 +924,7 @@ impl Array {
             .collect()
     }
 
+    /// Check if a 2D array is symmetric (A = A^T).
     pub fn is_symmetric(&self) -> bool {
         if self.ndim() != 2 || self.nrows() != self.ncols() {
             return false;
@@ -940,6 +942,7 @@ impl Array {
         true
     }
 
+    /// Check if a 2D array is positive definite via Cholesky decomposition.
     pub fn is_positive_definite(&self) -> bool {
         self.cholesky_internal().is_ok()
     }
@@ -992,6 +995,7 @@ impl Array {
         Ok(Self::from_flat(data, shape))
     }
 
+    /// Create a deep copy of the array.
     pub fn copy(&self) -> Self {
         let data = self.to_contiguous().data().to_vec();
         Self::from_flat(data, self.shape.clone())
