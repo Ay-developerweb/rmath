@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="docs/portal/logo.svg" width="150" alt="RMath Logo">
+  <img src="https://raw.githubusercontent.com/Ay-developerweb/rmath/main/docs/portal/logo.svg" width="150" alt="RMath Logo">
 </p>
 
 <h3 align="center">Drop-in numerical accelerator for the Python computing ecosystem.</h3>
