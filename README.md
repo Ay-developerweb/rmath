@@ -5,7 +5,7 @@
 <h3 align="center">Drop-in numerical accelerator for the Python computing ecosystem.</h3>
 
 <p align="center">
-  <a href="https://pypi.org/project/rmath-py/"><img src="https://img.shields.io/pypi/v/rmath-py?color=blue" alt="PyPI"></a>
+  <a href="https://pypi.org/project/rmath-py/"><img src="https://img.shields.io/pypi/v/rmath-py?color=orange" alt="PyPI"></a>
   <a href="https://github.com/Ay-developerweb/rmath/actions/workflows/publish.yml"><img src="https://github.com/Ay-developerweb/rmath/actions/workflows/publish.yml/badge.svg" alt="CI"></a>
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/license-MIT-green" alt="License"></a>
   <a href="https://www.python.org/downloads/"><img src="https://img.shields.io/pypi/pyversions/rmath-py" alt="Python"></a>
